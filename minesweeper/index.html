@@ -28,8 +28,8 @@
                 </div>
                 <div class="face" @click="startGame">
                     <img class="icon" src="assets/smile.png" alt="笑脸" v-show="gameOn">
-                    <img class="icon" src="assets/win.png" alt="胜利" v-show="!gameOn && remain==0">
-                    <img class="icon" src="assets/dead.png" alt="失败" v-show="!gameOn && remain!=0">
+                    <img class="icon" src="assets/win.png" alt="胜利" v-show="!gameOn && safeRemain==0">
+                    <img class="icon" src="assets/dead.png" alt="失败" v-show="!gameOn && safeRemain!=0">
                 </div>
                 <div class="time">
                     <img class="number" v-for="num in timeStr" :src="'assets/digit'+num+'.png'">
