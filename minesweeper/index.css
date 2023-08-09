@@ -1,0 +1,82 @@
+.app {
+    text-align:center;
+}
+.settings {
+    margin-bottom: 20px;
+}
+.btn {
+    font-size: medium;
+    width: 100px;
+    height: 40px;
+}
+.levels {
+    font-size: medium;
+    width: 100px;
+    height: 40px;
+}
+.cell {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #808080;
+    display: inline-block;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px;
+    font-size: 16px;
+    cursor: pointer;
+}
+.cell-cover {
+    width: 30px;
+    height: 30px;
+    display: inline-block;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    /* border: none; */
+    border-left: 6px solid #fff;
+    border-top: 6px solid #fff;
+    border-right: 4px solid #808080;
+    border-bottom: 4px solid #808080;
+}
+.icon {
+    width: 100%;
+    height: 100%;
+}
+.main {
+    display: inline-block;
+    background-color: #c0c0c0;
+    padding: 25px;
+}
+.title {
+    display: flex;
+    justify-content: space-between;
+    border: 5px solid #808080;
+    height: 80px;
+}
+.mine-remain {
+    padding: 10px;
+    display: flex;
+    justify-content: flex-start;
+}
+.time {
+    padding: 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+.face {
+    margin: 10px;
+    width: 50px;
+    border-left: 6px solid #fff;
+    border-top: 6px solid #fff;
+    border-right: 4px solid #808080;
+    border-bottom: 4px solid #808080;
+}
+.number {
+    height: 100%;
+}
+.board {
+    display: inline-block;
+    border: 5px solid #808080;
+}
