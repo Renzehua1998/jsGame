@@ -35,7 +35,7 @@
                     <img class="number" v-for="num in timeStr" :src="'assets/digit'+num+'.png'">
                 </div>
             </div>
-            <div class="board">
+            <div :class="suitMobile()">
                 <div v-for="(row, rowIndex) in board" :key="rowIndex">
                     <div 
                         v-for="(cell, colIndex) in row" 

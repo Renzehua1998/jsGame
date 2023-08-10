@@ -80,3 +80,37 @@
     display: inline-block;
     border: 5px solid #808080;
 }
+@media (max-width: 600px) {
+    /* 适应手机 */
+    .btn {
+        font-size: medium;
+        width: 30%  !important;
+        height: 40px;
+    }
+    .levels {
+        font-size: medium;
+        width: 30%  !important;
+        height: 40px;
+    }
+    .main {
+        display: inline-block;
+        background-color: #c0c0c0;
+        padding: 25px;
+        overflow: auto  !important;
+    }
+    .board-simple {
+        display: inline-block;
+        border: 5px solid #808080;
+        width: 380px;
+    }
+    .board-medium {
+        display: inline-block;
+        border: 5px solid #808080;
+        width: 650px;
+    }
+    .board-hard {
+        display: inline-block;
+        border: 5px solid #808080;
+        width: 1200px;
+    }
+}

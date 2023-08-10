@@ -20,6 +20,20 @@ new Vue({
         this.startGame()
     },
     methods: {
+        suitMobile() {
+            // 兼容手机
+            const mediaQueryList = window.matchMedia('(max-width: 600px)');
+            if (mediaQueryList.matches) {
+                // @media属性匹配时的处理逻辑（手机端）
+                if (this.selectedLevel == 'level1') return 'board-simple';
+                else if (this.selectedLevel == 'level2') return 'board-medium';
+                else return 'board-hard';
+            } else {
+                // @media属性不匹配时的处理逻辑（电脑端）
+                return 'board';
+            }
+            
+        },
         // 设置游戏等级
         handleSelection() {
             switch (this.selectedLevel) {
