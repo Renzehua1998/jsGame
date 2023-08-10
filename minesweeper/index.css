@@ -80,7 +80,7 @@
     display: inline-block;
     border: 5px solid #808080;
 }
-@media (max-width: 600px) {
+@media (max-width: 1200px) {
     /* 适应手机 */
     .btn {
         font-size: medium;

@@ -21,8 +21,8 @@ new Vue({
     },
     methods: {
         suitMobile() {
-            // 兼容手机
-            const mediaQueryList = window.matchMedia('(max-width: 600px)');
+            // 兼容手机平板
+            const mediaQueryList = window.matchMedia('(max-width: 1200px)');
             if (mediaQueryList.matches) {
                 // @media属性匹配时的处理逻辑（手机端）
                 if (this.selectedLevel == 'level1') return 'board-simple';
