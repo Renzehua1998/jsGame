@@ -1,0 +1,5480 @@
+﻿.hand .c55-notch { position: absolute; left: 800px; top: 874px; width: 20px; height: 52px; background: #382a22; clip-path: polygon(6px 0, 20px 0, 20px 52px, 4px 52px, 0 24px); }
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: #888;
+}
+
+.stage {
+  width: 1254px;
+  height: 1234px;
+  position: relative;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.stage div {
+  box-sizing: border-box;
+  position: absolute;
+}
+
+/* ---------- background ---------- */
+.bg {
+  inset: 0;
+  background: #fafafa;
+}
+
+.bg .stripe {
+  background: linear-gradient(180deg, #2f2f2f 0%, #151515 45%, #1b1b1b 55%, #2b2b2b 100%);
+}
+
+.bg .bg-corner {
+  left: 0;
+  top: 0;
+  width: 62px;
+  height: 66px;
+  background: linear-gradient(160deg, #3c3c3a 0%, #575755 55%, #757674 100%);
+  clip-path: polygon(0 0, 44px 0, 0 53px);
+}
+
+.bg .s1 {
+  left: 0;
+  top: 0;
+  width: 560px;
+  height: 870px;
+  transform: none;
+  background: radial-gradient(ellipse 120px 90px at 76% 4%, rgba(150,150,150,.42) 0%, rgba(150,150,150,0) 100%), radial-gradient(ellipse 230px 230px at 7% 96%, rgba(96,92,86,.7) 0%, rgba(96,92,86,0) 72%), linear-gradient(130deg, #4c4c4a 32%, #1a1a18 41%, #111111 55%, #0d0d0b 100%);
+  clip-path: polygon(414px 0px, 560px 0px, 560px 222px, 0px 867px, 0px 502px);
+}
+
+.bg .s1-glow {
+  left: 0;
+  top: 0;
+  width: 560px;
+  height: 870px;
+  background: transparent;
+  clip-path: polygon(414px 0px, 560px 0px, 560px 222px, 0px 867px, 0px 502px);
+}
+
+.bg .s1-glow-in {
+  left: -5px;
+  top: 540px;
+  width: 320px;
+  height: 120px;
+  transform: rotate(-50deg);
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(140,136,130,.22) 0%, rgba(140,136,130,.12) 55%, rgba(140,136,130,0) 100%);
+}
+
+.bg .s2 {  left: 882px;
+  top: 752px;
+  width: 490px;
+  height: 499px;
+  clip-path: polygon(4px 29.3%, 31.2% 0%, 100% 70.7%, 68.8% 100%);
+}
+
+.bg .s3 {
+  left: 1000px;
+  top: 0;
+  width: 254px;
+  height: 310px;
+  background: linear-gradient(240deg, #000000 10%, #383838 52%, #404040 100%);
+  clip-path: polygon(5px 0, 254px 0, 254px 310px, 245px 310px);
+}
+
+.coat .white-sleeve-r {
+  left: 620px;
+  top: 1040px;
+  width: 230px;
+  height: 194px;
+  background: #f5f5f5;
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);  filter: blur(2px);
+
+}
+
+.back-hair .bh-r-ext {
+  left: 990px;
+  top: 450px;
+  width: 110px;
+  height: 180px;
+  background: #2f2830;
+  clip-path: path("M16,5 C29.33,-22.5 85.33,-1.67 98,5 C110.67,11.67 94.33,33.83 92,45 C89.67,56.17 87.33,61.17 84,72 C80.67,82.83 77.33,97 72,110 C66.67,123 61,140 52,150 C43,160 24,194.17 18,170 C12,145.83 2.67,32.5 16,5 Z");
+}
+
+.side-hair .side-l-ext {
+  left: 156px;
+  top: 645px;
+  width: 220px;
+  height: 340px;
+  background: linear-gradient(160deg, #544940 0%, #453c35 45%, #3c342f 100%);
+  clip-path: path("M185,5 C182,25 180,35 175,47 C171,55 165,60 160,65 C151,75 143,85 134,95 C124,105 113,115 102,125 C97,131 91,138 86,145 C80,151 75,156 70,162 C63,170 54,179 47,187 C41,193 35,200 29,206 C22,214 14,222 8,229 C5,236 2,243 0,249 L0,340 L70,340 C84,300 104,264 128,244 C148,225 170,200 187,179 C205,150 214,110 220,100 L220,65 C210,40 196,18 185,5 Z");
+  filter: blur(2px);
+}
+
+.side-hair .side-r-ext {
+  left: 780px;
+  top: 758px;
+  width: 190px;
+  height: 140px;
+  background: #2a2020;
+  clip-path: path("M12,0 L190,0 L190,140 L48,140 C33,100 14,44 0,34 L0,36 L12,0 Z");
+  filter: blur(2px);
+}
+
+.hand .stripe-edge {
+  left: 958px;
+  top: 1001px;
+  width: 5px;
+  height: 80px;
+  background: #232320;
+  border-radius: 50%;
+  transform: rotate(-52deg);
+  filter: blur(1px);
+}
+
+.bangs .dome-l {
+  left: 320px;
+  top: 45px;
+  width: 200px;
+  height: 310px;
+  background:
+    radial-gradient(ellipse 90px 80px at 150px 95px, rgba(0,0,0,.45) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,0) 100%),
+    radial-gradient(ellipse 58% 76% at 38% 76%, #0d0d0d 0%, #181818 38%, #292929 60%, #3c3c3c 82%, #4e4e4e 100%);
+  border-radius: 55% 45% 30% 70% / 60% 55% 40% 45%;
+  filter: blur(7px);
+}
+
+.bangs .temple-glow {
+  left: 480px;
+  top: 110px;
+  width: 110px;
+  height: 60px;
+  background: radial-gradient(ellipse 45% 42% at 50% 50%,
+    rgba(170,166,170,.28) 0%, rgba(170,166,170,.15) 55%, rgba(170,166,170,0) 100%);
+  filter: blur(3px);
+}
+
+.bangs .temple-hi {  left: 525px;
+  top: 105px;
+  width: 110px;
+  height: 90px;
+  background: repeating-linear-gradient(-16deg, rgba(160,156,164,.3) 0px, rgba(160,156,164,.3) 2px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 16px);
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.coat .chest {
+  left: 430px;
+  top: 1080px;
+  width: 260px;
+  height: 152px;
+  background: #f1f1ef;
+  border-radius: 0 0 40% 40%;  filter: blur(2px);
+
+}
+
+.bangs .dome-notch {
+  left: 395px;
+  top: 0;
+  width: 390px;
+  height: 130px;
+  z-index: 2;
+  background: #fcfcfc;
+  clip-path: polygon(3px 0px, 385px 0px, 350px 40px, 278px 50px, 239px 60px, 216px 70px, 196px 80px, 178px 90px, 163px 100px, 148px 110px, 134px 120px, 122px 128px, 108px 110px, 89px 90px, 70px 70px, 51px 50px, 32px 30px);
+}
+
+.bangs .strand-c {
+  left: 730px;
+  top: 460px;
+  width: 34px;
+  height: 110px;
+  background: #553b31;
+  clip-path: polygon(0 0, 100% 0, 55% 100%, 25% 100%);
+  filter: blur(3px);
+}
+
+.hand .cuff-shadow {
+  left: 0;
+  top: 924px;
+  width: 160px;
+  height: 154px;
+  background: linear-gradient(135deg, #5b605a 0%, #4b4640 43%, #3f3430 72%, #423733 100%);
+  clip-path: polygon(72% 0, 100% 0, 100% 60%, 66% 100%, 0 100%);
+}
+
+.hand .ll-band {
+  left: 0;
+  top: 850px;
+  width: 340px;
+  height: 340px;
+  background: linear-gradient(120deg, #4a4039 0%, #3f352f 55%, #38302b 100%);
+  clip-path: polygon(310px 10px, 160px 26px, 0px 205px, 0px 317px, 20px 317px, 40px 284px, 60px 272px, 80px 245px, 100px 234px, 124px 213px, 126px 204px, 134px 196px, 144px 186px);
+  z-index: 3;
+}
+
+.hand .ll-crease {
+  left: 85px;
+  top: 1080px;
+  width: 70px;
+  height: 90px;
+  background: #c2b8ae;
+  clip-path: polygon(15px 8px, 22px 8px, 10px 40px, 8px 55px, 18px 70px, 38px 82px, 58px 84px, 58px 77px, 40px 76px, 22px 64px, 16px 50px, 20px 22px);
+  z-index: 5;
+}
+
+.hand .ll-thumb {
+  left: 315px;
+  top: 1040px;
+  width: 75px;
+  height: 55px;
+  background: linear-gradient(160deg, #ceb2a4 0%, #c8a496 100%);
+  clip-path: path("M5,5 C11.17,2.83 36.67,3.33 45,5 C53.33,6.67 52.17,11.67 55,15 C57.83,18.33 60,21.67 62,25 C64,28.33 66.5,31.67 67,35 C67.5,38.33 67.83,43.83 65,45 C62.17,46.17 55.83,42.5 50,42 C44.17,41.5 35.33,42.67 30,42 C24.67,41.33 21.33,40 18,38 C14.67,36 11.67,33.33 10,30 C8.33,26.67 8.83,22.17 8,18 C7.17,13.83 -1.17,7.17 5,5 Z");
+  z-index: 5;
+}
+
+.bg .s5 {
+  left: 1092px;
+  top: 760px;
+  width: 162px;
+  height: 174px;
+  background: linear-gradient(180deg, #3b3836 0%, #302e2c 45%, #26251f 100%);
+  clip-path: polygon(20% 13px, 100% 145.7px, 100% 100%, 0 100%, 0 6%);
+}
+
+.bg .s5-dk {
+  left: 1075px; top: 862px; width: 110px; height: 72px;
+  background: radial-gradient(ellipse 55px 42px at 32% 88%,
+    rgba(0,0,0,.55) 0%, rgba(0,0,0,.28) 50%, rgba(0,0,0,0) 100%);
+  filter: blur(2px);
+}
+
+.bg .s6 {
+  left: 156px;
+  top: 140px;
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(135deg, #454543 0%, #2c2c2a 45%, #141414 100%);
+  clip-path: polygon(100% 4.8%, 100% 52%, 30% 98%, -10% 98%, 64% 9.5%);
+}
+
+.coat .coat-gray {
+  left: 895px;
+  top: 1078px;
+  width: 197px;
+  height: 154px;
+  background: linear-gradient(180deg, #504c4d 0%, #4a4446 45%, #433d3f 100%);
+  clip-path: polygon(41px 0, 197px 0, 197px 154px, 0 154px, 0 23px);  filter: blur(2px);
+
+}
+
+.face2 {
+  inset: 0;
+  pointer-events: none;
+}
+
+.face2 .chin {
+  left: 490px;
+  top: 770px;
+  width: 300px;
+  height: 110px;
+  background: radial-gradient(ellipse at 50% 30%, #f7ebdd 70%, #d9b8a4 100%);
+  border-radius: 50% 50% 45% 45% / 50% 50% 45% 72%;
+
+  clip-path: polygon(0 0, 300px 0, 300px 110px, 82px 110px, 0px 38px);
+  filter: blur(3px);
+}
+
+.back-hair .pony5 {
+  display: none;
+  left: 1140px;
+  top: 345px;
+  width: 114px;
+  height: 70px;
+  background: #2e2e36;
+  clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 85%);
+}
+
+.side-hair .side-l-hi2 {
+  left: 402px;
+  top: 232px;
+  width: 24px;
+  height: 195px;
+  background: #4a443f;
+  border-radius: 50%;
+  opacity: 0.75;
+  transform: rotate(19deg);
+  filter: blur(5px);
+}
+
+.side-hair .side-l-hi3 {
+  left: 459px;
+  top: 185px;
+  width: 11px;
+  height: 78px;
+  background: #d2ced3;
+  border-radius: 50%;
+  opacity: 0.85;
+  transform: rotate(29deg);
+  filter: blur(2.5px);
+}
+
+.collar .neck-dark {
+  left: 620px;
+  top: 830px;
+  width: 150px;
+  height: 190px;
+  background: linear-gradient(180deg, #c9a894 0%, #cba99b 88%, #e0c9b8 100%);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  opacity: 0.9;  filter: blur(2px);
+
+}
+
+.bg .s7 {
+  left: 0;
+  top: 300px;
+  width: 160px;
+  height: 200px;
+  background: linear-gradient(115deg, #4e4e4c 0%, #2a2a28 55%, #181818 100%);
+  clip-path: polygon(85% 18%, 100% 18%, 100% 100%, 6% 100%);
+}
+
+.bg .s8 {
+  left: 0;
+  top: 462px;
+  width: 156px;
+  height: 160px;
+  background: linear-gradient(115deg, #4c4c4a 0%, #2e2e2c 38%, #1a1a18 66%, #343432 100%);
+  clip-path: polygon(0 36px, 100% 30%, 100% 100%, 0 100%);
+}
+
+.bg .s9 {
+  left: 0;
+  top: 766px;
+  width: 80px;
+  height: 106px;
+  background: linear-gradient(180deg, #383836 0%, #4a4a47 100%);
+  clip-path: polygon(0 0, 72% 0, 92% 15%, 82% 26%, 80% 34%, 57% 43%, 47% 53%, 37% 63%, 27% 72%, 17% 81%, 5% 92%, 0 96%);
+}
+
+.bg .s10 {
+  left: 156px;
+  top: 328px;
+  width: 72px;
+  height: 64px;
+  background: linear-gradient(115deg, #4a4a48 0%, #323230 50%, #1c1c1a 100%);
+  clip-path: polygon(4px 4px, 64px 4px, 52px 22px, 38px 40px, 22px 58px, 6px 64px, 4px 64px);
+}
+
+.bg .s6,
+.bg .s7,
+.bg .s8,
+.bg .s9,
+.bg .s10 {
+  display: none;
+}
+
+.collar .neck-sh2 {
+  left: 640px;
+  top: 975px;
+  width: 120px;
+  height: 40px;
+  background: #d0b0a0;
+  clip-path: polygon(0 0, 46% 75%, 100% 25%, 100% 50%, 46% 100%, 0 25%);
+  filter: blur(3px);
+}
+
+.coat .collar-l2 {
+  left: 340px;
+  top: 1078px;
+  width: 130px;
+  height: 148px;
+  background: #f4f1ec;
+  clip-path: path("M52,0 C71.5,-24.7 126.8,-24.7 130,0 C133.2,24.7 91,123.3 71.5,148 C52,172.7 16.2,172.7 13,148 C9.8,123.3 32.5,24.7 52,0 Z");
+  filter: blur(3px);
+}
+
+.coat .coat-gray2 {
+  left: 230px;
+  top: 1150px;
+  width: 90px;
+  height: 60px;
+  background: #4e4242;
+  filter: blur(3px);
+}
+
+.hand .bl-wedge {
+  left: 0;
+  top: 1080px;
+  width: 130px;
+  height: 105px;
+  background: #3b3b3b;
+  clip-path: path("M2,0 C20.67,-17.5 96.83,-1.67 114,0 C131.17,1.67 108.5,6.67 105,10 C101.5,13.33 96,16.67 93,20 C90,23.33 89,26.67 87,30 C85,33.33 84.5,36.67 81,40 C77.5,43.33 72,46.67 66,50 C60,53.33 50.5,56.67 45,60 C39.5,63.33 36.5,66.67 33,70 C29.5,73.33 26.5,76.67 24,80 C21.5,83.33 20.5,85.83 18,90 C15.5,94.17 11.67,102.5 9,105 C6.33,107.5 3.17,122.5 2,105 C0.83,87.5 -16.67,17.5 2,0 Z");
+}
+
+/* ---------- back hair ---------- */
+.back-hair .bh-main {
+  left: 330px;
+  top: 30px;
+  width: 680px;
+  height: 850px;
+  background: #332a26;
+  border-radius: 50% 50% 45% 45% / 58% 58% 42% 42%;
+}
+
+.back-hair .bh-shine1 {
+  left: 500px;
+  top: 190px;
+  width: 130px;
+  height: 12px;
+  background: #4a4452;
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+
+.back-hair .bh-shine2 {
+  left: 520px;
+  top: 226px;
+  width: 96px;
+  height: 10px;
+  background: #6e6878;
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+
+.back-hair .bh-shine3 {
+  left: 545px;
+  top: 262px;
+  width: 78px;
+  height: 9px;
+  background: #4a4452;
+  border-radius: 50%;
+  transform: rotate(-16deg);
+}
+
+/* ---------- neck ---------- */
+.neck {
+  left: 595px;
+  top: 840px;
+  width: 120px;
+  height: 170px;
+  background: linear-gradient(180deg, #f3ddcc 0%, #f4e1d2 45%, #c8a698 100%);
+  border-radius: 0 0 50% 50%;
+  filter: blur(3px);
+}
+
+.neck .neck-shadow {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 70px;
+  background: linear-gradient(180deg, #d8b0a0 0%, rgba(216, 176, 160, 0) 100%);
+  border-radius: 0 0 60% 40%;
+  opacity: 0.7;
+}
+
+/* ---------- collar ---------- */
+.collar .collar-l {
+  left: 330px;
+  top: 780px;
+  width: 240px;
+  height: 430px;
+  background: linear-gradient(160deg, #f9f9f7 0%, #f8f8f6 35%, #f2f4f3 100%);
+  border-color: transparent;
+  transform: rotate(20deg);
+  border-radius: 10px 50px 20px 12px;  filter: blur(2px);
+
+}
+
+.collar .collar-line-r {
+  left: 660px;
+  top: 900px;
+  width: 12px;
+  height: 320px;
+  background: #c8beb2;
+  transform: rotate(-26deg);
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+/* ---------- coat ---------- */
+.coat .coat-l {
+  left: 0;
+  top: 1090px;
+  width: 620px;
+  height: 200px;
+  background: #55483f;
+  clip-path: polygon(277px 0px, 330px 2px, 334px 70px, 436px 96px, 440px 144px, 262px 144px, 204px 56px);
+  filter: blur(3px);
+}
+
+.coat .coat-r {
+  left: 660px;
+  top: 1090px;
+  width: 594px;
+  height: 200px;
+  background: #242428;
+  clip-path: polygon(40.6% 0, 100% 0, 100% 100%, 0 100%, 29.5% 30%);
+  filter: blur(3px);
+}
+
+.coat .ribbon-rope1 {
+  left: 386px;
+  top: 1182px;
+  width: 130px;
+  height: 52px;
+  background: #b23028;
+  z-index: 3;
+  clip-path: polygon(50px 2px, 58px 2px, 58px 50px, 50px 50px, 68px 44px, 86px 34px, 102px 26px, 108px 24px, 110px 28px, 96px 36px, 78px 46px, 64px 52px, 2px 52px, 2px 46px, 50px 46px);
+  filter: blur(3px);
+}
+
+.coat .ribbon-rope2 {
+  left: 433px;
+  top: 1192px;
+  width: 15px;
+  height: 38px;
+  background: #8e241d;
+  z-index: 4;
+  border-radius: 6px;
+  filter: blur(3px);
+}
+
+/* ---------- ear ---------- */
+.ear {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  z-index: 6;
+}
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M103.9,54 C108.6,50.8 121.1,50.8 124.1,54 C127.1,57.1 122.6,68.5 121.9,73 C121.3,77.5 121,78.3 120,80.9 C119,83.6 117.1,86.2 116,88.9 C114.8,91.6 115.3,94.4 113,97.1 C110.6,99.8 104.3,102.4 102,105.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 93,121 C91.5,123.7 92.3,126.4 90,129 C87.7,131.7 85.5,134.3 79,137 C72.5,139.7 57.5,143.6 51,145 C44.5,146.3 38.6,147.6 40.1,145 C41.6,142.3 55.5,133 60,129 C64.5,125 65.5,123.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,110.4 68.4,107.7 70,105.1 C71.7,102.4 77.4,99.8 79,97.1 C80.7,94.4 78.4,91.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C90.7,78.3 93.4,77.5 96,73 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 58.7% -8.9%, 56% 5.3%, 44.7% 5.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    44.7% 5.3%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 21%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 52.6%,
+    42% 63.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    24% 78.9%,
+    19.3% 84.2%,
+    40.7% 89.5%,
+    31% 93%,
+    21.3% 96.3%,
+    10% 99.5%,
+    2% 99.5%,
+    1.3% 96.8%,
+    4% 94.7%,
+    6% 89.5%,
+    8% 84.2%,
+    12% 78.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 63.2%,
+    22.7% 57.9%,
+    24.7% 52.6%,
+    28% 47.4%,
+    31.3% 42.1%,
+    32.7% 36.8%,
+    34% 31.6%,
+    38% 26.3%,
+    38.7% 21%,
+    40% 15.8%,
+    43.3% 10.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M103.1,50 C103.4,48.2 115.2,41.7 120,40.1 C124.8,38.4 129.5,36.3 132,40.1 C134.5,43.9 136.3,59.2 135,63.1 C133.7,66.9 126.9,65.1 124.1,63.1 C121.2,61.1 121.6,53.1 118.1,50.9 C114.6,48.7 102.7,51.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    80.7% 21.1%,
+    87.3% 21.1%,
+    90% 31.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    61.3% 73.7%,
+    54% 73.7%,
+    60% 68.4%,
+    70.7% 57.9%,
+    78% 47.4%,
+    80.7% 42.1%,
+    82.7% 36.8%,
+    82.7% 31.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,144 C76.3,143.3 83.8,142.7 86,145 C88.2,147.3 86,154.3 83,158 C80,161.7 76.7,165.2 68,167 C59.3,168.8 36,171.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.ear .ear-m {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #e8cdb8;
+  clip-path: polygon(62% 31.6%, 70% 31.6%, 70% 37.9%, 55% 37.9%);
+
+  display: none;
+}
+
+/* ---------- face ---------- */
+.face {
+  left: 420px;
+  top: 260px;
+  width: 420px;
+  height: 610px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+/* ---------- blush ---------- */
+.blush {
+  background: #ffffff;
+  opacity: 0.18;
+}
+
+.blush-l {
+  left: 470px;
+  top: 620px;
+  width: 72px;
+  height: 32px;
+}
+
+.blush-r {
+  left: 730px;
+  top: 660px;
+  width: 74px;
+  height: 32px;
+}
+
+/* ---------- brows ---------- */
+.brow {
+  height: 5px;
+  background: #4a3535;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.brow-l {
+  display: none;
+  left: 460px;
+  top: 442px;
+  width: 100px;
+  transform: rotate(-7deg);
+}
+
+.brow-r {
+  left: 705px;
+  top: 472px;
+  width: 92px;
+  transform: rotate(-5deg);
+}
+
+/* ---------- eyes ---------- */
+.eye-l {
+  left: 448px;
+  top: 452px;
+  width: 118px;
+  height: 105px;
+}
+
+.eye-r {
+  left: 700px;
+  top: 535px;
+  width: 142px;
+  height: 118px;
+}
+
+.eye .eye-white {
+  inset: 6px 4px 10px 4px;
+  background: #fbf7f4;
+  border-radius: 50% 50% 50% 50% / 62% 62% 42% 42%;
+}
+
+.eye .iris {
+  left: 50%;
+  top: 48%;
+  width: 70px;
+  height: 88px;
+  margin: -39px 0 0 -25px;
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    #8e1824 0%,
+    #b02838 50%,
+    #d04c58 100%
+  );
+  border-radius: 50%;
+}
+
+.eye-r .eye-white {
+  inset: 14px 96px 8px 2px;
+  background: #f2ede4;
+  border-radius: 50%;
+  clip-path: polygon(35% 0, 72% 8%, 92% 38%, 82% 72%, 48% 100%, 14% 96%, 0 58%, 8% 24%);
+}
+
+.eye-r .iris {
+  left: 50%;
+  top: 48%;
+  width: 96px;
+  height: 96px;
+  margin: -44px 0 0 -44px;
+  background:
+    radial-gradient(ellipse 58% 46% at 34% 72%, #cd3d3c 0%, #bd3739 40%, rgba(160, 52, 52, 0.55) 68%, rgba(110, 45, 44, 0) 88%),
+    linear-gradient(180deg, #4a2b28 0%, #543330 38%, #5c3432 52%, #6b3533 66%, #7c3535 78%, #c03131 88%, #ec9c94 93%, #f7ebdd 96%, #f7ebdd 100%);
+  border-radius: 44% 46% 50% 50% / 34% 34% 50% 50%;
+}
+
+.eye .pupil {
+  left: 50%;
+  top: 44%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  background: #1a0808;
+  border-radius: 50%;
+}
+
+.eye-r .pupil {
+  width: 66px;
+  height: 60px;
+  left: 48%;
+  top: 24%;
+  margin: -30px 0 0 -33px;
+  background: radial-gradient(ellipse at 50% 30%, #3f1c1c 0%, rgba(63, 28, 28, 0) 75%);
+  border-radius: 50%;
+}
+
+.eye-r .hi1 {
+  left: -16px;
+  top: 0px;
+  width: 34px;
+  height: 22px;
+  background: radial-gradient(ellipse 75% 70% at 55% 50%, #b9aaa7 0%, #cdc0be 55%, rgba(205,192,190,0) 100%);
+  border-radius: 50%;
+}
+
+.eye-r .hi2 {
+  display: none;
+}
+
+.eye .hi1 {
+  left: 22%;
+  top: 60%;
+  width: 11px;
+  height: 10px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.eye .hi2 {
+  left: 70%;
+  top: 18%;
+  width: 7px;
+  height: 7px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.eye .lid {
+  inset: 0;
+  border-top: 13px solid #4d3a35;
+  border-radius: 50% 50% 50% 50% / 62% 62% 42% 42%;
+}
+
+/* ---------- nose & mouth ---------- */
+.nose {
+  left: 535px;
+  top: 659px;
+  width: 4px;
+  height: 15px;
+  background: #3e322b;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.mouth {
+  left: 542px;
+  top: 732px;
+  width: 86px;
+  height: 46px;
+  background: #4a362e;
+  clip-path: path("M4,6 C10,9 14,12 19,17 L19,20 C14,15 10,12 4,9 Z M37,21 C50,28 62,35 81,42 L81,45 C62,38 50,31 37,24 Z");
+}
+
+/* ---------- ribbon ---------- */
+.ribbon .rb-body {
+  left: 968px;
+  top: 476px;
+  width: 148px;
+  height: 448px;
+  background:
+    linear-gradient(100deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 40%, rgba(255,170,150,.10) 74%, rgba(255,200,180,.26) 100%),
+    linear-gradient(180deg, #c0392b 0%, #b0352a 40%, #ab3328 72%, #a63328 100%);
+  clip-path: polygon(40% 0, 100% 0, 100% 80%, 70% 100%, 2% 100%);
+  transform: rotate(2deg);
+}
+
+.ribbon .rb-brcorner {
+  left: 1073px;
+  top: 852px;
+  width: 34px;
+  height: 62px;
+  background: linear-gradient(135deg, #b0352a 0%, #ab3328 60%, #a63328 100%);
+  clip-path: polygon(2px 53px, 7px 41px, 17px 22px, 27px 4px, 32px 8px, 32px 42px,
+    27px 43px, 17px 49px, 7px 55px, 2px 58px);
+  z-index: 1;
+}
+
+.ribbon .rb-red {
+  left: 1045px;
+  top: 478px;
+  width: 80px;
+  height: 190px;
+  background: linear-gradient(180deg, #a84a44 0%, #6f3835 35%, #9e524b 100%);
+  clip-path: path("M46,2 C51.17,-1 66.17,-3 71,2 C75.83,7 74.33,18.67 75,32 C75.67,45.33 75.83,67 75,82 C74.17,97 71.67,108.67 70,122 C68.33,135.33 66.67,150.67 65,162 C63.33,173.33 70.83,185.33 60,190 C49.17,194.67 10,201.33 0,190 C-10,178.67 -1,135.33 0,122 C1,108.67 4,114.33 6,110 C8,105.67 10,100.33 12,96 C14,91.67 16,88 18,84 C20,80 22,76 24,72 C26,68 28,65.33 30,60 C32,54.67 34.33,46.67 36,40 C37.67,33.33 38.33,26.33 40,20 C41.67,13.67 40.83,5 46,2 Z");
+}
+
+.ribbon .rb-dark {
+  left: 986px;
+  top: 475px;
+  width: 120px;
+  height: 160px;
+  background: linear-gradient(90deg, #241e22 0%, #272229 20%, #2e292f 45%, #383339 70%, #423c40 85%, #4a4448 100%);
+  clip-path: path("M0,0 C18.67,-26.67 94.33,-3.33 112,0 C129.67,3.33 108.17,12.67 106,20 C103.83,27.33 100.33,39 99,44 C97.67,49 98.33,47.67 98,50 C97.67,52.33 99,55.33 97,58 C95,60.67 88.83,63 86,66 C83.17,69 81.67,71 80,76 C78.33,81 77.5,89.5 76,96 C74.5,102.5 72.83,108.5 71,115 C69.17,121.5 67.17,128.33 65,135 C62.83,141.67 68.83,150.83 58,155 C47.17,159.17 9.67,185.83 0,160 C-9.67,134.17 -18.67,26.67 0,0 Z");
+}
+
+.ribbon .rb-stripe3 {
+  left: 872px;
+  top: 615px;
+  width: 223px;
+  height: 190px;
+  background: #5f1414;
+  clip-path: path("M127,5 C142.17,1.67 193,-25 191,5 C189,35 146.33,155 115,185 C83.67,215 21.67,190 3,185 C-15.67,180 -0.67,161.67 3,155 C6.67,148.33 17.17,148.33 25,145 C32.83,141.67 44.17,138.33 50,135 C55.83,131.67 57,128.33 60,125 C63,121.67 65.33,118.33 68,115 C70.67,111.67 73,108.33 76,105 C79,101.67 83.33,97.83 86,95 C88.67,92.17 89.67,99.67 92,88 C94.33,76.33 94.17,38.83 100,25 C105.83,11.17 111.83,8.33 127,5 Z");
+  filter: blur(3px);
+}
+
+.ribbon .rb-stripe1 {
+  left: 890px;
+  top: 820px;
+  width: 155px;
+  height: 12px;
+  background: #5a1a14;
+  transform: rotate(6deg);
+  filter: blur(3px);
+}
+
+.ribbon .rb-stripe2 {
+  left: 900px;
+  top: 870px;
+  width: 148px;
+  height: 12px;
+  background: #5a1a14;
+  transform: rotate(6deg);
+  filter: blur(3px);
+}
+
+/* ---------- bangs ---------- */
+.bangs .top-hair {
+  left: 390px;
+  top: 45px;
+  width: 720px;
+  height: 490px;
+  background:
+    radial-gradient(ellipse 22% 15% at 96% 40%, rgba(180,174,186,.42) 0%, rgba(150,145,155,0) 75%),
+    radial-gradient(ellipse 18% 14% at 88% 20%, rgba(216,212,224,.52) 0%, rgba(172,168,182,.24) 45%, rgba(150,140,135,0) 100%),
+    radial-gradient(ellipse 42% 24% at 50% 0%, rgba(198,196,208,.42) 0%, rgba(158,156,168,.20) 50%, rgba(150,140,135,0) 100%),
+    linear-gradient(160deg, #3e373c 0%, #2c2527 60%, #241d1c 100%);
+  border-radius: 48% 52% 42% 42% / 60% 62% 36% 34%;
+}
+
+.bangs .forehead {
+  left: 360px;
+  top: 190px;
+  width: 430px;
+  height: 345px;
+  background: #f7ebdd;
+  clip-path: polygon(352px 4px, 420px 338px, 45px 333px);
+}
+
+.bangs .bang {
+  background: #2b2530;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+
+.bangs .b1 {
+  left: 470px;
+  top: 250px;
+  width: 26px;
+  height: 290px;
+  transform: rotate(8deg);
+}
+
+.bangs .b2 {
+  left: 545px;
+  top: 260px;
+  width: 24px;
+  height: 320px;
+  transform: rotate(3deg);
+}
+
+.bangs .b3 {
+  left: 615px;
+  top: 240px;
+  width: 28px;
+  height: 300px;
+  transform: rotate(-2deg);
+}
+
+.bangs .b4 {
+  left: 690px;
+  top: 255px;
+  width: 26px;
+  height: 320px;
+  transform: rotate(-4deg);
+}
+
+.bangs .b5 {
+  left: 760px;
+  top: 250px;
+  width: 26px;
+  height: 300px;
+  transform: rotate(-8deg);
+  filter: blur(3px);
+}
+
+.bangs .b6 {
+  left: 825px;
+  top: 240px;
+  width: 28px;
+  height: 270px;
+  transform: rotate(-12deg);
+  filter: blur(3px);
+}
+
+.bangs .b7 {
+  left: 405px;
+  top: 280px;
+  width: 30px;
+  height: 320px;
+  transform: rotate(4deg);
+  filter: blur(3px);
+}
+
+.bangs .shine {
+  background: #7a6a7a;
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.bangs .shine4 {
+  left: 800px;
+  top: 300px;
+  width: 40px;
+  height: 130px;
+  background: linear-gradient(180deg, #524647 0%, #4c4142 45%, #3e3234 78%, #302628 100%);
+  transform: rotate(10deg);
+  filter: blur(3px);
+}
+
+/* ---------- side hair ---------- */
+.side-hair .side-l {
+  left: 338px;
+  top: 300px;
+  width: 88px;
+  height: 660px;
+  background: linear-gradient(180deg, #2e2a27 0%, #504640 50%, #564d44 100%);
+  border-radius: 50% 50% 50% 50% / 8% 8% 85% 92%;
+  transform: rotate(3deg);
+  clip-path: polygon(0 0, 88px 0, 88px 468px, 67px 471px, 67px 491px, 56px 497px, 55px 511px, 54px 520px, 52px 529px, 52px 538px, 49px 547px, 48px 556px, 48px 565px, 49px 574px, 56px 590px, 88px 605px, 88px 660px, 0 660px);
+  filter: blur(2px);
+}
+
+.side-hair .side-r {
+  left: 806px;
+  top: 340px;
+  width: 84px;
+  height: 580px;
+  background: linear-gradient(165deg, #241d1f 0%, #2a2220 42%, #463528 100%);
+  border-radius: 50% 50% 50% 50% / 8% 8% 74% 80%;
+  transform: rotate(-4deg);
+  filter: blur(2px);
+}
+
+.side-hair .side-l-shine {
+  left: 386px;
+  top: 320px;
+  width: 8px;
+  height: 560px;
+  background: #382e2c;
+  border-radius: 50%;
+  transform: rotate(0deg);
+  filter: blur(2px);
+}
+
+/* ---------- hanging strand ---------- */
+.strand {
+  left: 360px;
+  top: 700px;
+  width: 35px;
+  height: 280px;
+      background: #4f4541;
+  border-radius: 40% 60% 60% 40% / 10% 10% 90% 90%;
+  clip-path: path("M0,0 C5.83,-35 30,-14.17 35,0 C40,14.17 33,61.67 30,85 C27,108.33 20,125 17,140 C14,155 12.33,165.83 12,175 C11.67,184.17 16,189.17 15,195 C14,200.83 8.5,207.5 6,210 C3.5,212.5 1,245 0,210 C-1,175 -5.83,35 0,0 Z");
+  transform: rotate(4deg);
+  filter: blur(2px);
+}
+
+/* ---------- hand ---------- */
+.hand .bg-right-gray {
+  display: none;
+  left: 1075px;
+  top: 295px;
+  width: 185px;
+  height: 185px;
+  background: #5f5a60;
+  clip-path: polygon(5px 5px, 30px 5px, 30px 65px, 55px 61px, 105px 48px, 155px 38px, 179px 33px, 179px 109px, 16px 177px, 5px 177px);
+  filter: blur(6px);
+}
+
+.hand .bg-right-wedge {
+  left: 1014px;
+  top: 1070px;
+  width: 240px;
+  height: 190px;
+  background: #fafafa;
+  clip-path: path("M8,6 C13.83,0.33 33.17,-1 47,6 C60.83,13 75.83,33.5 91,48 C106.17,62.5 122,77.67 138,93 C154,108.33 171.5,125.17 187,140 C202.5,154.83 237.17,175 231,182 C224.83,189 185.17,199.83 150,182 C114.83,164.17 43,98.67 20,75 C-3,51.33 14,51.5 12,40 C10,28.5 2.17,11.67 8,6 Z");
+}
+
+.hand .left-hair-gap {
+  left: 296px;
+  top: 468px;
+  width: 80px;
+  height: 166px;
+  background: #fcfcfc;
+  clip-path: polygon(43px 4px, 75px 4px, 71px 30px, 67px 52px, 64px 74px, 61px 96px, 58px 118px, 55px 140px, 52px 162px, 4px 162px, 4px 60px, 16px 46px, 28px 34px, 38px 22px);
+  filter: blur(3px);
+}
+
+.hand .hand-sh {
+  left: 600px;
+  top: 802px;
+  width: 180px;
+  height: 130px;
+  background: #cca795;
+  clip-path: path("M155,12 C161.46,14.76 163.21,25 161.6,35 C160,44.89 150.77,59.39 145.32,71.59 C139.87,83.79 136.38,99.37 128.91,108.17 C121.45,117 111.92,120.58 100.51,124.39 C89.09,128.21 73.77,130.84 60.41,131.07 C47,131.29 29.62,131.72 20.31,125.74 C11,119.77 6.9,105.38 4.54,95.21 C2.18,85.05 0.89,73.81 6.14,64.77 C11.38,55.73 23.89,46.51 36,41 C48.18,35.46 64.54,35.39 79,31.62 C93.48,27.85 110.19,21.65 122.86,18.38 C135.52,15.11 148.54,9.24 155,12 Z");
+  filter: blur(2px);
+}
+
+.hand .hand-sh2 {
+  left: 760px;
+  top: 842px;
+  width: 60px;
+  height: 90px;
+  background: #cca795;
+  clip-path: path("M46,4 C47.67,3.33 53,7 54,10 C55,13 52.67,18 52,22 C51.33,26 50.5,29.67 50,34 C49.5,38.33 49.33,43 49,48 C48.67,53 48.17,58 48,64 C47.83,70 55,80.67 48,84 C41,87.33 11.33,86.67 6,84 C0.67,81.33 13,73 16,68 C19,63 21.33,58.67 24,54 C26.67,49.33 29.33,44.67 32,40 C34.67,35.33 38,30.33 40,26 C42,21.67 43,17.67 44,14 C45,10.33 44.33,4.67 46,4 Z");
+  filter: blur(2px);
+}
+
+.hand .hand-dark {
+  left: 720px;
+  top: 806px;
+  width: 100px;
+  height: 126px;
+  background: #3f2f2b;
+  clip-path: path("M50,10 C58.6,4.22 69.38,4 75.15,10 C80.92,16 85.55,32.16 84.62,45.88 C83.69,59.6 76.57,79.84 69.54,92.31 C62.52,104.79 52,116.79 42.47,120.74 C32.91,124.69 17.76,121.91 12.19,116 C6.63,110.09 7.17,97.19 9.06,85.3 C11,73.41 16.71,57.2 23.53,44.65 C30.35,32.1 41.4,15.78 50,10 Z");
+  filter: blur(2px);
+}
+
+.hand .bg-gap {
+  left: 278px;
+  top: 814px;
+  width: 90px;
+  height: 136px;
+  background: #f6f4ee;
+  clip-path: polygon(68px 14px, 76px 14px, 82px 56px, 84px 92px, 74px 96px, 70px 116px, 60px 132px, 4px 132px, 4px 86px, 12px 70px, 22px 58px, 34px 46px, 44px 36px, 56px 26px);
+  filter: blur(3px);
+}
+
+.hand .face-strand {
+  left: 490px;
+  top: 794px;
+  width: 90px;
+  height: 80px;
+  background: #5e4f45;
+  clip-path: path("M8,4 C0,-6.3 6.7,1.3 18,12 C29.3,22.7 68,57.7 76,68 C84,78.3 77.3,84.7 66,74 C54.7,63.3 16,14.3 8,4 Z");
+  filter: blur(3px);
+}
+
+.hand .diag-band {
+  left: 410px;
+  top: 825px;
+  width: 90px;
+  height: 65px;
+  background: #565049;
+  clip-path: path("M57,4 C60,5 66.5,11.17 70,15 C73.5,18.83 77.67,23.33 78,27 C78.33,30.67 75,33 72,37 C69,41 69.67,47.33 60,51 C50.33,54.67 20.83,59.67 14,59 C7.17,58.33 17,50.67 19,47 C21,43.33 23.5,40.33 26,37 C28.5,33.67 31,30.33 34,27 C37,23.67 41,20 44,17 C47,14 49.83,11.17 52,9 C54.17,6.83 54,3 57,4 Z");
+}
+
+.hand .palm {
+  left: 245px;
+  top: 890px;
+  width: 135px;
+  height: 205px;
+  background: linear-gradient(135deg, #f9efe3 0%, #f7ebdd 55%, #f1e4d4 100%);
+  border-radius: 45% 45% 48% 48% / 48% 48% 52% 52%;
+  transform: rotate(38deg);
+  filter: blur(2px);
+}
+
+.hand .finger {
+  background: #dcc0b0;
+  border-radius: 50px;
+  filter: blur(2px);
+}
+
+.hand .f1 {
+  left: 314px;
+  top: 898px;
+  width: 40px;
+  height: 32px;
+  border-radius: 50%;
+  transform: rotate(-6deg);
+  background: linear-gradient(180deg, #f4ece1 0%, #f3ebe0 22%, #c6aa9e 69%, #bfa094 100%);
+  filter: blur(2px);
+}
+
+.hand .f2 {
+  left: 92px;
+  top: 1112px;
+  width: 28px;
+  height: 78px;
+  transform: rotate(38deg);
+  filter: blur(2px);
+}
+
+.hand .f3 {
+  display: none;
+  filter: blur(2px);
+}
+
+.hand .thumb {
+  display: none;
+  filter: blur(2px);
+}
+
+.hand .idx {
+  left: 289px;
+  top: 880px;
+  width: 20px;
+  height: 85px;
+  background: linear-gradient(90deg, #f3e9dc 0%, #f8ecde 55%, #ecdecc 100%);
+  border-radius: 16px;
+  transform: rotate(36deg);
+  filter: blur(2px);
+}
+
+.hand .fa, .hand .fb, .hand .fc {
+  background: linear-gradient(180deg, #f8ecde 0%, #f3e7d8 55%, #e9dac9 100%);
+  border-radius: 42% 46% 50% 40%;
+  filter: blur(2px);
+}
+
+.hand .fa {
+  left: 346px;
+  top: 966px;
+  width: 46px;
+  height: 57px;
+  transform: rotate(-23deg);
+  filter: blur(2px);
+}
+
+.hand .fb {
+  left: 324px;
+  top: 992px;
+  width: 66px;
+  height: 54px;
+  transform: rotate(-4deg);
+  filter: blur(2px);
+}
+
+.hand .fc {
+  left: 322px;
+  top: 1017px;
+  width: 62px;
+  height: 62px;
+  transform: rotate(-8deg);
+}
+
+.hand .crease {
+  background: #3c2c26;
+  border-radius: 50%;
+  opacity: 0.8;
+  filter: blur(2px);
+}
+
+.hand .cr1 {
+  left: 284px;
+  top: 965px;
+  width: 74px;
+  height: 4px;
+  transform: rotate(12deg);
+  filter: blur(2px);
+}
+
+.hand .cr2 {
+  left: 306px;
+  top: 1012px;
+  width: 70px;
+  height: 4px;
+  transform: rotate(5deg);
+  filter: blur(0.5px);
+}
+
+.hand .cr3 {
+  left: 307px;
+  top: 1050px;
+  width: 66px;
+  height: 14px;
+  transform: rotate(-1deg);
+  filter: blur(2px);
+}
+
+.hand .fing-edge {
+  left: 383px;
+  top: 940px;
+  width: 20px;
+  height: 128px;
+  background: #3a2a24;
+  clip-path: polygon(9px 4px, 15px 20px, 12px 28px, 9px 36px, 6px 52px, 6px 68px, 3px 76px, 0px 84px, 3px 92px, 3px 116px, 6px 124px, 9px 132px, 3px 140px, 6px 148px, 8px 148px, 5px 140px, 11px 132px, 8px 124px, 5px 116px, 5px 92px, 2px 84px, 5px 76px, 8px 68px, 8px 52px, 11px 36px, 14px 28px, 17px 20px, 11px 4px);
+}
+
+.hand .thumb-edge {
+  left: 348px;
+  top: 1058px;
+  width: 60px;
+  height: 42px;
+  background: #3a2a24;
+  clip-path: polygon(8px 4px, 17px 6px, 23px 12px, 28px 18px, 33px 25px, 40px 31px, 48px 36px, 57px 37px, 55px 39px, 45px 39px, 35px 34px, 28px 28px, 22px 21px, 17px 14px, 10px 8px, 6px 6px);
+}
+
+.hand .crl1 {
+  left: 298px;
+  top: 953px;
+  width: 82px;
+  height: 36px;
+  background: #3a2a24;
+  clip-path: polygon(2px 2px, 76px 30px, 76px 33px, 2px 5px);
+}
+
+.hand .crl2 {
+  left: 308px;
+  top: 1006px;
+  width: 78px;
+  height: 26px;
+  background: #3a2a24;
+  clip-path: polygon(2px 2px, 72px 20px, 72px 23px, 2px 5px);
+}
+
+.hand .cr1s {
+  left: 330px;
+  top: 962px;
+  width: 34px;
+  height: 20px;
+  background: linear-gradient(120deg, #d2b9a8 0%, #d5bdac 60%, #d9c3b2 100%);
+  clip-path: polygon(0px 0px, 30px 12px, 34px 20px, 4px 6px);
+  filter: blur(2px);
+  opacity: 0.85;
+}
+
+.hand .arm-edge {
+  left: 470px;
+  top: 975px;
+  width: 84px;
+  height: 200px;
+  background: #c3b9b1;
+  clip-path: polygon(75px 5px, 81px 4px, 7px 196px, 1px 196px);
+  filter: blur(1px);
+}
+
+.hand .coat-band {
+  left: 215px;
+  top: 1065px;
+  width: 340px;
+  height: 175px;
+  background: #55473f;
+  z-index: 2;
+  clip-path: polygon(73px 7px, 119px 7px, 111px 33px, 103px 61px, 95px 85px, 97px 97px, 165px 103px, 223px 115px, 290px 137px, 344px 169px, 55px 169px, -4px 105px, 4px 70px, 15px 60px, 25px 50px, 40px 40px, 57px 23px);
+  filter: blur(2px);
+}
+
+.hand .coat-band2 {
+  left: 760px;
+  top: 1072px;
+  width: 180px;
+  height: 170px;
+  background: #4d4948;
+  clip-path: path("M170,6 C180,-18.67 164.33,9.67 158,14 C151.67,18.33 140.33,26 132,32 C123.67,38 115.33,44 108,50 C100.67,56 94.67,61.67 88,68 C81.33,74.33 75,80.67 68,88 C61,95.33 53.33,104 46,112 C38.67,120 30.67,127.67 24,136 C17.33,144.33 -6.33,157.67 6,162 C18.33,166.33 70.67,188 98,162 C125.33,136 160,30.67 170,6 Z");
+  filter: blur(3px);
+}
+
+.hand .hand-gap-w {
+  left: 605px;
+  top: 978px;
+  width: 95px;
+  height: 112px;
+  background: #f6ece0;
+  clip-path: polygon(5px 4px, 89px 4px, 81px 30px, 73px 50px, 63px 66px, 51px 82px, 43px 98px, 37px 112px, 0px 112px, 0px 4px);
+}
+
+.hand .hand-band3 {
+  left: 640px;
+  top: 978px;
+  width: 90px;
+  height: 115px;
+  background: #574d48;
+  clip-path: polygon(50px 6px, 86px 14px, 42px 72px, 14px 74px, 46px 26px);
+}
+
+.hand .bl-gap2 {
+  left: 45px;
+  top: 1085px;
+  width: 100px;
+  height: 92px;
+  background: #fafafa;
+  clip-path: path("M37,5 C46.2,2.5 80.3,-8.7 90,5 C99.7,18.7 109.2,73.3 95,87 C80.8,100.7 18.3,90.7 5,87 C-8.3,83.3 11.7,72.8 15,65 C18.3,57.2 21.7,47.5 25,40 C28.3,32.5 33,25.8 35,20 C37,14.2 27.8,7.5 37,5 Z");  filter: blur(3px);
+
+}
+
+.hand .cr-filament {
+  left: 926px;
+  top: 1050px;
+  width: 92px;
+  height: 38px;
+  background: #2a2422;
+  clip-path: polygon(57px 8px, 68px 16px, 80px 24px, 89px 32px, 2px 32px, 14px 24px, 29px 16px);
+}
+
+.hand .cr-redfix {
+  left: 1005px;
+  top: 920px;
+  width: 70px;
+  height: 28px;
+  background: #2a2422;
+  clip-path: polygon(5px 3px, 65px 3px, 65px 26px, 5px 26px);
+}
+
+.hand .cr-band {
+  left: 696px;
+  top: 918px;
+  width: 72px;
+  height: 82px;
+  background: #4e423f;
+  clip-path: polygon(27px 4px, 69px 4px, 68px 10px, 64px 18px, 59px 26px, 55px 34px, 51px 42px, 46px 50px, 42px 58px, 37px 66px, 30px 74px, 25px 82px, 0px 82px, 0px 74px, 1px 66px, 3px 58px, 7px 50px, 11px 42px, 15px 34px, 19px 26px, 22px 18px, 26px 10px);
+  z-index: 8;
+}
+
+.hand .b2-gap {
+left: 308px;
+  top: 1090px;
+  width: 88px;
+  height: 82px;
+  background: #f3f3f3;
+  clip-path: path("M12,4 C23.7,1.7 69.3,0 80,4 C90.7,8 77.3,20.7 76,28 C74.7,35.3 70.7,40 72,48 C73.3,56 95.7,74.3 84,76 C72.3,77.7 15,64.7 2,58 C-11,51.3 4.7,42.7 6,36 C7.3,29.3 9,23.3 10,18 C11,12.7 0.3,6.3 12,4 Z");
+}
+
+.hand .l16-gap {
+  left: 148px;
+  top: 918px;
+  width: 156px;
+  height: 172px;
+  background: #f6ece0;
+  clip-path: path("M118,4 C125.67,2.33 146.33,-24 152,4 C157.67,32 177,144 152,172 C127,200 27,179.33 2,172 C-23,164.67 0,138 2,128 C4,118 10.33,117.33 14,112 C17.67,106.67 20.33,101.33 24,96 C27.67,90.67 32,85 36,80 C40,75 43.67,70.67 48,66 C52.33,61.33 57.33,56.67 62,52 C66.67,47.33 71,42.33 76,38 C81,33.67 87,30 92,26 C97,22 101.67,17.67 106,14 C110.33,10.33 110.33,5.67 118,4 Z");
+  filter: blur(3px);
+}
+
+.hand .l32-skin {
+  left: 466px;
+  top: 408px;
+  width: 90px;
+  height: 48px;
+  background: #f7ebdd;
+  clip-path: path("M14,4 C23,0 44,1 56,4 C68,7 81,15 86,22 C91,29 99.7,42 86,46 C72.3,50 18,49 4,46 C-10,43 0.3,35 2,28 C3.7,21 5,8 14,4 Z");
+}
+
+.hand .cheek-gap {
+  left: 784px;
+  top: 614px;
+  width: 50px;
+  height: 72px;
+  background: #f7ebdd;
+  clip-path: polygon(30px 4px, 35px 4px, 44px 12px, 46px 18px, 44px 26px, 42px 36px, 38px 46px, 34px 58px, 32px 68px, 4px 68px, 4px 34px, 12px 26px, 18px 18px, 24px 10px);
+}
+
+.hand .l32-strand2 {
+  left: 482px;
+  top: 394px;
+  width: 34px;
+  height: 54px;
+  background: #3e2924;
+  clip-path: path("M22,4 C24,2 29.33,1.67 30,4 C30.67,6.33 27.67,14.33 26,18 C24.33,21.67 21.83,23.33 20,26 C18.17,28.67 16.67,31 15,34 C13.33,37 11.5,41.17 10,44 C8.5,46.83 7.33,50.33 6,51 C4.67,51.67 1.67,50.5 2,48 C2.33,45.5 6,39.67 8,36 C10,32.33 12.33,29.33 14,26 C15.67,22.67 16.67,19.67 18,16 C19.33,12.33 20,6 22,4 Z");
+  filter: blur(3px);
+}
+
+.hand .l32-hi {
+  left: 496px;
+  top: 340px;
+  width: 72px;
+  height: 114px;
+  background: #efe4d6;
+  clip-path: path("M64,4 C66.33,3 70.33,2 70,4 C69.67,6 65,11.33 62,16 C59,20.67 55.33,26.67 52,32 C48.67,37.33 45.33,42.67 42,48 C38.67,53.33 35.33,58.67 32,64 C28.67,69.33 25.33,74.67 22,80 C18.67,85.33 15,91 12,96 C9,101 5.33,111 4,110 C2.67,109 2,97.33 4,90 C6,82.67 12,73.67 16,66 C20,58.33 23.67,51 28,44 C32.33,37 37.33,29.67 42,24 C46.67,18.33 52.33,13.33 56,10 C59.67,6.67 61.67,5 64,4 Z");
+}
+
+.hand .l33-dark {
+  left: 476px;
+  top: 448px;
+  width: 80px;
+  height: 118px;
+  background: linear-gradient(180deg, #523832 0%, #5c3531 40%, #6e3a36 60%, #8a3a38 72%, #c33a3a 84%, #c5413c 96%, #ec9c94 100%);
+  clip-path: polygon(16px 4px, 24px 4px, 40px 20px, 54px 36px, 64px 50px, 70px 62px, 72px 74px, 73px 82px, 68px 94px, 60px 104px, 52px 114px, 44px 104px, 22px 104px, 10px 94px, 5px 80px, 5px 62px, 6px 46px, 14px 30px, 12px 18px);
+}
+
+.hand .leye-red {
+  left: 498px;
+  top: 528px;
+  width: 38px;
+  height: 22px;
+  background: #c13e3c;
+  border-radius: 50% 50% 40% 40%;
+}
+
+.hand .leye-pink {
+  left: 496px;
+  top: 549px;
+  width: 30px;
+  height: 13px;
+  background: #ec9c94;
+  border-radius: 50%;
+}
+
+.hand .lc-skin {
+  left: 437px;
+  top: 424px;
+  width: 42px;
+  height: 40px;
+  background: #f5e6d6;
+}
+
+.hand .lc-gap {
+  left: 455px;
+  top: 422px;
+  width: 12px;
+  height: 22px;
+  background: #f6e8d6;
+  clip-path: polygon(5px 0, 12px 3px, 11px 19px, 0px 22px, 2px 9px);
+  filter: blur(0.8px);
+}
+
+.hand .lc-lash {
+  left: 440px;
+  top: 456px;
+  width: 48px;
+  height: 38px;
+  background: linear-gradient(180deg, #3f2e27 0%, #4a3731 100%);
+  clip-path: polygon(1px 5px, 18px 5px, 22px 0px, 36px 0px, 40px 1px, 44px 2px, 48px 3px, 48px 14px, 38px 14px, 30px 16px, 24px 19px, 18px 23px, 12px 27px, 6px 35px, 1px 36px);
+}
+
+.hand .bridge-skin {
+  left: 570px;
+  top: 518px;
+  width: 46px;
+  height: 11px;
+  background: #f7ebdd;
+  filter: blur(2px);
+}
+
+.hand .rlash2 {
+  left: 703px;
+  top: 526px;
+  width: 48px;
+  height: 24px;
+  background: #5b4636;
+  clip-path: polygon(4px 9px, 48px 9px, 48px 21px, 8px 22px);
+}
+
+.hand .riris-red {
+  left: 736px;
+  top: 590px;
+  width: 62px;
+  height: 44px;
+  background: radial-gradient(ellipse at 30% 42%, #c93c3c 0%, #bd3636 42%, rgba(120, 45, 42, 0.5) 68%, rgba(120, 45, 42, 0) 80%);
+  border-radius: 50%;
+}
+
+.hand .rhi-skin {
+  left: 804px;
+  top: 517px;
+  width: 26px;
+  height: 46px;
+  background: #f6e8da;
+  border-radius: 45% 45% 0 0 / 55% 55% 0 0;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 16px);
+}
+
+.hand .rhi-tan {
+  left: 824px;
+  top: 455px;
+  width: 10px;
+  height: 56px;
+  background: #b99386;
+  border-radius: 50%;
+}
+
+.hand .rhi-dark2 {
+  left: 798px;
+  top: 566px;
+  width: 26px;
+  height: 48px;
+  background: #402a24;
+}
+
+.hand .rhi-dark3 {
+  left: 796px;
+  top: 455px;
+  width: 18px;
+  height: 112px;
+  background: #3f2d26;
+  clip-path: path("M0,0 C3,-18.7 15,-8.2 18,0 C21,8.2 18.7,41.1 18,49.3 C17.3,57.5 14.7,38.8 14,49.3 C13.4,59.7 16.4,101.5 14,112 C11.7,122.5 2.3,130.7 0,112 C-2.3,93.3 -3,18.7 0,0 Z");
+}
+
+.hand .hl-darkA {
+left: 126px;
+  top: 874px;
+  width: 40px;
+  height: 56px;
+  background: #4f443e;
+  clip-path: path("M38,0 L40,0 L40,56 L0,56 L0,36 C4,30 10,24 17,17 C24,10 32,4 38,0 Z");
+}
+
+.hand .hl-darkE {
+  left: 152px;
+  top: 972px;
+  width: 34px;
+  height: 30px;
+  background: #443832;
+  clip-path: polygon(0 0, 34px 0, 30px 30px, 0 30px);
+}
+
+.hand .palm-shadow {
+  left: 150px;
+  top: 998px;
+  width: 44px;
+  height: 28px;
+  background: linear-gradient(180deg, #6b5c50 0%, #8a786b 45%, #b5a294 80%, #c6b3a5 100%);
+  clip-path: polygon(2px 0, 34px 0, 30px 28px, 6px 24px, 0 12px);
+}
+
+.hand .hl-wedge {
+  left: 312px;
+  top: 1042px;
+  width: 56px;
+  height: 40px;
+  background: #cfb2a6;
+  clip-path: polygon(4px 1px, 52px 1px, 54px 7px, 54px 15px, 52px 25px, 36px 25px, 20px 35px, 8px 37px, 2px 21px, 0 9px);
+}
+
+.hand .hr-topline { display: none; }
+
+.hand .hr-wedge {
+  left: 575px;
+  top: 884px;
+  width: 17px;
+  height: 34px;
+  background: linear-gradient(135deg, #c3c1bd 0%, #b7a294 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 25% 100%, 0 60%);
+}
+
+.hand .hr-sleeve-w {
+  left: 635px;
+  top: 1058px;
+  width: 70px;
+  height: 44px;
+  background: #f2f2f0;
+  clip-path: polygon(0 32%, 40% 0, 100% 8%, 100% 100%, 15% 100%);
+}
+
+.hand .l35-dark1 {
+  left: 446px;
+  top: 750px;
+  width: 88px;
+  height: 84px;
+  background: #55453d;
+  clip-path: polygon(4px 6px, 28px 6px, 36px 16px, 39px 26px, 43px 32px, 47px 38px, 51px 44px, 56px 50px, 60px 56px, 70px 64px, 78px 74px, 84px 82px, 73px 84px, 60px 74px, 52px 62px, 46px 56px, 39px 50px, 31px 44px, 24px 38px, 17px 32px, 9px 26px, 4px 20px);
+}
+
+.hand .l35-dark2 {
+  left: 540px;
+  top: 838px;
+  width: 114px;
+  height: 48px;
+  background: #55453d;
+  clip-path: path("M84,10 C90.05,10.66 97.42,10.15 94.46,13.63 C91.51,17.11 75.65,26.41 66.28,30.86 C56.92,35.3 45,41.85 38.29,40.29 C31.64,38.74 23,26.64 26.33,21.53 C29.64,16.43 48.53,11.6 58.14,9.68 C67.75,7.75 77.95,9.34 84,10 Z");
+}
+
+.hand .chin-tongue {
+  left: 600px;
+  top: 830px;
+  width: 92px;
+  height: 24px;
+  background: linear-gradient(90deg, #7a6a5a 0%, #6a5949 40%, #584434 100%);
+  clip-path: polygon(82px 4px, 74px 5px, 60px 9px, 46px 11px, 32px 13px, 18px 15px, 8px 17px, 6px 20px, 12px 20px, 26px 17px, 40px 15px, 54px 13px, 68px 11px, 80px 8px);
+}
+
+.hand .c55-dark {
+  left: 764px;
+  top: 756px;
+  width: 46px;
+  height: 60px;
+  background: #4b382f;
+  clip-path: path("M25,4 C28.67,1 39.17,-4.67 42,4 C44.83,12.67 48.33,47.33 42,56 C35.67,64.67 8.83,58 4,56 C-0.83,54 10.83,48 13,44 C15.17,40 15.83,35.67 17,32 C18.17,28.33 18.67,26.67 20,22 C21.33,17.33 21.33,7 25,4 Z");
+}
+
+.hand .c55-strand {
+  left: 810px;
+  top: 858px;
+  width: 3px;
+  height: 48px;
+  background: #32241c;
+}
+
+.hand .forehead-fix {
+  left: 610px;
+  top: 517px;
+  width: 172px;
+  height: 23px;
+  background: #f7ebdd;
+  clip-path: path("M2,0 C30.3,-1 141.7,-1 170,0 C198.3,1 172.7,3.7 172,6 C171.3,8.3 168.3,11.2 166,14 C163.7,16.8 184,21.5 158,23 C132,24.5 36.3,24.5 10,23 C-16.3,21.5 1.7,16.8 0,14 C-1.7,11.2 -0.3,8.3 0,6 C0.3,3.7 -26.3,1 2,0 Z");
+}
+
+.hand .r55-hi {
+  left: 808px;
+  top: 848px;
+  width: 92px;
+  height: 90px;
+  background: #f4f6f5;
+  clip-path: polygon(8px 4px, 20px 4px, 28px 16px, 44px 30px, 62px 44px, 70px 58px, 76px 72px, 82px 86px, 8px 86px, 4px 68px, 12px 48px, 19px 30px, 13px 18px);
+}
+
+.hand .rhi-band {
+  left: 800px;
+  top: 450px;
+  width: 44px;
+  height: 178px;
+  background: linear-gradient(180deg, #bb9684 0%, #b89285 52%, #b89486 66%, #7a5a4e 76%, #402a24 86%, #402a24 100%);
+  clip-path: path("M25,22 C26.52,22.62 27,28 29,36.43 C31,44.89 35.26,59.65 37.09,72.74 C38.93,85.83 40.06,102.95 40,115 C39.94,127 38.75,138.53 36.74,145 C34.73,151.53 31.1,154.08 27.94,154 C24.77,153.89 20.68,152 17.76,144.46 C14.85,136.94 11.27,121.57 10.44,108.87 C9.61,96.16 11.2,80.9 12.78,68.21 C14.35,55.51 17.85,40.4 19.89,32.7 C21.93,25 23.48,21.38 25,22 Z");
+}
+
+.hand .rb-slit {
+  left: 790px;
+  top: 588px;
+  width: 46px;
+  height: 56px;
+  background: #f2e8e0;
+  clip-path: polygon(38px 4px, 35px 12px, 32px 20px, 30px 24px, 28px 28px, 24px 32px, 20px 36px, 16px 40px, 11px 45px, 6px 49px, 2px 53px, 6px 53px, 10px 49px, 15px 45px, 20px 40px, 24px 36px, 28px 32px, 32px 28px, 34px 24px, 36px 20px, 39px 12px, 42px 4px);
+  filter: blur(0.7px);
+  z-index: 2;
+}
+
+.hand .rhi-l {
+  left: 776px;
+  top: 482px;
+  width: 22px;
+  height: 72px;
+  background: linear-gradient(90deg, #44322b 0%, #44322b 10%, #f3e7d7 26%, #f6e8d7 100%);
+  clip-path: path("M8,4 C9.17,2.67 11.67,1.67 13,4 C14.33,6.33 15.33,12.33 16,18 C16.67,23.67 16.67,31.33 17,38 C17.33,44.67 18.17,53 18,58 C17.83,63 18.67,66.33 16,68 C13.33,69.67 4.33,71.33 2,68 C-0.33,64.67 1.67,54.67 2,48 C2.33,41.33 3.33,34 4,28 C4.67,22 5.33,16 6,12 C6.67,8 6.83,5.33 8,4 Z");
+}
+
+.hand .rhi-r {
+  left: 896px;
+  top: 502px;
+  width: 52px;
+  height: 122px;
+  background: linear-gradient(180deg, #b79789 0%, #dccabb 7%, #f0e6d8 16%, #f0e6d8 100%);
+  clip-path: polygon(40px 3px, 48px 8px, 44px 28px, 40px 43px, 36px 56px, 31px 68px, 26px 78px, 21px 88px, 17px 98px, 13px 108px, 10px 118px, 5px 118px, 10px 98px, 15px 80px, 19px 66px, 22px 53px, 28px 40px, 33px 26px, 37px 13px);
+}
+
+.hand .top-white {
+  left: 566px;
+  top: 14px;
+  width: 240px;
+  height: 104px;
+  background: #fcfcfc;
+  clip-path: polygon(0px 4px, 234px 4px, 214px 14px, 184px 20px, 154px 26px, 129px 30px, 104px 36px, 84px 42px, 68px 50px, 54px 58px, 44px 66px, 36px 74px, 30px 82px, 24px 92px, 18px 100px, 0px 100px);
+}
+
+.hand .top-hi {
+  left: 558px;
+  top: 44px;
+  width: 364px;
+  height: 84px;
+  background: linear-gradient(180deg, #6a646e 0%, #5a5460 30%, #4b4652 55%, #3e3844 80%, rgba(52,46,54,0) 100%);
+  clip-path: path("M135,2 C159,1.33 231.5,0.67 258,2 C284.5,3.33 283.67,7.33 294,10 C304.33,12.67 313.67,15.67 320,18 C326.33,20.33 328.5,22.33 332,24 C335.5,25.67 336.17,26 341,28 C345.83,30 357.67,32.67 361,36 C364.33,39.33 364,46.33 361,48 C358,49.67 349.5,47 343,46 C336.5,45 328.5,43.33 322,42 C315.5,40.67 310.67,39.33 304,38 C297.33,36.67 287.5,35 282,34 C276.5,33 276,33 271,32 C266,31 257.5,29 252,28 C246.5,27 241.5,25.67 238,26 C234.5,26.33 233.33,28.33 231,30 C228.67,31.67 226.5,33.67 224,36 C221.5,38.33 214.83,41.33 216,44 C217.17,46.67 226.67,50 231,52 C235.33,54 243.5,55.33 242,56 C240.5,56.67 227,57.33 222,56 C217,54.67 212.83,50.67 212,48 C211.17,45.33 215,42.33 217,40 C219,37.67 221.5,36 224,34 C226.5,32 232.33,29.67 232,28 C231.67,26.33 227,25.33 222,24 C217,22.67 208.67,21 202,20 C195.33,19 188.67,18.67 182,18 C175.33,17.33 168.67,16.67 162,16 C155.33,15.33 147.83,14.33 142,14 C136.17,13.67 130.67,13 127,14 C123.33,15 123.83,18 120,20 C116.17,22 108,24 104,26 C100,28 100.67,29.67 96,32 C91.33,34.33 82.5,37.33 76,40 C69.5,42.67 62.67,45.33 57,48 C51.33,50.67 46.5,53 42,56 C37.5,59 34.5,62.67 30,66 C25.5,69.33 19.67,73.67 15,76 C10.33,78.33 4.17,81.67 2,80 C-0.17,78.33 0.67,70 2,66 C3.33,62 6.5,59.33 10,56 C13.5,52.67 18.33,49.33 23,46 C27.67,42.67 32.83,39 38,36 C43.17,33 48.5,30.67 54,28 C59.5,25.33 64,22.67 71,20 C78,17.33 88.83,14.33 96,12 C103.17,9.67 107.5,7.67 114,6 C120.5,4.33 111,2.67 135,2 Z");
+  filter: blur(3px);
+}
+
+.hand .top-hi2 {
+  left: 884px;
+  top: 69px;
+  width: 112px;
+  height: 9px;
+  background: #78707a;
+  transform-origin: left center;
+  transform: rotate(23deg);
+  filter: blur(1.5px);
+}
+
+.hand .nl-strand {
+  left: 566px;
+  top: 312px;
+  width: 34px;
+  height: 46px;
+  background: #2f2a28;
+  clip-path: polygon(12px 5px, 27px 5px, 19px 30px, 20px 43px, 2px 43px, 10px 20px);
+}
+
+.hand .nl-gap {
+  left: 394px;
+  top: 750px;
+  width: 54px;
+  height: 34px;
+  background: #fafafa;
+  clip-path: polygon(8px 30px, 4px 16px, 16px 8px, 32px 4px, 44px 18px, 51px 30px);
+  filter: blur(3px);
+}
+
+.hand .bl-skin {
+  left: 80px;
+  top: 1115px;
+  width: 100px;
+  height: 70px;
+  background: #cca795;
+  clip-path: path("M8,5 C10.33,5 13.83,8.83 20,13 C26.17,17.17 36.67,24.33 45,30 C53.33,35.67 61.67,43.17 70,47 C78.33,50.83 90.83,50 95,53 C99.17,56 100.83,63 95,65 C89.17,67 70.5,69.17 60,65 C49.5,60.83 39.5,47 32,40 C24.5,33 19.33,27.5 15,23 C10.67,18.5 7.17,16 6,13 C4.83,10 5.67,5 8,5 Z");
+  filter: blur(2px);
+}
+
+.hand .cuff {
+  left: 0;
+  top: 990px;
+  width: 240px;
+  height: 244px;
+  background: #f8f0e5;
+  clip-path: polygon(0 18%, 62% 0, 100% 38%, 100% 100%, 0 100%);
+}
+
+.hand .cuff-edge {
+  left: 80px;
+  top: 1090px;
+  width: 120px;
+  height: 100px;
+  background: #3a2a24;
+  clip-path: polygon(18px 6px, 14px 20px, 10px 30px, 8px 38px, 11px 46px, 17px 56px, 23px 62px, 30px 68px, 36px 74px, 48px 80px, 60px 86px, 78px 92px, 94px 93px, 107px 94px, 105px 96px, 92px 95px, 76px 94px, 58px 88px, 46px 82px, 34px 76px, 28px 70px, 21px 64px, 14px 58px, 9px 48px, 6px 40px, 8px 30px, 12px 20px, 20px 8px);
+}
+
+.hand .hl-creamfix {
+  left: 336px;
+  top: 936px;
+  width: 22px;
+  height: 14px;
+  background: #f6ece2;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 0 100%);
+}
+
+.hand .hl-creamD {
+  left: 374px;
+  top: 874px;
+  width: 16px;
+  height: 26px;
+  background: #f4ece2;
+}
+
+.hand .hl-lineD {
+  left: 391px;
+  top: 869px;
+  width: 5px;
+  height: 4px;
+  background: #55453c;
+}
+
+.hand .sh-band {
+  left: 460px;
+  top: 879px;
+  width: 98px;
+  height: 4px;
+  background: #4a3e31;
+}
+
+.hand .sh-wedge {
+  left: 346px;
+  top: 842px;
+  width: 40px;
+  height: 40px;
+  background: #514540;
+  clip-path: path("M6,0 C16,0 28,1 34,2 C35,10 33,22 32,30 C31,36 31,38 30,38 C20,38 12,38 8,38 C7,28 6,10 6,0 Z");
+}
+
+.hand .hl-darkD { display: none; }
+
+.hand .hr-topline2 {
+  left: 448px;
+  top: 877px;
+  width: 16px;
+  height: 9px;
+  background: #4a3e35;
+}
+
+.hand .hr-dash {
+  left: 576px;
+  top: 877px;
+  width: 10px;
+  height: 5px;
+  background: #50423f;
+  transform: rotate(-20deg);
+}
+
+.hand .hr-diag {
+  left: 526px;
+  top: 945px;
+  width: 8px;
+  height: 200px;
+  background: #f4f6f5;
+  transform: rotate(16deg);
+}
+
+.hand .rb-lobe {
+  left: 869px;
+  top: 828px;
+  width: 96px;
+  height: 52px;
+  background: linear-gradient(180deg, #62161b 0%, #5a1a14 100%);
+  clip-path: polygon(0 35%, 35% 0, 100% 5%, 100% 95%, 40% 100%, 0 70%);
+}
+
+.hand .rb-shadow {
+  left: 873px;
+  top: 884px;
+  width: 62px;
+  height: 60px;
+  background: linear-gradient(90deg, #632326 0%, #4a2e2a 40%, #322e2c 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 47px 50px, 32px 40px, 0 20px);
+}
+
+.hand .rb-top {
+  display: none;
+  left: 1046px;
+  top: 436px;
+  width: 66px;
+  height: 42px;
+  background: linear-gradient(90deg, #3a3339 0%, #3a3339 55%, #4a4249 78%, #565059 92%, #5f5a60 100%);
+  clip-path: polygon(0 15%, 90% 0, 100% 25%, 88% 50%, 15% 100%, 0 80%);
+}
+
+.hand .rb-gapfill {
+  left: 1086px;
+  top: 454px;
+  width: 32px;
+  height: 27px;
+  background: linear-gradient(180deg, #4f4850 0%, #423b42 55%, #3a343b 100%);
+}
+
+.hand .rb-loop {
+  left: 944px;
+  top: 702px;
+  width: 56px;
+  height: 132px;
+  background: #611110;
+  clip-path: path("M12,16.56 C16.43,9.78 21.28,4.63 26.61,6 C31.94,7.37 39.1,16.61 44,24.76 C48.9,32.91 53,43.85 56,54.9 C59,66 63,80 62,91 C61,102.1 56.22,114.37 50,121.19 C43.78,128 32,132.37 24.66,132 C17.33,131.63 10.11,127.19 6,119 C1.89,110.81 1,94.9 0,82.85 C-1,70.8 -2,57.75 0,46.71 C2,35.66 7.57,23.34 12,16.56 Z");
+}
+
+.hand .rb-lowred {
+  left: 973px;
+  top: 853px;
+  width: 28px;
+  height: 68px;
+  background: linear-gradient(180deg, #651512 0%, #a8352a 50%, #ad382e 100%);
+  clip-path: polygon(0 30%, 40% 0, 100% 10%, 100% 100%, 30% 100%);
+}
+
+.hand .rb-rhi {
+  left: 1096px;
+  top: 675px;
+  width: 22px;
+  height: 118px;
+  background: linear-gradient(180deg, #bb6255 0%, #b65346 50%, #a94a3c 100%);
+  clip-path: polygon(0 0, 100% 10%, 100% 100%, 25% 100%, 0 60%);
+}
+
+.hand .rb-tan2 {
+  left: 944px;
+  top: 449px;
+  width: 22px;
+  height: 26px;
+  background: #b8968a;
+  border-radius: 40% 60% 50% 50%;
+}
+
+.hand .rb-tan3 {
+  left: 951px;
+  top: 407px;
+  width: 18px;
+  height: 90px;
+  background: #b8968a;
+  border-radius: 45% 55% 50% 50%;
+  transform-origin: center;
+  transform: rotate(10deg);
+  filter: blur(0.8px);
+}
+
+.hand .rb-sheen {
+  left: 932px;
+  top: 384px;
+  width: 6px;
+  height: 60px;
+  background: #9e919c;
+  transform-origin: center;
+  transform: rotate(12deg);
+  filter: blur(1.2px);
+}
+
+.hand .shine-a, .hand .shine-b, .hand .shine-c,
+.hand .shine-d, .hand .shine-e, .hand .shine-f {
+  height: 2px;
+  background: #d2ced3;
+  transform-origin: left center;
+  transform: rotate(-45deg);
+  filter: blur(0.9px);
+  z-index: 11;
+  opacity: 0.9;
+}
+
+.hand .shine-a { left: 474px; top: 198px; width: 26px; }
+
+.hand .shine-b { left: 482px; top: 202px; width: 26px; }
+
+.hand .shine-c { left: 516px; top: 202px; width: 24px; }
+
+.hand .shine-d { left: 508px; top: 234px; width: 24px; }
+
+.hand .shine-e { left: 516px; top: 238px; width: 24px; }
+
+.hand .shine-f { left: 524px; top: 242px; width: 24px; }
+
+.hand .rb-warmfold {
+  left: 858px;
+  top: 606px;
+  width: 30px;
+  height: 100px;
+  background: #3e302c;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 70% 75%, 45% 100%, 0 100%);
+}
+
+.hand .rb-wcorner {
+  left: 1106px;
+  top: 450px;
+  width: 148px;
+  height: 28px;
+  background: #f4f5f7;
+  clip-path: polygon(12px 0, 148px 0, 148px 28px, 0 28px);
+}
+
+.hand .rb-band2 {
+  left: 992px;
+  top: 810px;
+  width: 120px;
+  height: 34px;
+  background: #422b25;
+  clip-path: polygon(3px 14px, 11px 14px, 27px 16px, 43px 16px, 59px 14px, 75px 11px,
+    91px 7px, 107px 3px, 115px 0px, 115px 15px, 107px 18px, 91px 22px, 75px 26px,
+    59px 29px, 43px 31px, 27px 31px, 11px 29px, 3px 29px);
+  filter: blur(1px);
+}
+
+.hand .rb-band3 {
+  left: 992px;
+  top: 856px;
+  width: 116px;
+  height: 34px;
+  background: #412823;
+  clip-path: polygon(3px 16px, 11px 16px, 27px 15px, 43px 12px, 59px 9px, 75px 5px,
+    91px 1px, 107px 0px, 107px 11px, 91px 16px, 75px 20px, 59px 24px, 43px 28px,
+    27px 31px, 11px 31px, 3px 31px);
+  filter: blur(1px);
+}
+
+.hand .rb-blfill {
+  left: 822px;
+  top: 818px;
+  width: 45px;
+  height: 48px;
+  background: linear-gradient(180deg, #332a28 0%, #3a2d29 100%);
+  clip-path: polygon(0 0, 45px 0, 45px 48px, 14px 48px, 0 33px);
+}
+
+.hand .rb-midgrad {
+  left: 1074px;
+  top: 536px;
+  width: 46px;
+  height: 115px;
+  background: linear-gradient(90deg, #773130 0%, #9e4640 42%, #b75c54 100%);
+  filter: blur(1.5px);
+}
+
+.hand .cl-grayn {
+  left: 813px;
+  top: 870px;
+  width: 27px;
+  height: 46px;
+  background: #b3afaf;
+  clip-path: polygon(0 0, 100% 8%, 100% 100%, 20% 94%, 0 62%);
+}
+
+.hand .cl-tan {
+  left: 788px;
+  top: 856px;
+  width: 26px;
+  height: 34px;
+  background: #be9d8e;
+  clip-path: polygon(12px 2px, 22px 2px, 22px 34px, 3px 34px, 3px 20px, 10px 20px, 10px 10px, 12px 10px);
+}
+
+.hand .brow-tan {
+  left: 424px;
+  top: 408px;
+  width: 30px;
+  height: 58px;
+  background: #bd9a90;
+  clip-path: path("M20,4 C21.83,2.33 26.67,1.33 27,4 C27.33,6.67 23.67,14.67 22,20 C20.33,25.33 18,30 17,36 C16,42 18.17,52.67 16,56 C13.83,59.33 6,58 4,56 C2,54 3.5,47.67 4,44 C4.5,40.33 5.83,37.33 7,34 C8.17,30.67 9.5,27.33 11,24 C12.5,20.67 14.5,17.33 16,14 C17.5,10.67 18.17,5.67 20,4 Z");
+}
+
+.hand .sh-hair {
+  left: 288px;
+  top: 824px;
+  width: 66px;
+  height: 60px;
+  background: #413634;
+  clip-path: path("M0,0 C10.2,-10 60.5,-10 61,0 C61.5,10 13.2,50 3,60 C-7.2,70 0.5,70 0,60 C-0.5,50 -10.2,10 0,0 Z");
+}
+
+.hand .sh-gap {
+  left: 374px;
+  top: 803px;
+  width: 16px;
+  height: 87px;
+  background: #f5f4ef;
+  clip-path: polygon(11px 2px, 12px 2px, 16px 82px, 0 82px);
+}
+
+.hand .ear-gr {
+  left: 872px;
+  top: 664px;
+  width: 20px;
+  height: 22px;
+  background: linear-gradient(160deg, #52423c 0%, #4a3a36 60%, #2f2320 100%);
+  border-radius: 40% 60% 50% 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-tn {
+  left: 882px;
+  top: 688px;
+  width: 22px;
+  height: 26px;
+  background: #c9a893;
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.hand .cl-red {
+  left: 864px;
+  top: 850px;
+  width: 16px;
+  height: 38px;
+  background: #6a1e20;
+  clip-path: polygon(0 0, 100% 8%, 100% 90%, 60% 100%, 0 95%);
+}
+
+.hand .cl-gray2 {
+  left: 813px;
+  top: 870px;
+  width: 27px;
+  height: 46px;
+  background: #b6b0b1;
+  clip-path: polygon(0 0, 100% 10%, 100% 88%, 45% 100%, 0 92%);
+}
+
+.hand .ear-wd {
+  left: 418px;
+  top: 366px;
+  width: 68px;
+  height: 100px;
+  background: #302728;
+  clip-path: path("M0,0 C11.33,-15 56.67,-8.33 68,0 C79.33,8.33 69.67,40.33 68,50 C66.33,59.67 60.67,54.67 58,58 C55.33,61.33 52.67,63.67 52,70 C51.33,76.33 55.33,91 54,96 C52.67,101 45.67,103.67 44,100 C42.33,96.33 45.67,79 44,74 C42.33,69 38,67.33 34,70 C30,72.67 25.67,86.67 20,90 C14.33,93.33 3.33,105 0,90 C-3.33,75 -11.33,15 0,0 Z");
+  filter: blur(1px);
+}
+
+/* two thin sideburn strands over the left cheek */
+.hand .sb-strand1 {
+  left: 485px; top: 378px; width: 32px; height: 67px;
+  background: linear-gradient(180deg, #3a2622 0%, #45302a 55%, #3c2822 100%);
+  clip-path: polygon(30px 3px, 5px 64px, 1px 62px, 26px 1px);
+  z-index: 8;
+  filter: blur(0.4px);
+}
+
+.hand .temple-strand2 {
+  left: 536px; top: 300px; width: 70px; height: 90px;
+  background: #45302a;
+  clip-path: path("M55,6 L67,6 L13,83 L8,83 Z");
+  filter: blur(0.8px);
+}
+
+.hand .temple-band {
+  left: 559px; top: 300px; width: 12px; height: 80px;
+  background: #c4a496;
+  border-radius: 50%;
+  transform: rotate(38deg);
+  filter: blur(1.5px);
+}
+
+.hand .sb-strand2 {
+  left: 517px; top: 378px; width: 37px; height: 70px;
+  background: linear-gradient(180deg, #3a2622 0%, #45302a 55%, #3c2822 100%);
+  clip-path: polygon(35px 3px, 5px 67px, 1px 65px, 31px 1px);
+  z-index: 8;
+  filter: blur(0.4px);
+}
+
+.hand .rb-wf2 {
+  left: 816px;
+  top: 786px;
+  width: 82px;
+  height: 34px;
+  background: #3c2d28;
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 85% 100%, 0 100%);
+}
+
+.hand .rb-dk1 {
+  left: 948px;
+  top: 814px;
+  width: 56px;
+  height: 14px;
+  background: #2b1f1f;
+}
+
+.hand .rb-bandM {
+  left: 862px;
+  top: 846px;
+  width: 108px;
+  height: 11px;
+  background: #342727;
+}
+
+.hand .ear-blk {
+  left: 306px;
+  top: 268px;
+  width: 116px;
+  height: 156px;
+  background: radial-gradient(ellipse 62% 68% at 48% 52%, #0f0f0d 0%, #101010 50%, rgba(14,14,14,0) 100%);
+  filter: blur(3px);
+}
+
+.hand .ear-tanr {
+  left: 446px;
+  top: 388px;
+  width: 30px;
+  height: 52px;
+  background: #c0a095;
+  clip-path: polygon(16px 2px, 26px 4px, 8px 48px, 0px 44px);
+  filter: blur(3px);
+}
+
+.hand .br-hi {
+  left: 1198px;
+  top: 884px;
+  width: 56px;
+  height: 52px;
+  background: linear-gradient(90deg, #2e2e2c 0%, #3a3a38 55%, #4b494a 100%);
+  clip-path: polygon(0 0, 36px 0, 43px 8px, 49px 15px, 54px 21px, 56px 23px, 56px 52px, 0 52px);
+}
+
+.hand .br-dk {
+  left: 1206px;
+  top: 928px;
+  width: 48px;
+  height: 66px;
+  background: linear-gradient(180deg, #262626 0%, #1e1e1e 100%);
+}
+
+.hand .bl-stripe {
+  left: 0;
+  top: 1004px;
+  width: 50px;
+  height: 150px;
+  background: linear-gradient(135deg, #454545 0%, #383838 100%);
+  clip-path: polygon(100% 0, 100% 130px, 31px 150px, 0 150px, 0 30%);
+}
+
+.hand .tr-gray {
+  display: none;
+  left: 1148px;
+  top: 312px;
+  width: 74px;
+  height: 46px;
+  background: linear-gradient(120deg, #444248 0%, #605c5f 55%, #8a868c 100%);
+  clip-path: polygon(0 70%, 30% 40%, 60% 20%, 100% 0, 100% 100%, 0 100%);
+  filter: blur(4px);
+}
+
+.hand .rb-hair {
+  left: 1020px;
+  top: 270px;
+  width: 240px;
+  height: 250px;
+  background: linear-gradient(115deg, #373038 0%, #423b44 30%, #4c4650 55%, #534d57 75%, #59535d 100%);
+  clip-path: path("M15,5 L75,8 C82,32 86,58 90,78 C122,74 144,64 160,56 C172,51 184,47 196,43 C206,40 216,37 234,32 L234,140 C200,144 164,152 140,158 C119,170 104,185 85,196 C72,209 63,228 58,242 L38,215 C45,188 49,168 51,150 C51,132 52,118 46,96 C41,78 34,55 26,32 C22,18 18,9 15,5 Z");
+  filter: blur(3px);
+}
+
+.hand .rb-hair-gap2 {
+  left: 1178px; top: 306px; width: 80px; height: 42px;
+  background: #fafafa; z-index: 12;
+  clip-path: polygon(70px 4px, 76px 8px, 76px 26px, 58px 30px, 30px 34px, 24px 35.5px,
+    16px 36.5px, 6px 40px, 2px 36px, 8px 30px, 18px 28px, 30px 24px, 48px 15px);
+}
+
+.hand .rb-hair-gap {
+  left: 1106px; top: 338px; width: 36px; height: 24px;
+  background: #fafafa; z-index: 12;
+  clip-path: polygon(2px 9px, 28px 4px, 31px 11px, 30px 15px, 5px 19px);
+}
+
+.hand .rb-hair-hi {
+  left: 1145px; top: 340px; width: 90px; height: 26px;
+  background: radial-gradient(ellipse 50% 46% at 50% 50%,
+    rgba(232,228,234,.86) 0%, rgba(232,228,234,.72) 22%, rgba(232,228,234,.44) 42%,
+    rgba(232,228,234,.22) 62%, rgba(232,228,234,.13) 82%, rgba(232,228,234,0) 100%);
+  z-index: 12;
+  transform: rotate(-28deg);
+}
+
+.hand .bl-gap {
+  left: 54px;
+  top: 1084px;
+  width: 58px;
+  height: 58px;
+  background: #f5f5f5;
+  clip-path: path("M42,0 C47.3,-2.3 55.3,-9.7 58,0 C60.7,9.7 67.7,48.3 58,58 C48.3,67.7 9.7,60.2 0,58 C-9.7,55.8 -1.7,50.3 0,45 C1.7,39.7 5.7,31.2 10,26 C14.3,20.8 20.7,18.3 26,14 C31.3,9.7 36.7,2.3 42,0 Z");  filter: blur(3px);
+
+}
+
+.hand .rh-edge {
+  left: 792px;
+  top: 686px;
+  width: 36px;
+  height: 78px;
+  background: linear-gradient(180deg, #52402f 0%, #4a362d 100%);
+  clip-path: path("M21,0 C23,-1.5 33.5,-13 36,0 C38.5,13 42,65 36,78 C30,91 4.67,82 0,78 C-4.67,74 5.33,60.5 8,54 C10.67,47.5 14.67,44 16,39 C17.33,34 14.67,29 16,24 C17.33,19 23.17,13 24,9 C24.83,5 19,1.5 21,0 Z");
+}
+
+.hand .el-gap {
+  left: 318px;
+  top: 446px;
+  width: 64px;
+  height: 50px;
+  background: #f5f5f5;
+  clip-path: polygon(47px 0, 58px 0, 58px 6px, 57px 12px, 57px 18px, 57px 24px, 56px 30px, 54px 36px, 50px 42px, 49px 48px, 49px 50px, 4px 50px, 4px 48px, 8px 42px, 14px 36px, 19px 30px, 25px 24px, 31px 18px, 36px 12px, 43px 6px);
+}
+
+.hand .re-dk {
+  left: 745px;
+  top: 366px;
+  width: 13px;
+  height: 96px;
+  background: #4f392d;
+  clip-path: path("M0,0 C2.2,-8.8 10.8,-6.4 13,0 C15.2,6.4 14.2,22.4 13,38.4 C11.8,54.4 8,93.6 5.9,96 C3.7,98.4 1,68.8 0,52.8 C-1,36.8 -2.2,8.8 0,0 Z");
+}
+
+.hand .re-tan {
+  left: 758px;
+  top: 384px;
+  width: 13px;
+  height: 100px;
+  background: linear-gradient(180deg, #3a2b28 0%, #3a2b28 16%, #9a7d6f 28%, #c09886 40%, #f6e7d7 56%, #f8e7d8 100%);
+  clip-path: path("M0,0 C2.2,-11.7 10.8,-9.2 13,0 C15.2,9.2 13.9,38.3 13,55 C12.1,71.7 10,97.5 7.8,100 C5.6,102.5 1.3,86.7 0,70 C-1.3,53.3 -2.2,11.7 0,0 Z");
+}
+
+.hand .re-dkb {
+  left: 769px;
+  top: 366px;
+  width: 22px;
+  height: 96px;
+  background: #402e28;
+  clip-path: path("M0,0 C3.7,-9.6 18.3,-7.2 22,0 C25.7,7.2 23.6,27.2 22,43.2 C20.4,59.2 15.8,93.6 12.1,96 C8.4,98.4 2,73.6 0,57.6 C-2,41.6 -3.7,9.6 0,0 Z");
+}
+
+.hand .hr-band {
+  left: 600px;
+  top: 1048px;
+  width: 82px;
+  height: 80px;
+  background: #60564f;
+  clip-path: polygon(62px 0px, 82px 0px, 75px 7px, 67px 17px, 58px 27px, 49px 37px, 39px 47px, 28px 57px, 18px 67px, 8px 77px, 4px 77px, 13px 67px, 22px 57px, 29px 47px, 37px 37px, 45px 27px, 51px 17px, 57px 7px);
+}
+
+.hand .rb-hair-bot {
+  left: 858px;
+  top: 878px;
+  width: 100px;
+  height: 82px;
+  background: linear-gradient(100deg, #322b27 0%, #2a2320 55%, #241f1d 100%);
+  clip-path: path("M22,10 C45,6 80,-2 100,0 C113,13.67 104.33,68.33 100,82 C95.67,95.67 83.33,88 74,82 C64.67,76 52.67,56.67 44,46 C35.33,35.33 25.67,25.67 22,18 C18.33,14 9,6 22,10 Z");
+}
+
+.hand .collar-line1 {
+  left: 540px;
+  top: 871px;
+  width: 3px;
+  height: 258px;
+  background: linear-gradient(180deg, rgba(63,46,40,0) 0%, #46332c 6%, #3f2e28 92%, rgba(63,46,40,0) 100%);
+  transform: rotate(25deg);
+  border-radius: 2px;
+  z-index: 8;
+}
+
+.hand .collar-line2 {
+  left: 562px;
+  top: 1071px;
+  width: 3px;
+  height: 83px;
+  background: linear-gradient(180deg, rgba(63,46,40,0) 0%, #46332c 20%, #3f2e28 90%, rgba(63,46,40,0) 100%);
+  transform: rotate(58deg);
+  border-radius: 2px;
+}
+
+.hand .ear-line {
+  background: linear-gradient(180deg, rgba(74,56,48,0) 0%, #4a3830 12%, #443129 88%, rgba(74,56,48,0) 100%);
+  border-radius: 2px;
+}
+
+.hand .ear-line1 { left: 911px; top: 594px; width: 3px; height: 104px; transform: rotate(7deg); }
+
+.hand .ear-line2 { left: 948px; top: 596px; width: 3px; height: 54px; transform: rotate(35deg); }
+
+.hand .ear-line3 { left: 910px; top: 691px; width: 3px; height: 54px; transform: rotate(76deg); }
+
+.hand .cline {
+  background: linear-gradient(180deg, rgba(52,40,34,0) 0%, #342822 10%, #2c211c 90%, rgba(52,40,34,0) 100%);
+  border-radius: 2px;
+}
+
+.hand .cline1 { left: 738px; top: 904px; width: 3px; height: 128px; transform: rotate(30deg); }
+
+.hand .cline2 { left: 706px; top: 995px; width: 3px; height: 54px; transform: rotate(32deg); }
+
+.hand .strand-r {
+left: 408px;
+  top: 646px;
+  width: 72px;
+  height: 126px;
+  background: linear-gradient(160deg, #4a3c34 0%, #45362e 60%, #4e3d35 100%);
+  clip-path: polygon(0 0, 8px 0, 10px 10px, 16px 14px, 24px 20px, 27px 34px, 35px 49px, 38px 64px, 44px 79px, 52px 94px, 60px 106px, 62px 119px, 62px 126px, 40px 126px, 40px 119px, 0 106px);
+  filter: blur(3px);
+}
+
+.hand .strand-wedge {
+  left: 393px;
+  top: 752px;
+  width: 24px;
+  height: 30px;
+  background: #4a3b34;
+  clip-path: polygon(2px 2px, 20px 7px, 2px 27px);
+  filter: blur(2px);
+}
+
+/* ear_r region: antihelix + helix band + strand + sawtooth */
+.hand .ear-hx {
+  left: 918px;
+  top: 594px;
+  width: 64px;
+  height: 50px;
+  background: #f5e7d9;
+  clip-path: polygon(40px 4px, 58px 6px, 60px 14px, 52px 16px, 42px 20px, 34px 26px, 26px 32px, 18px 40px, 4px 46px, 10px 36px, 20px 26px, 30px 18px, 38px 10px);
+  filter: blur(3px);
+}
+
+.hand .ear-hb {
+  left: 920px;
+  top: 684px;
+  width: 30px;
+  height: 22px;
+  background: #f5e7d9;
+  clip-path: polygon(8px 4px, 26px 6px, 20px 18px, 4px 18px);
+  filter: blur(3px);
+}
+
+.hand .er-str {
+  left: 936px;
+  top: 470px;
+  width: 26px;
+  height: 40px;
+  background: #b8968a;
+  clip-path: path("M12,2 C14.67,1 22.67,1.67 24,4 C25.33,6.33 21.67,12 20,16 C18.33,20 16,24.33 14,28 C12,31.67 10,36.33 8,38 C6,39.67 2.67,40.33 2,38 C1.33,35.67 3,28.67 4,24 C5,19.33 6.67,13.67 8,10 C9.33,6.33 9.33,3 12,2 Z");
+}
+
+.hand .er-teeth {
+  left: 957px;
+  top: 460px;
+  width: 18px;
+  height: 146px;
+  background: #2a2220;
+  transform: rotate(11deg);
+  transform-origin: 0 0;
+  clip-path: polygon(18px 0px, 1px 5px, 18px 12px, 1px 19px, 18px 26px, 1px 33px, 18px 40px, 1px 47px, 18px 54px, 1px 61px, 18px 68px, 1px 75px, 18px 82px, 1px 89px, 18px 96px, 1px 103px, 18px 110px, 1px 117px, 18px 124px, 1px 131px, 18px 138px, 1px 146px, 18px 146px);
+}
+
+/* ribbon region: inner-ear cream ridge */
+.hand .ear-ridge {
+  left: 921px; top: 604px; width: 50px; height: 32px;
+  background: #f5e7d9;
+  clip-path: polygon(32px 0, 49px 0, 16px 32px, 0 32px);
+  z-index: 7;
+  filter: blur(3px);
+}
+
+.hand .rb-redtop {
+  left: 888px; top: 755px; width: 58px; height: 82px;
+  background: #621214;
+  clip-path: polygon(24px 0, 58px 0, 58px 82px, 0 82px, 0 78px, 17px 45px, 24px 15px);
+}
+
+/* collar region: right-neck skin wedge + dark notches */
+.hand .neck-r {
+  left: 740px;
+  top: 882px;
+  width: 76px;
+  height: 92px;
+  background: linear-gradient(180deg, #b8948c 0%, #c6a69b 40%, #cfaea4 100%);
+  clip-path: polygon(48px 3px, 70px 5px, 72px 28px, 72px 43px, 60px 60px, 50px 68px, 38px 78px, 24px 88px, 4px 88px, 4px 74px, 22px 58px, 28px 43px, 30px 30px, 44px 13px);
+}
+
+.hand .notch-d { display: none; }
+
+.hand .notch-d2 {
+  left: 814px;
+  top: 906px;
+  width: 12px;
+  height: 9px;
+  background: #3a3029;
+}
+
+.hand .arm-shadow {
+  left: 530px;
+  top: 884px;
+  width: 70px;
+  height: 80px;
+  background: linear-gradient(180deg, #c5c3bf 0%, #c4c2be 55%, #c1bcb6 82%, #c7bcb2 100%);
+  clip-path: polygon(8px 2px, 62px 2px, 62px 56px, 60px 64px, 52px 71px, 42px 68px, 36px 61px, 30px 51px, 22px 36px, 11px 18px);
+}
+
+/* ---- finger crease strokes + thumb outline ---- */
+.hand .fg-line1, .hand .fg-line2, .hand .fg-line3,
+.hand .th-und, .hand .th-fold,
+.hand .arm-crease1, .hand .arm-crease2 {
+  background: transparent;
+  border-bottom: 3px solid #3a2a22;
+  border-radius: 50%;
+  z-index: 8;
+}
+
+.hand .fg-line1 { left: 300.2px; top: 921.5px; width: 61.7px; height: 8px; transform: rotate(19.9deg); }
+
+.hand .fg-line2 { left: 295.4px; top: 962px;   width: 90.1px; height: 12px; transform: rotate(19.4deg); }
+
+.hand .fg-line3 { left: 303.4px; top: 1008px;  width: 85.2px; height: 8px;  transform: rotate(9.5deg); }
+
+.hand .th-out { display: none; }
+
+.hand .th-und {
+  left: 355px; top: 1066px; width: 44px; height: 20px;
+  transform: rotate(48deg);
+  border-bottom: 3px solid #493831;
+}
+
+.hand .th-fold { display: none; }
+
+.hand .arm-crease1 { left: 536.7px; top: 1012.5px; width: 33.6px; height: 10px; border-bottom-color: #c7a297; transform: rotate(59.6deg); }
+
+.hand .arm-crease2 { left: 596.8px; top: 1049.5px; width: 58.4px; height: 8px;  border-bottom-color: #7a5c4e; transform: rotate(-6.9deg); }
+
+.hand .lsclera {
+  left: 450px; top: 494px; width: 36px; height: 50px;
+  background: radial-gradient(ellipse 70% 68% at 42% 46%, #f6f5f2 0%, #f1f1ed 55%, #eeede9 100%);
+  border-radius: 46% 54% 54% 46% / 50% 50% 50% 50%;
+}
+
+/* ---- hand_l thumb-tip fills, finger-web mass, hair strands ---- */
+.hand .fg-mass {
+  left: 330px; top: 909px; width: 74px; height: 32px;
+  background: linear-gradient(90deg, #4d4037 0%, #6a5850 30%, #5d5048 58%, #6f625b 100%); z-index: 7;
+  clip-path: polygon(24px 2px, 60px 2px, 72px 8px, 72px 12px, 64px 20px, 56px 28px, 34px 30px, 12px 22px, 4px 18px, 11px 10px, 17px 4px);
+  filter: blur(2px);
+}
+
+.hand .fg-skin {
+  left: 398px; top: 876px; width: 78px; height: 56px;
+  background: linear-gradient(115deg, #f8f0e7 0%, #f5ece3 40%, #f0e6da 75%, #e9ddcd 100%);
+  clip-path: polygon(4px 4px, 14px 7px, 24px 13px, 34px 19px, 45px 26px, 54px 31px, 61px 34px,
+    66px 37px, 69px 41px, 69px 44px, 66px 47px, 59px 49px, 50px 50px, 41px 48px, 27px 45px,
+    18px 42px, 10px 39px, 4px 36px);
+  z-index: 6;
+  filter: blur(0.6px);
+}
+
+.hand .fg-edge {
+  left: 398px; top: 876px; width: 78px; height: 56px;
+  background: #3a2a24; z-index: 7;
+  clip-path: polygon(2px 2px, 12px 5px, 22px 10px, 32px 17px, 44px 25px, 54px 30px, 62px 33px,
+    69px 35px, 74px 40px, 74px 44px, 70px 48px, 62px 51px, 52px 52px, 42px 50px, 27px 47px,
+    18px 44px, 10px 41px, 2px 37px,
+    4px 36px, 10px 39px, 18px 42px, 27px 45px, 41px 48px, 50px 50px, 59px 49px, 66px 47px,
+    69px 44px, 69px 41px, 66px 37px, 61px 34px, 54px 31px, 45px 26px, 34px 19px, 24px 13px,
+    14px 7px, 4px 4px);
+  filter: blur(0.5px);
+}
+
+.hand .fg-mass-top {
+  left: 363px; top: 901px; width: 26px; height: 7px;
+  background: #4d4038; z-index: 7;
+}
+
+.hand .fg-wedge {
+  left: 374px; top: 895px; width: 27px; height: 23px;
+  background: linear-gradient(120deg, #443830 0%, #4d4037 55%, #574a41 100%);
+  clip-path: polygon(2px 2px, 10px 3px, 17px 9px, 23px 15px, 26px 20px, 24px 21px,
+    15px 19px, 8px 14px, 3px 8px, 1px 3px);
+  z-index: 7;
+  filter: blur(1.5px);
+}
+
+.hand .fg-crease2 {
+  left: 438px; top: 908px; width: 32px; height: 18px;
+  background: #4a3e36; z-index: 8;
+  clip-path: polygon(1px 3px, 30px 14px, 29px 16px, 0px 5px);
+  filter: blur(1px);
+}
+
+.hand .collar-crease-a {
+  left: 528px; top: 837px; width: 14px; height: 6px;
+  background: #42352d; border-radius: 50%; z-index: 8;
+}
+
+.hand .hl-darkW {
+  left: 298px; top: 1053px; width: 38px; height: 24px;
+  background: #67554e; z-index: 7;
+  clip-path: path("M8,2 C12,1.33 23,0 26,2 C29,4 27,11 26,14 C25,17 24,19 20,20 C16,21 5,22.33 2,20 C-1,17.67 1,9 2,6 C3,3 4,2.67 8,2 Z");
+}
+
+.hand .th-fill2 {
+  left: 358px; top: 1065px; width: 36px; height: 32px;
+  background: #cfb2a6; z-index: 9;
+  clip-path: path("M2,2 C2.67,1.67 6,3 8,4 C10,5 11.67,6.67 14,8 C16.33,9.33 19.67,10.67 22,12 C24.33,13.33 26.33,14.67 28,16 C29.67,17.33 31.33,18 32,20 C32.67,22 34,27 32,28 C30,29 23.67,27.67 20,26 C16.33,24.33 12.67,21.33 10,18 C7.33,14.67 5.33,8.67 4,6 C2.67,3.33 1.33,2.33 2,2 Z");
+}
+
+.hand .th-gapv {
+  left: 338px; top: 1069px; width: 30px; height: 12px;
+  background: #f7f7f7; z-index: 9;
+  clip-path: path("M2,0 C6.33,-1.67 22.33,-0.67 26,1 C29.67,2.67 28.33,8.33 24,10 C19.67,11.67 3.67,12.67 0,11 C-3.67,9.33 -2.33,1.67 2,0 Z");
+}
+
+.hand .str-v1 {
+  left: 193px; top: 1157px; width: 12px; height: 28px;
+  background: #3a2a22; z-index: 7;
+  clip-path: polygon(8px 2px, 11px 2px, 6px 27px, 3px 27px);
+}
+
+.hand .str-v2 {
+  left: 203px; top: 1156px; width: 26px; height: 36px;
+  background: #33251f; z-index: 7;
+  clip-path: polygon(6px 3px, 8px 3px, 23px 32px, 18px 32px);
+}
+
+.hand .str-v3 {
+  left: 204px; top: 1142px; width: 10px; height: 20px;
+  background: #3f2d26; z-index: 7;
+  clip-path: polygon(3px 2px, 8px 2px, 6px 18px, 3px 18px);
+}
+
+.hand .str-d1 {
+  left: 194px; top: 1130px; width: 26px; height: 24px;
+  background: #3a2a22; z-index: 7;
+  clip-path: polygon(22px 2px, 26px 4px, 20px 14px, 8px 22px, 4px 22px, 12px 12px, 18px 4px);
+  filter: blur(3px);
+}
+
+/* hand_l missing hair-strand tips (cells C, A, B) */
+.hand .hl-strA {
+  left: 270px; top: 866px; width: 88px; height: 46px;
+  background: #342a23; z-index: 9;
+  clip-path: path("M88,2 C87.67,2.67 82.5,4.67 80,6 C77.5,7.33 75.33,8.67 73,10 C70.67,11.33 68.33,12.67 66,14 C63.67,15.33 61.17,16.67 59,18 C56.83,19.33 55.17,20.67 53,22 C50.83,23.33 48.5,24.67 46,26 C43.5,27.33 40.67,28.67 38,30 C35.33,31.33 32.83,32.67 30,34 C27.17,35.33 24.17,36.67 21,38 C17.83,39.33 13.5,41.33 11,42 C8.5,42.67 5.33,42.67 6,42 C6.67,41.33 12,39.33 15,38 C18,36.67 21,35.33 24,34 C27,32.67 30.33,31.33 33,30 C35.67,28.67 37.5,27.33 40,26 C42.5,24.67 45.5,23.33 48,22 C50.5,20.67 52.67,19.33 55,18 C57.33,16.67 59.83,15.33 62,14 C64.17,12.67 65.83,11.33 68,10 C70.17,8.67 72.67,7.33 75,6 C77.33,4.67 79.83,2.67 82,2 C84.17,1.33 88.33,1.33 88,2 Z");
+}
+
+.hand .hl-strD {
+  left: 407.6px; top: 921px;    width: 30.8px; height: 4px;   background: #71655b; z-index: 9; transform: rotate(13.1deg); }
+
+.hand .hl-strE { left: 368.1px; top: 936.5px;  width: 27.8px; height: 5px;   background: #5e5048; z-index: 9; transform: rotate(-30.3deg); }
+
+.hand .hl-strG { left: 345.5px; top: 879px;    width: 26.5px; height: 4px;   background: #51423a; z-index: 9; transform: rotate(79.1deg); }
+
+.hand .hl-strH { left: 366px;top: 902px;    width: 14.9px; height: 5px;   background: #5c4c44; z-index: 9; transform: rotate(-19.7deg); }
+
+.hand .hl-strI { left: 171.6px; top: 980.5px;  width: 53.8px; height: 8px;   background: #4b3b35; z-index: 9; transform: rotate(-54.8deg); }
+
+.hand .hl-strJ { left: 176.3px; top: 987.5px;  width: 18.4px; height: 7px;   background: #4b3b35; z-index: 9; transform: rotate(-60.6deg); }
+
+.hand .hl-strK { left: 145.8px; top: 1024.5px; width: 13.5px; height: 5px;   background: #4b3b35; z-index: 9; transform: rotate(-48deg); }
+
+.hand .hl-strL { left: 152.85px;top: 1025px;   width: 16.3px; height: 5px;   background: #4b3b35; z-index: 9; transform: rotate(-42.5deg); }
+
+/* hand_l cell (350,880): finger-base crease repaint */
+.hand .hl-creaseC {
+  left: 356px; top: 937px; width: 34px; height: 15px;
+  background: #f7ebdd; z-index: 10;
+  clip-path: polygon(0 1px, 34px 1px, 34px 15px, 0 15px);
+}
+
+.hand .hl-creaseD1 {
+  left: 367px; top: 936px; width: 8px; height: 15px;
+  background: #55493f; z-index: 11;
+  clip-path: polygon(3px 1px, 7px 1px, 7px 15px, 3px 15px);
+}
+
+.hand .hl-creaseD2 {
+  left: 384px; top: 938px; width: 16px; height: 13px;
+  background: #55493f; z-index: 11;
+  clip-path: polygon(2px 0, 7px 0, 15px 13px, 13px 13px);
+}
+
+/* hand_l cell (350,880): knuckle tan / bright repaint */
+.hand .hl-tanKnuck {
+  left: 348px; top: 901px; width: 15px; height: 15px;
+  background: #c5a89a; z-index: 9;
+  clip-path: polygon(14px 0, 15px 0, 15px 15px, 0 15px, 0 4px);
+}
+
+.hand .hl-brightKnuck {
+  left: 389px; top: 901px; width: 5px; height: 8px;
+  background: #f5ede3; z-index: 9;
+}
+
+/* hand_l cell (350,1024): thumb/palm bright cream + crease strand */
+.hand .hl-thbright {
+  left: 350px; top: 1020px; width: 44px; height: 42px;
+  background: #f9efe3; z-index: 9;
+  clip-path: path("M0,0 C5.83,-4.17 28.67,-7 35,0 C41.33,7 41.17,35 38,42 C34.83,49 19.67,44.83 16,42 C12.33,39.17 18.67,27.83 16,25 C13.33,22.17 2.67,29.17 0,25 C-2.67,20.83 -5.83,4.17 0,0 Z");
+}
+
+.hand .hl-thshadow {
+  left: 347px; top: 1046px; width: 24px; height: 26px;
+  background: #55493f; z-index: 10;
+  clip-path: path("M0,0 C1,-5.33 4.17,-2.17 6,0 C7.83,2.17 9.5,9.33 11,13 C12.5,16.67 13.83,18.83 15,22 C16.17,25.17 20.5,30.33 18,32 C15.5,33.67 3,37.33 0,32 C-3,26.67 -1,5.33 0,0 Z");
+  display: none;
+}
+
+.hand .hl-thstrand {
+  left: 378px; top: 1022px; width: 18px; height: 52px;
+  background: #55493f; z-index: 11;
+  clip-path: polygon(5px 1px, 8px 1px, 17px 50px, 13px 50px);
+  display: none;
+}
+
+/* ---- pinky (little finger) rebuild: fill + outline + crease ---- */
+.hand .pk-fill {
+  left: 355px; top: 1048px; width: 33px; height: 52px;
+  background: linear-gradient(104deg, #cdb0a1 0%, #d3b6a6 26%, #e6d5c8 44%, #f4ebe1 60%, #f7efe6 82%, #f5ece3 100%);
+  clip-path: path("M3,3 C10,1 22,1 29,3 C31,4 31,8 31,14 L31,46 C24,38 14,22 5,7 C4,5 3,4 3,3 Z");
+  z-index: 8;
+  filter: blur(0);
+}
+
+.hand .pk-out {
+  left: 383px; top: 1018px; width: 10px; height: 80px;
+  background: #3a2a24; z-index: 9;
+  clip-path: path("M3,0 L5.5,0 L5.5,52 C6,62 7,71 9.5,77 L6.5,77 C4.5,71 3,62 3,52 Z");
+  filter: blur(0);
+}
+
+.hand .pk-tipcrease {
+  left: 384px; top: 1076px; width: 12px; height: 18px;
+  background: #4a3a30; z-index: 10;
+  clip-path: polygon(2px 2px, 4px 2px, 9px 15px, 7px 15px);
+  filter: blur(0.4px);
+}
+
+.hand .pk-crease {
+  left: 334px; top: 1048px; width: 52px; height: 46px;
+  background: #493831; z-index: 9;
+  clip-path: polygon(1px 2px, 24px 2px, 26px 20px, 38px 33px, 49px 45px, 47px 46px,
+    35px 34px, 23px 22px, 21px 3px, 1px 4px);
+  filter: blur(0);
+}
+
+/* hand_l cell (140,952): pull dark-hair diagonal edge left to match orig */
+.hand .hl-hairEdge {
+  left: 155px; top: 982px; width: 52px; height: 44px;
+  background: #f6ece0; z-index: 10;
+  clip-path: polygon(42px 2px, 50px 0, 27px 44px, 3px 42px);
+}
+
+/* brow region: strands, lit tan band, left sclera-top, right brow */
+.hand .lstr0 {
+  left: 456px; top: 449px; width: 22px; height: 14px;
+  background: #46332c;
+  clip-path: path("M1,12 C-1.8,10.3 0.5,3.8 2,2 C3.5,0.2 7.2,0.3 10,1 C12.8,1.7 17.5,4.2 19,6 C20.5,7.8 22,11 19,12 C16,13 3.8,13.7 1,12 Z");
+}
+
+.hand .lstr1 {
+  left: 486px; top: 423px; width: 12px; height: 22px;
+  background: linear-gradient(180deg, #3f2d25 0%, #2d190e 40%, #3a2420 100%);
+  clip-path: path("M8,1 C9.5,-2 11.7,-2 11,1 C10.3,4 5.5,16 4,19 C2.5,22 1.3,22 2,19 C2.7,16 6.5,4 8,1 Z");
+}
+
+.hand .lstr2 {
+  left: 518px; top: 422px; width: 12px; height: 26px;
+  background: linear-gradient(180deg, #4e392c 0%, #3f281f 50%, #4d2b27 100%);
+  clip-path: path("M10,2 C11.7,-1.7 13,-1.7 12,2 C11,5.7 5.7,20.3 4,24 C2.3,27.7 1,27.7 2,24 C3,20.3 8.3,5.7 10,2 Z");
+}
+
+.hand .lstr3 {
+  left: 539px; top: 422px; width: 38px; height: 72px;
+  background: linear-gradient(180deg, #6c5449 0%, #8d7465 12%, #a68b7a 24%, #cdb09e 37%, #bfa191 47%, #b69b8a 58%, #ae9484 69%, #8d7263 88%, #87766a 100%);
+  clip-path: path("M2,2 C2.5,0.67 7.83,1.33 10,2 C12.17,2.67 13.5,4.67 15,6 C16.5,7.33 17.67,8.67 19,10 C20.33,11.33 21.67,12.67 23,14 C24.33,15.33 25.67,16.33 27,18 C28.33,19.67 29.83,21.33 31,24 C32.17,26.67 33.17,30.33 34,34 C34.83,37.67 35.5,41.67 36,46 C36.5,50.33 37,56.33 37,60 C37,63.67 36.5,67 36,68 C35.5,69 34.67,67.67 34,66 C33.33,64.33 32.83,60.67 32,58 C31.17,55.33 30.17,52.67 29,50 C27.83,47.33 26.17,44.67 25,42 C23.83,39.33 23.33,36.67 22,34 C20.67,31.33 18.67,28.67 17,26 C15.33,23.33 13.67,20.67 12,18 C10.33,15.33 8.67,12.67 7,10 C5.33,7.33 1.5,3.33 2,2 Z");
+}
+
+.hand .lstr4 {
+  left: 530px; top: 404px; width: 18px; height: 14px;
+  background: #a38679;
+  clip-path: path("M5,2 C7.5,0.3 14.7,0.3 16,2 C17.3,3.7 15.5,10.3 13,12 C10.5,13.7 2.3,13.7 1,12 C-0.3,10.3 2.5,3.7 5,2 Z");
+}
+
+.hand .lstr5 {
+  left: 514px; top: 466px; width: 30px; height: 26px;
+  background: #6a5548;
+  clip-path: path("M1,1 C1.8,0.3 0.5,-2.7 5,1 C9.5,4.7 24.8,19 28,23 C31.2,27 28.7,28 24,25 C19.3,22 3.8,9 0,5 C-3.8,1 0.2,1.7 1,1 Z");
+}
+
+.hand .lstr6 {
+  left: 507px; top: 406px; width: 28px; height: 20px;
+  background: linear-gradient(180deg, #30221b 0%, #3a2620 100%);
+  clip-path: path("M7,1 C13,4.5 20,8 25,11 C26,11.5 25.5,13.8 24.5,14 C19,11.5 12,7.5 7,4 C6,3.5 6,1.5 7,1 Z");
+}
+
+.hand .lstr7 {
+  left: 461px; top: 424px; width: 21px; height: 28px;
+  background: linear-gradient(180deg, #3b2a20 0%, #3a281f 60%, #35231a 100%);
+  clip-path: polygon(3px 2px, 19px 2px, 17px 4px, 16px 6px, 15px 8px, 14px 10px, 12px 12px, 11px 14px, 10px 16px, 9px 18px, 8px 20px, 6px 22px, 5px 24px, 4px 26px, 1px 26px, 1px 16px, 2px 4px);
+}
+
+.hand .lsclera-top {
+  left: 442px; top: 468px; width: 50px; height: 24px;
+  background: linear-gradient(180deg, #cfc7c5 0%, #cbc2c0 60%, #ccc6c4 78%, #edebe9 88%, #f2f1ef 100%);
+  clip-path: polygon(4px 22px, 10px 14px, 16px 10px, 22px 6px, 28px 4px, 36px 2px, 46px 2px, 50px 2px, 50px 20px, 4px 20px);
+}
+
+.hand .rbrow {
+  left: 683px; top: 460px; width: 67px; height: 33px;
+  background: linear-gradient(180deg, #5a4534 0%, #5f4837 26%, #74594a 30%, #cbab98 36%, #cfae9c 60%, #d2b3a0 100%);
+  clip-path: polygon(1px 31px, 3px 26px, 5px 21px, 7px 16px, 9px 12px, 11px 8px, 13px 5px, 17px 3px, 23px 2px, 31px 2px, 39px 3px, 47px 5px, 55px 7px, 62px 9px, 65px 11px, 63px 13px, 57px 15px, 49px 16px, 41px 17px, 33px 19px, 25px 21px, 17px 23px, 11px 26px, 6px 28px, 3px 30px);
+}
+
+.hand .rbrow-s {
+  left: 748px; top: 458px; width: 8px; height: 34px;
+  background: linear-gradient(180deg, #574134 0%, #524031 20%, #4e392c 55%, #4a3629 85%, #55402f 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 55% 98%, 0 98%);
+}
+
+.hand .rbrow-s2 {
+  left: 758px; top: 472px; width: 14px; height: 6px;
+  background: #5b4534;
+  clip-path: polygon(0 0, 100% 0, 72% 60%, 20% 100%, 0 100%);
+}
+
+.hand .temple-hair {
+  left: 416px;
+  top: 466px;
+  width: 34px;
+  height: 148px;
+  background: linear-gradient(180deg, #3b2c2c 0%, #433431 25%, #4a3a39 50%, #514240 78%, #544340 100%);
+  clip-path: polygon(0 0, 33px 2px, 16px 11px, 17px 24px, 21px 44px, 24px 68px, 25px 96px, 25px 112px, 19px 126px, 13px 140px, 11px 148px, 0 148px);
+  filter: blur(3px);
+}
+
+.hand .lock-dark {
+  left: 326px;
+  top: 418px;
+  width: 46px;
+  height: 68px;
+  background: linear-gradient(180deg, #141414 0%, #1c1c1c 55%, #242424 100%);
+  clip-path: path("M0,0 C7.67,-11.33 38.33,-1 46,0 C53.67,1 48,1.33 46,6 C44,10.67 38.67,21 34,28 C29.33,35 22.33,42.67 18,48 C13.67,53.33 11,56.67 8,60 C5,63.33 1.33,78 0,68 C-1.33,58 -7.67,11.33 0,0 Z");
+}
+
+.hand .arm-fore {
+  left: 455px;
+  top: 935px;
+  width: 160px;
+  height: 215px;
+  background: linear-gradient(180deg, #cfb3a7 0%, #cfb3a7 15%, #f6ece0 20%, #f6ece0 100%);
+  clip-path: polygon(121px 0px, 146px 0px, 141px 30px, 160px 40px, 160px 140px, 156px 145px, 145px 150px, 138px 155px, 129px 160px, 124px 165px, 113px 170px, 105px 175px, 99px 180px, 85px 185px, 82px 190px, 70px 195px, 62px 200px, 54px 205px, 47px 210px, 30px 215px, 37px 190px, 49px 160px, 62px 125px, 77px 90px, 93px 55px, 107px 25px);
+  filter: blur(2px);
+}
+
+.hand .neck-l {
+  left: 528px;
+  top: 902px;
+  width: 72px;
+  height: 116px;
+  background: linear-gradient(180deg, #ceb2a6 0%, #d1b8ab 100%);
+  clip-path: polygon(68px 2px, 67px 94px, 26px 98px, 22px 102px, 20px 106px, 18px 110px, 6px 110px, 10px 102px, 13px 94px, 17px 86px, 21px 78px, 25px 70px, 29px 62px, 33px 54px, 37px 46px, 42px 38px, 46px 30px, 51px 22px, 56px 14px, 61px 6px, 64px 2px);
+}
+
+.hand .nk-merge {
+  left: 565px;
+  top: 808px;
+  width: 210px;
+  height: 180px;
+  background: linear-gradient(170deg, #c9a692 0%, #caa796 45%, #ccab9d 80%, #cfb0a2 100%);
+  clip-path: polygon(190px 4px, 203px 10px, 207px 24px, 203px 38px, 197px 52px, 187px 68px, 177px 84px, 167px 100px, 157px 117px, 147px 132px, 140px 147px, 135px 160px, 128px 170px, 120px 174px, 85px 172px, 50px 165px, 20px 154px, 10px 142px, 7px 127px, 15px 110px, 25px 92px, 35px 74px, 47px 60px, 75px 46px, 95px 40px, 115px 34px, 135px 28px, 155px 22px, 175px 15px);
+}
+
+.hand .cr-shadow {
+  left: 1018px;
+  top: 1082px;
+  width: 216px;
+  height: 152px;
+  background: linear-gradient(229deg, #0c0c0c 0%, #2a2a2a 40%, #383838 72%, #3c3c3c 100%);
+}
+
+.hand .cr-band-dark {
+  left: 1016px;
+  top: 1146px;
+  width: 80px;
+  height: 90px;
+  background: linear-gradient(180deg, #332f2f 0%, #2c2a2b 30%, #2a2829 70%, #2e2c2d 100%);
+}
+
+.bangs .bang-gap {
+  left: 480px;
+  top: 388px;
+  width: 64px;
+  height: 46px;
+  background: #f7ebdd;
+  clip-path: polygon(25px 2px, 62px 44px, 1px 44px);
+}
+
+.bangs .apex-dk {
+  left: 708px;
+  top: 194px;
+  width: 12px;
+  height: 26px;
+  background: #352a28;
+  clip-path: polygon(4px 0, 12px 3px, 9px 26px, 0px 22px);
+}
+
+.hand .temple-tip {
+  left: 428px; top: 456px; width: 36px; height: 74px;
+  background: linear-gradient(180deg, #43312a 0%, #4a3730 30%, #4b3932 60%, #46342c 100%);
+  clip-path: path("M2,6 C7.33,5.33 29.5,4 35,6 C40.5,8 35.33,15.67 35,18 C34.67,20.33 34.33,19 33,20 C31.67,21 28.67,23 27,24 C25.33,25 24,25.33 23,26 C22,26.67 21.67,27 21,28 C20.33,29 19.5,30.67 19,32 C18.5,33.33 18.33,34.33 18,36 C17.67,37.67 17.17,39.67 17,42 C16.83,44.33 16.83,47.67 17,50 C17.17,52.33 17.83,54 18,56 C18.17,58 17.67,60 18,62 C18.33,64 19.67,66.5 20,68 C20.33,69.5 20.5,70.5 20,71 C19.5,71.5 17.67,72.17 17,71 C16.33,69.83 16.33,66.83 16,64 C15.67,61.17 15.33,56.67 15,54 C14.67,51.33 14.33,50 14,48 C13.67,46 13.17,44.33 13,42 C12.83,39.67 13,36.33 13,34 C13,31.67 12.83,30 13,28 C13.17,26 14.67,23.67 14,22 C13.33,20.33 10.33,19.33 9,18 C7.67,16.67 7,15.33 6,14 C5,12.67 3.67,11.33 3,10 C2.33,8.67 -3.33,6.67 2,6 Z");
+}
+
+.hand .temple-skin {
+  left: 428px; top: 470px; width: 22px; height: 62px;
+  background: linear-gradient(180deg, #f3e4d8 0%, #f4e6d8 40%, #f5e6d6 70%, #f6e8da 100%);
+  clip-path: path("M2,4 C2.67,3.67 4.33,3.67 6,4 C7.67,4.33 10.83,5.33 12,6 C13.17,6.67 13,7.33 13,8 C13,8.67 12.17,8 12,10 C11.83,12 12,17 12,20 C12,23 11.83,25.67 12,28 C12.17,30.33 12.67,32.33 13,34 C13.33,35.67 13.67,36.67 14,38 C14.33,39.33 14.67,40.67 15,42 C15.33,43.33 15.67,44.67 16,46 C16.33,47.33 16.67,48.67 17,50 C17.33,51.33 17.67,52.33 18,54 C18.33,55.67 20.33,59 19,60 C17.67,61 11.5,60.83 10,60 C8.5,59.17 10,56.67 10,55 C10,53.33 10.17,51.5 10,50 C9.83,48.5 9.17,47.33 9,46 C8.83,44.67 9.17,43.33 9,42 C8.83,40.67 8.33,39.67 8,38 C7.67,36.33 7.33,34 7,32 C6.67,30 6.33,28 6,26 C5.67,24 5.33,22 5,20 C4.67,18 4.33,15.67 4,14 C3.67,12.33 3.17,11 3,10 C2.83,9 3.17,8.67 3,8 C2.83,7.33 2.17,6.67 2,6 C1.83,5.33 1.33,4.33 2,4 Z");
+}
+
+.hand .temple-strand {
+  left: 432px; top: 582px; width: 9px; height: 88px;
+  background: linear-gradient(180deg, #3a2e26 0%, #40342c 40%, #3c3028 70%, #382c24 100%);
+  clip-path: path("M4,2 C5,2 6,3 6,5 L6,86 L1,86 L1,5 C1,3 2,2 4,2 Z");
+  filter: blur(2px);
+  transform: rotate(2.6deg);
+}
+
+/* collar region r3: measured strands */
+.hand .collar-strandV  { left: 391px;    top: 798px;    width: 4px;  height: 108px; background: #4a3e3a; }
+
+.hand .collar-strandA  { left: 417px;    top: 864px;    width: 3px;  height: 44px;  background: #3c302a; transform: rotate(-57deg); }
+
+.hand .collar-strandB  { left: 421.5px;  top: 871.4px;  width: 3px;  height: 17px;  background: #463a32; transform: rotate(35.5deg); }
+
+.hand .collar-strandG  { left: 499.5px;  top: 844.2px;  width: 3px;  height: 40px;  background: #4a4038; transform: rotate(-45deg); }
+
+.hand .collar-strandS  { left: 784.5px;  top: 864.5px;  width: 3px;  height: 35px;  background: #3a2c24; transform: rotate(23.6deg); }
+
+.hand .collar-strandT  { left: 828.5px;  top: 857px;    width: 3px;  height: 43px;  background: #3a2c24; transform: rotate(-41.2deg); }
+
+.hand .collar-strandP1 { left: 852px;    top: 899px;    width: 3px;  height: 48px;  background: #2a2624; transform: rotate(-18.1deg); }
+
+.hand .collar-strandP2 { left: 884.5px;  top: 936px;    width: 3px;  height: 72px;  background: #2a2624; transform: rotate(-43.9deg); }
+
+.hand .collar-strandQ  { left: 923.5px;  top: 880px;    width: 3px;  height: 134px; background: #232320; transform: rotate(-45.6deg); }
+
+.hand .r55-white {
+  left: 893px; top: 942px; width: 47px; height: 62px;
+  background: #fafafa;
+  clip-path: polygon(0 0, 22px 0, 47px 22px, 47px 62px, 0 62px);
+}
+
+.hand .rb-ctop {
+  left: 1101px;
+  top: 477px;
+  width: 29px;
+  height: 58px;
+  background: #f4f5f7;
+  clip-path: polygon(5px 0, 12px 6px, 16px 12px, 18px 20px, 19px 28px, 20px 40px, 21px 52px, 21px 58px, 29px 58px, 29px 0);
+}
+
+/* ear_r r3: temple dark base + sheen + inner-ear fold strokes */
+.hand .ear-temple {
+  left: 850px; top: 455px; width: 150px; height: 330px;
+  background: linear-gradient(135deg, #251a1e 0%, #251a1e 30%, #2b2120 50%, #382a24 68%, #48312a 85%, #4a332c 100%);
+  clip-path: polygon(6px 5px, 150px 5px, 150px 200px, 131px 206px, 115px 231px, 99px 251px, 83px 271px, 67px 291px, 53px 311px, 40px 325px, 6px 325px);
+  filter: blur(3px);
+}
+
+.hand .ear-thi {
+  left: 904px; top: 455px; width: 24px; height: 160px;
+  background: linear-gradient(180deg, #3a2e33 0%, #42353a 55%, #4d3f3b 100%);
+  transform: rotate(13.5deg);
+  filter: blur(3px);
+}
+
+.hand .er-fold {
+  height: 3px; background: #2a1810; transform-origin: 0 0;
+  z-index: 8; border-radius: 2px;
+}
+
+.hand .ef1 { left: 970.6px;  top: 610.4px;  width: 13px;   transform: rotate(157.4deg); }
+
+.hand .ef2 { left: 960px;    top: 614.1px;  width: 15px;   transform: rotate(137.7deg); }
+
+.hand .ef3 { left: 949px;    top: 624.1px;  width: 16.3px; transform: rotate(137.5deg); }
+
+.hand .ef4 { left: 944px;    top: 633.5px;  width: 18px; }
+
+.hand .ef5 { left: 934.06px; top: 689.94px; width: 7.1px;  transform: rotate(135deg); }
+
+.hand .ef6 { left: 901px;    top: 699.5px;  width: 8px; }
+
+.hand .ef7 { left: 935.06px; top: 704.94px; width: 14.1px; transform: rotate(135deg); }
+
+.hand .ef8 { left: 920.26px; top: 701.48px; width: 23.3px; transform: rotate(170.1deg); }
+
+.hand .ef9 { left: 898px;    top: 705.1px;  width: 20px;   transform: rotate(136.5deg); }
+
+.hand .ef10 { left: 947px; top: 644px; width: 20px; transform: rotate(153deg); }
+
+.hand .ef11 { left: 954px; top: 646px; width: 10px; transform: rotate(84deg); }
+
+.hand .ef12 { left: 955px; top: 656px; width: 13px; transform: rotate(108deg); }
+
+.hand .ef13 { left: 951px; top: 668px; width: 11px; transform: rotate(124deg); }
+
+.hand .ef14 { left: 933px; top: 690px; width: 15px; transform: rotate(148deg); }
+
+.hand .ef15 { left: 920px; top: 698px; width: 15px; transform: rotate(172deg); }
+
+.hand .efS1, .hand .efS2, .hand .efS3, .hand .efS4 {
+  left: 0; top: 0; width: 1254px; height: 1234px;
+  background: #2a1810; z-index: 9;
+}
+
+.hand .efS1 { clip-path: path("M931.9,636.9 C930.5,638.2 926.2,642.5 923.9,644.9 C923.0,647.3 920.5,648.7 919.1,651.2 C917.7,653.7 917.4,656.7 916.9,659.7 C916.4,662.8 916.6,667 915.9,669.6 C915.3,672.2 914.4,673 913.1,675.2 C911.8,677.5 909.5,681.1 908.2,683.1 C906.9,685.1 905.7,686.4 905.2,687 L906.3,689 C906.8,688.3 908,686.9 909.3,684.9 C910.7,682.9 913,679.2 914.4,676.8 C915.8,674.4 916.9,673.1 917.6,670.4 C918.3,667.6 918.1,663.2 918.6,660.3 C919.1,657.3 919.1,655 920.4,652.8 C921.6,650.6 923.8,649.4 926.1,647.1 C928.4,644.9 932.8,640.5 934.1,639.1 Z"); }
+
+.hand .efS2 { clip-path: path("M946.5,642.5 C945,643 940.3,644.5 937.5,645.5 C934.6,646.5 931.2,647.5 929.2,648.6 C927.3,649.7 926.4,651.3 925.9,651.9 L928.1,654.1 C928.6,653.7 929,652.3 930.8,651.4 C932.5,650.5 935.7,649.5 938.5,648.5 C941.3,647.5 946,646 947.5,645.5 Z"); }
+
+.hand .efS3 { clip-path: path("M952.4,646.3 C952.6,647.2 953.2,649.9 953.4,652.1 C953.6,654.3 953.9,657.5 953.4,659.7 C953,661.8 951.7,663.3 950.6,665.2 C949.5,667.1 947.8,669.3 946.7,671.1 C945.5,673 944.1,675.3 943.6,676.2 L946.4,677.8 C946.9,677 948.2,674.7 949.3,672.9 C950.5,671 952.2,668.9 953.4,666.8 C954.6,664.7 956,662.8 956.6,660.3 C957.1,657.8 956.8,654.3 956.6,651.9 C956.4,649.5 955.7,646.8 955.6,645.7 Z"); }
+
+.hand .efS4 { clip-path: path("M932,688.8 C931,689.6 928.2,692.4 926.2,693.6 C924.1,694.9 922.3,695.7 919.5,696.5 C916.8,697.3 911.3,698.1 909.7,698.4 L910.3,701.6 C912,701.2 917.5,700.4 920.5,699.5 C923.4,698.7 925.6,697.7 927.8,696.4 C930.1,695 933,692.1 934,691.2 Z"); }
+
+.hand .riris-pink {
+  left: 742px;
+  top: 614px;
+  width: 38px;
+  height: 24px;
+  background: radial-gradient(ellipse at 45% 50%, #f59792 0%, #f59a94 55%, rgba(245,151,146,0) 85%);
+  border-radius: 50%;
+}
+
+.hand .rlash-top {
+  left: 712px;
+  top: 524px;
+  width: 50px;
+  height: 7px;
+  background: radial-gradient(ellipse at 50% 50%, #4d3729 0%, #503b2d 60%, rgba(120,100,85,0) 100%);
+  border-radius: 50%;
+}
+
+.hand .leye-white {
+  left: 483px;
+  top: 514px;
+  width: 20px;
+  height: 15px;
+  background: #f1f2ed;
+  border-radius: 50%;
+}
+
+/* ---- collar region local fixes ---- */
+.hand .c2-notch {
+  left: 595px; top: 947px; width: 6px; height: 11px;
+  background: #4a3d33; z-index: 9;
+}
+
+.hand .hair-rim {
+  left: 128px; top: 437px; width: 36px; height: 460px;
+  background: linear-gradient(90deg, rgba(70,66,63,0) 0%, rgba(70,66,63,.15) 45%, rgba(70,66,63,.55) 74%, #46423f 100%);
+  transform: rotate(40.7deg);
+  z-index: 2;
+}
+
+/* ---- right eye rebuilt with clip-path: path() (smooth bezier curves) ---- */
+.rey { left: 690px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.rey > div { position: absolute; }
+
+.rey-sclera {
+  left: 0; top: 0; width: 170px; height: 160px; background: #efede9;
+  clip-path: path("M45,47 C36,50 25,58 18,70 C12,81 10,94 11,106 C12,117 18,127 27,132 C34,136 40,134 44,131 C37,124 32,113 31,100 C30,87 34,72 41,60 C43,55 45,50 45,47 Z");
+}
+
+.rey-iris {
+  left: 0; top: 0; width: 170px; height: 160px;
+  background:
+    radial-gradient(ellipse 62% 85% at 96% 52%, rgba(34,18,18,.80) 0%, rgba(34,18,18,.35) 55%, rgba(34,18,18,0) 82%),
+    radial-gradient(ellipse 32% 28% at 28% 78%, #cf3f3e 0%, #c23a3b 42%, rgba(150,45,45,.5) 70%, rgba(95,48,46,0) 90%),
+    linear-gradient(180deg, #47282a 0%, #563331 42%, #5f3332 56%, #703434 66%, #8c3636 76%, #a83838 88%, #c03a3a 100%);
+  clip-path: path("M48,47 C56,40 68,35 80,35 C89,36 106,42 118,52 C130,58 135,66 134,78 C134,92 132,106 128,114 C124,121 117,127 110,132 C103,136 93,137 83,135 C69,134 55,130 44,121 C35,113 31,101 32,87 C33,73 37,61 43,53 C45,50 47,48 48,47 Z");
+}
+
+.rey-lash {
+  left: 118px; top: 104px; width: 8px; height: 38px;
+  background: #3a2018;
+  border-radius: 50%;
+  transform: rotate(43deg);
+  filter: blur(1px);
+}
+
+.rey-cat {
+  left: 29px; top: 76px; width: 23px; height: 18px;
+  background: #f4f1ec; border-radius: 50%;
+}
+
+.rey-pink {
+  left: 52px; top: 115px; width: 46px; height: 20px;
+  background: radial-gradient(ellipse at 45% 45%, #f6a8a0 0%, #f2a29a 55%, rgba(242,162,154,0) 92%);
+  border-radius: 50%; transform: rotate(-8deg);
+}
+
+.eye-r { display: none; }
+
+.hand .riris-red, .hand .riris-pink { display: none; }
+
+/* ---- left eye rebuilt with clip-path: path() (smooth bezier curves) ---- */
+.ley { left: 450px; top: 450px; width: 120px; height: 140px; z-index: 1; }
+
+.ley > div { position: absolute; }
+
+.ley-sclera {
+  left: 0; top: 0; width: 120px; height: 140px; background: #efede9;
+  clip-path: path("M32,22 C24,24 14,32 8,44 C3,55 4,72 8,88 C11,101 18,109 25,109 C33,107 37,99 37,88 C39,74 40,60 40,48 C42,37 44,28 42,24 C38,22 34,21 32,22 Z");
+}
+
+.ley-iris {
+  left: 0; top: 0; width: 120px; height: 140px;
+  background:
+    radial-gradient(ellipse 22% 20% at 52% 68%, #c93d3c 0%, #bd3739 45%, rgba(150,45,45,.5) 72%, rgba(95,48,46,0) 90%),
+    linear-gradient(180deg, #4a2b28 0%, #583833 38%, #5f3a33 55%, #6d3a35 68%, #8a3a36 80%, #a83a38 90%, #bc3c3a 100%);
+  clip-path: path("M40,18 C50,12 62,13 72,18 C82,23 90,33 94,45 C97,56 98,68 95,80 C92,92 86,103 76,110 C67,116 55,117 47,112 C39,107 35,96 34,84 L34,78 L47,72 L47,66 L34,60 C33,55 35,48 36,44 C38,34 39,25 40,18 Z");
+}
+
+.ley-pink {
+  left: 40px; top: 97px; width: 40px; height: 16px;
+  background: radial-gradient(ellipse at 45% 45%, #f6a8a0 0%, #f2a29a 55%, rgba(242,162,154,0) 92%);
+  border-radius: 50%; transform: rotate(-4deg);
+}
+
+.eye-l { display: none; }
+
+.hand .l33-dark, .hand .leye-red, .hand .leye-pink { display: none; }
+
+.hand .finger,.hand .palm,.hand .idx,.hand .th-fill2,.hand .th-out,.hand .ll-thumb,.hand .hl-wedge,.hand .hl-thbright,.hand .pk-fill,.hand .pk-out,.hand .pk-crease,.hand .pk-tipcrease,.hand .th-und,.hand .th-fold,.hand .th-gapv,.hand .fing-edge,.hand .l16-gap,.hand .hl-darkW,.hand .fg-line1,.hand .fg-line2,.hand .fg-line3,.hand .arm-crease1,.hand .arm-crease2{filter:blur(1.5px);}
+
+.hand .bl-white {
+  left: 0; top: 1130px; width: 244px; height: 104px;
+  background: #f5f6f6;
+  clip-path: polygon(65px 10px, 105px 28px, 120px 38px, 135px 46px, 160px 53px, 220px 58px, 244px 70px, 244px 104px, 0 104px, 0 58px, 10px 52px, 20px 40px, 30px 28px, 40px 16px);
+  filter: blur(3px);
+  z-index: 4;
+}
+
+.hand .bl-white2 {
+  left: 170px; top: 1146px; width: 54px; height: 52px;
+  background: #f5f6f6;
+  clip-path: polygon(18px 6px, 37px 6px, 42px 16px, 45px 26px, 50px 34px, 54px 42px, 54px 52px, 4px 52px, 6px 34px, 10px 19px);
+  filter: blur(3px);
+  z-index: 4;
+}
+
+.hand .rb-bandT2 {
+  left: 852px; top: 810px; width: 96px; height: 17px;
+  background: #3a2c2c;
+  clip-path: polygon(0 5px, 20px 3px, 58px 2px, 94px 3px, 94px 12px, 40px 15px, 0 14px);
+  filter: blur(1.5px);
+}
+
+.bangs .bh-streakA {
+  left: 828px; top: 312px; width: 4px; height: 50px;
+  background: #c2bcc2; border-radius: 50%;
+  filter: blur(1.3px); z-index: 13;
+}
+
+.bangs .bh-streakB {
+  left: 836px; top: 310px; width: 6px; height: 64px;
+  background: #c2bcc2; border-radius: 50%;
+  filter: blur(1.3px); z-index: 13;
+}
+
+.hand .fh-notch {
+  left: 696px; top: 544px; width: 46px; height: 15px;
+  background: #4a3629;
+  clip-path: polygon(14px 2px, 38px 2px, 40px 6px, 26px 8px, 20px 9px, 6px 13px, 4px 11px);
+  filter: blur(1px);
+}
+
+.hand .fh-gray {
+  left: 715px; top: 544px; width: 25px; height: 25px;
+  background: #c8babb;
+  clip-path: polygon(13px 3px, 23px 3px, 21px 12px, 16px 20px, 11px 23px, 2px 13px, 5px 7px);
+  filter: blur(1.5px);
+}
+
+.hand .ear-line4 {
+  left: 907px; top: 709px; width: 41px; height: 6px;
+  background: linear-gradient(90deg, rgba(26,8,6,0) 0%, rgba(26,8,6,0.95) 15%, rgba(26,8,6,0.95) 85%, rgba(26,8,6,0) 100%);
+  transform: rotate(-45deg);
+  filter: blur(1px);
+  z-index: 7;
+}
+
+.hand .cuff-line {
+  left: 86px; top: 1065px; width: 76px; height: 4px;
+  background: linear-gradient(90deg, rgba(61,46,40,0) 0%, rgba(61,46,40,1) 8%, rgba(61,46,40,1) 96%, rgba(61,46,40,0) 100%);
+  transform: rotate(-47.1deg);
+  filter: blur(1px);
+  z-index: 13;
+}
+
+.hand .strand-tick {
+  left: 496px; top: 456px; width: 15px; height: 5px;
+  background: #3a2a22;
+  border-radius: 50%;
+  transform: rotate(17.1deg);
+  filter: blur(1.2px);
+  z-index: 13;
+}
+
+.hand .lash-sp1 {
+  left: 802.5px; top: 554px; width: 19px; height: 5px;
+  background: linear-gradient(90deg, rgba(34,20,7,0) 0%, rgba(34,20,7,1) 18%, rgba(34,20,7,1) 78%, rgba(34,20,7,0) 100%);
+  transform: rotate(22.6deg);
+  filter: blur(0.6px);
+  z-index: 13;
+}
+
+.hand .lash-sp2 {
+  left: 822px; top: 559.5px; width: 12px; height: 5px;
+  background: linear-gradient(90deg, rgba(34,20,7,0) 0%, rgba(34,20,7,1) 22%, rgba(34,20,7,1) 74%, rgba(34,20,7,0) 100%);
+  transform: rotate(18.5deg);
+  filter: blur(0.6px);
+  z-index: 13;
+}
+
+.hand .rb-gap-str {
+  left: 1179.5px; top: 335.25px; width: 19px; height: 4px;
+  background: linear-gradient(90deg, rgba(65,58,64,0) 0%, rgba(65,58,64,1) 18%, rgba(65,58,64,1) 80%, rgba(65,58,64,0) 100%);
+  transform: rotate(-29.4deg);
+  filter: blur(0.8px);
+  z-index: 13;
+}
+
+.hand .top-halo {
+  left: 545px; top: 47px; width: 130px; height: 70px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(160,156,160,.34) 0%, rgba(160,156,160,.20) 55%, rgba(160,156,160,0) 100%);
+  transform: rotate(-23deg);
+  filter: blur(3px);
+}
+
+.bangs .hair-strk1 {
+  left: 799px; top: 248px; width: 6px; height: 86px;
+  background: linear-gradient(180deg, rgba(200,192,194,.12) 0%, rgba(200,192,194,.16) 26%, rgba(200,192,194,.62) 49%, rgba(200,192,194,.86) 74%, rgba(200,192,194,.61) 84%, rgba(200,192,194,.55) 100%);
+  filter: blur(0.6px);
+}
+
+.bangs .hair-strk2 {
+  left: 822px; top: 248px; width: 8px; height: 86px;
+  background: linear-gradient(180deg, rgba(192,184,188,.08) 0%, rgba(192,184,188,.22) 46%, rgba(192,184,188,.50) 80%, rgba(192,184,188,.70) 100%);
+  filter: blur(0.8px);
+}
+
+.bangs .temple-tan {
+  left: 626px; top: 242px; width: 60px; height: 13px;
+  background: #c0a496;
+  border-radius: 50%;
+  transform: rotate(-49deg);
+  filter: blur(2px);
+}
+
+.hand .ear-skin-gap {
+  left: 916px; top: 643px; width: 18px; height: 18px;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%,
+    rgba(206,172,150,1) 0%, rgba(206,172,150,.95) 45%, rgba(206,172,150,.60) 70%, rgba(206,172,150,0) 100%);
+  filter: blur(0.8px);
+  z-index: 7;
+}
+
+.hand .neck-hi {
+  left: 562px; top: 958px; width: 46px; height: 40px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(250,240,227,1) 0%, rgba(250,240,227,.90) 55%, rgba(250,240,227,0) 100%);
+  filter: blur(1.5px);
+  z-index: 7;
+}
+
+.bg .s5-dk2 {
+  left: 1080px; top: 872px; width: 60px; height: 56px;
+  background: radial-gradient(ellipse 30px 28px at 50% 50%,
+    rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 100%);
+  filter: blur(2px);
+}
+
+.bangs .hair-strk4 {
+  left: 527px; top: 214px; width: 7px; height: 22px;
+  background: linear-gradient(180deg, rgba(210,205,210,0) 0%, rgba(210,205,210,.9) 35%, rgba(200,195,200,.75) 70%, rgba(200,195,200,0) 100%);
+  transform: rotate(23deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strk5 {
+  left: 526px; top: 242px; width: 6px; height: 34px;
+  background: linear-gradient(180deg, rgba(205,200,205,0) 0%, rgba(205,200,205,.85) 30%, rgba(195,190,195,.7) 75%, rgba(195,190,195,0) 100%);
+  transform: rotate(21deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strk6 {
+  left: 508px; top: 236px; width: 6px; height: 44px;
+  background: linear-gradient(180deg, rgba(200,195,200,0) 0%, rgba(200,195,200,.92) 25%, rgba(190,185,190,.75) 70%, rgba(190,185,190,0) 100%);
+  transform: rotate(25deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strk7 {
+  left: 501px; top: 214px; width: 6px; height: 14px;
+  background: linear-gradient(180deg, rgba(205,200,205,0) 0%, rgba(205,200,205,.62) 40%, rgba(212,208,212,1) 65%, rgba(205,200,205,.45) 100%);
+  transform: rotate(20deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strk8 {
+  left: 537px; top: 228px; width: 7px; height: 14px;
+  background: linear-gradient(180deg, rgba(205,200,205,.7) 12%, rgba(210,206,210,1) 30%, rgba(195,190,195,.7) 70%, rgba(195,190,195,0) 100%);
+  transform: rotate(40deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strk9 {
+  left: 522px; top: 222px; width: 6px; height: 14px;
+  background: linear-gradient(180deg, rgba(210,205,210,0) 0%, rgba(210,205,210,.85) 35%, rgba(205,200,205,.7) 70%, rgba(205,200,205,0) 100%);
+  transform: rotate(17deg);
+  filter: blur(1px);
+}
+
+.bangs .hair-strkA {
+  left: 522px; top: 228px; width: 9px; height: 9px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(228,225,228,.95) 0%, rgba(228,225,228,0) 100%);
+  filter: blur(1px);
+}
+
+.bangs .hair-strkB {
+  left: 508px; top: 252px; width: 9px; height: 9px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(215,210,215,.9) 0%, rgba(215,210,215,0) 100%);
+  filter: blur(1px);
+}
+
+.hand .b2-sh {
+  left: 334px; top: 1153px; width: 58px; height: 21px;
+  background: #524748;
+  clip-path: polygon(0 4px, 100% 60%, 100% 100%, 0 100%);
+  z-index: 11;
+}
+
+/* --- fitted eyes/ear/face (compare.py objective) --- */
+.rey { left: 693px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.rey-sclera {
+  left: 3px; top: 0px; width: 170px; height: 160px;
+  clip-path: path("M49,58 C45,61 24,61 9,67 C9,78 11,94 20,106 C23,106 31,116 33,126 C39,133 40,131 38,131 C33,127 26,119 39,111 C30,87 34,72 41,60 C43,55 45,50 45,47 Z");
+}
+
+.rey-iris {
+  left: 0px; top: -3px; width: 169px; height: 151px;
+  clip-path: path("M58,53 C52,29 59,35 76,38 C83,42 103,45 116,55 C124,55 126,58 149,84 C147,90 123,102 120,108 C128,126 119,132 113,135 C102,139 87,145 75,138 C67,135 51,133 44,124 C38,119 31,100 32,79 C33,73 37,61 43,53 C43,50 52,51 46,51 Z");
+}
+
+.rey-lash { left: 120px; top: 101px; width: 11px; height: 35px; transform: rotate(50deg); }
+
+.rey-cat { left: 26px; top: 78px; width: 23px; height: 16px; }
+
+.rey-pink { left: 51px; top: 112px; width: 43px; height: 23px; transform: rotate(2deg); }
+
+.ley { left: 450px; top: 453px; width: 120px; height: 140px; z-index: 1; }
+
+.ley-sclera {
+  left: -2px; top: 3px; width: 120px; height: 140px;
+  clip-path: path("M42,30 C30,32 8,27 -6,40 C17,56 18,74 12,88 C18,93 28,101 39,103 C44,104 49,101 37,88 C36,74 40,60 40,48 C42,37 44,28 42,32 C37,23 33,19 35,22 Z");
+}
+
+.ley-iris {
+  left: 0px; top: 0px; width: 123px; height: 140px;
+  clip-path: path("M32,6 C50,4 54,16 67,18 C82,23 93,33 91,45 C100,60 101,80 100,78 C95,89 86,106 79,110 C79,116 54,114 54,109 C42,104 35,93 34,87 L31,76 L48,72 L50,64 L31,59 C30,56 32,45 33,41 C35,30 44,22 42,21 Z");
+}
+
+.ley-pink { left: 45px; top: 97px; width: 35px; height: 16px; transform: rotate(3deg); }
+
+.ear {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  z-index: 6;
+}
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M106.9,61 C106.6,55.8 124.1,57.8 125.1,59 C130.1,60.1 125.6,71.5 124.9,76 C124.3,80.5 124,81.3 123,83.9 C122,86.6 120.1,89.2 121,90.9 C116.8,93.6 115.3,94.4 116,100.1 C113.6,100.8 107.3,105.4 105,108.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 94,124 C94.5,126.7 95.3,126.4 93,132 C90.7,134.7 88.5,134.3 82,140 C76.5,142.7 60.5,146.6 54,148 C41.5,151.3 36.6,150.6 39.1,146 C44.6,142.3 55.5,133 60,129 C66.5,125 65.5,121.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,115.4 68.4,108.7 70,102.1 C74.7,102.4 80.4,102.8 79,100.1 C75.7,91.4 75.4,94.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C95.7,79.3 98.4,84.5 96,76 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 556px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 55.7% -11.9%, 56% 5.3%, 49.7% 2.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 153px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    51.7% -1.7%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 26%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 53.6%,
+    42% 65.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    22% 81.9%,
+    21.3% 86.2%,
+    41.7% 89.5%,
+    36% 93%,
+    24.3% 96.3%,
+    5% 99.5%,
+    -3% 104.5%,
+    1.3% 96.8%,
+    1% 97.7%,
+    6% 88.5%,
+    8% 84.2%,
+    12% 75.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 62.2%,
+    22.7% 54.9%,
+    26.7% 47.6%,
+    27% 47.4%,
+    28.3% 44.1%,
+    29.7% 39.8%,
+    34% 31.6%,
+    38% 21.3%,
+    41.7% 21%,
+    45% 15.8%,
+    46.3% 13.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M105.1,52 C100.4,50.2 112.2,41.7 117,40.1 C121.8,38.4 128.5,36.3 135,43.1 C137.5,46.9 139.3,62.2 135,66.1 C133.7,69.9 129.9,68.1 127.1,60.1 C124.2,58.1 124.6,53.1 118.1,50.9 C114.6,51.7 99.7,54.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 558px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    83.7% 21.1%,
+    87.3% 21.1%,
+    90% 34.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    58.3% 73.7%,
+    51% 70.7%,
+    57% 68.4%,
+    67.7% 57.9%,
+    78% 47.4%,
+    80.7% 39.1%,
+    82.7% 36.8%,
+    82.7% 34.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 847px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,147 C79.3,143.3 80.8,142.7 89,145 C91.2,147.3 83,154.3 80,158 C80,161.7 76.7,165.2 71,167 C62.3,171.8 36,174.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.ear .ear-m {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #e8cdb8;
+  clip-path: polygon(62% 31.6%, 70% 31.6%, 70% 37.9%, 55% 37.9%);
+
+  display: none;
+}
+
+.hand .ear-gr {
+  left: 872px;
+  top: 664px;
+  width: 20px;
+  height: 22px;
+  background: linear-gradient(160deg, #52423c 0%, #4a3a36 60%, #2f2320 100%);
+  border-radius: 40% 60% 50% 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-tn {
+  left: 882px;
+  top: 688px;
+  width: 22px;
+  height: 26px;
+  background: #c9a893;
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-wd {
+  left: 418px;
+  top: 366px;
+  width: 68px;
+  height: 100px;
+  background: #302728;
+  clip-path: path("M0,0 C11.33,-15 56.67,-8.33 68,0 C79.33,8.33 69.67,40.33 68,50 C66.33,59.67 60.67,54.67 58,58 C55.33,61.33 52.67,63.67 52,70 C51.33,76.33 55.33,91 54,96 C52.67,101 45.67,103.67 44,100 C42.33,96.33 45.67,79 44,74 C42.33,69 38,67.33 34,70 C30,72.67 25.67,86.67 20,90 C14.33,93.33 3.33,105 0,90 C-3.33,75 -11.33,15 0,0 Z");
+  filter: blur(1px);
+}
+
+.hand .ear-blk {
+  left: 306px;
+  top: 268px;
+  width: 116px;
+  height: 156px;
+  background: radial-gradient(ellipse 62% 68% at 48% 52%, #0f0f0d 0%, #101010 50%, rgba(14,14,14,0) 100%);
+  filter: blur(3px);
+}
+
+.hand .ear-tanr {
+  left: 446px;
+  top: 388px;
+  width: 30px;
+  height: 52px;
+  background: #c0a095;
+  clip-path: polygon(16px 2px, 26px 4px, 8px 48px, 0px 44px);
+  filter: blur(3px);
+}
+
+.hand .ear-line {
+  background: linear-gradient(180deg, rgba(74,56,48,0) 0%, #4a3830 12%, #443129 88%, rgba(74,56,48,0) 100%);
+  border-radius: 2px;
+}
+
+.hand .ear-line1 { left: 911px; top: 594px; width: 3px; height: 104px; transform: rotate(7deg); }
+
+.hand .ear-line2 { left: 948px; top: 596px; width: 3px; height: 54px; transform: rotate(35deg); }
+
+.hand .ear-line3 { left: 910px; top: 691px; width: 3px; height: 54px; transform: rotate(76deg); }
+
+.hand .ear-hx {
+  left: 918px;
+  top: 594px;
+  width: 64px;
+  height: 50px;
+  background: #f5e7d9;
+  clip-path: polygon(40px 4px, 58px 6px, 60px 14px, 52px 16px, 42px 20px, 34px 26px, 26px 32px, 18px 40px, 4px 46px, 10px 36px, 20px 26px, 30px 18px, 38px 10px);
+  filter: blur(3px);
+}
+
+.hand .ear-hb {
+  left: 920px;
+  top: 684px;
+  width: 30px;
+  height: 22px;
+  background: #f5e7d9;
+  clip-path: polygon(8px 4px, 26px 6px, 20px 18px, 4px 18px);
+  filter: blur(3px);
+}
+
+.hand .ear-ridge {
+  left: 921px; top: 604px; width: 50px; height: 32px;
+  background: #f5e7d9;
+  clip-path: polygon(32px 0, 49px 0, 16px 32px, 0 32px);
+  z-index: 7;
+  filter: blur(3px);
+}
+
+.hand .ear-temple {
+  left: 850px; top: 455px; width: 150px; height: 330px;
+  background: linear-gradient(135deg, #251a1e 0%, #251a1e 30%, #2b2120 50%, #382a24 68%, #48312a 85%, #4a332c 100%);
+  clip-path: polygon(6px 5px, 150px 5px, 150px 200px, 131px 206px, 115px 231px, 99px 251px, 83px 271px, 67px 291px, 53px 311px, 40px 325px, 6px 325px);
+  filter: blur(3px);
+}
+
+.hand .ear-thi {
+  left: 904px; top: 455px; width: 24px; height: 160px;
+  background: linear-gradient(180deg, #3a2e33 0%, #42353a 55%, #4d3f3b 100%);
+  transform: rotate(13.5deg);
+  filter: blur(3px);
+}
+
+.hand .ear-line4 {
+  left: 907px; top: 709px; width: 41px; height: 6px;
+  background: linear-gradient(90deg, rgba(26,8,6,0) 0%, rgba(26,8,6,0.95) 15%, rgba(26,8,6,0.95) 85%, rgba(26,8,6,0) 100%);
+  transform: rotate(-45deg);
+  filter: blur(1px);
+  z-index: 7;
+}
+
+.hand .ear-skin-gap {
+  left: 916px; top: 643px; width: 18px; height: 18px;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%,
+    rgba(206,172,150,1) 0%, rgba(206,172,150,.95) 45%, rgba(206,172,150,.60) 70%, rgba(206,172,150,0) 100%);
+  filter: blur(0.8px);
+  z-index: 7;
+}
+
+.hand .ear-tanr {
+  left: 446px;
+  top: 388px;
+  width: 30px;
+  height: 52px;
+  background: #c0a095;
+  clip-path: polygon(16px 2px, 26px 4px, 8px 48px, 0px 44px);
+  filter: blur(3px);
+}
+
+.face2 {
+  inset: 0;
+  pointer-events: none;
+}
+
+.face2 .chin {
+  left: 493px;
+  top: 767px;
+  width: 300px;
+  height: 110px;
+  background: radial-gradient(ellipse at 50% 30%, #f7ebdd 70%, #d9b8a4 100%);
+  border-radius: 50% 50% 45% 45% / 50% 50% 45% 72%;
+
+  clip-path: polygon(0 0, 300px 0, 300px 110px, 85px 110px, 0px 38px);
+  filter: blur(3px);
+}
+
+.face {
+  left: 420px;
+  top: 257px;
+  width: 423px;
+  height: 607px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+.blush {
+  background: #ffffff;
+  opacity: 0.18;
+}
+
+.blush-l {
+  left: 473px;
+  top: 623px;
+  width: 75px;
+  height: 35px;
+}
+
+.blush-r {
+  left: 733px;
+  top: 657px;
+  width: 71px;
+  height: 29px;
+}
+
+.brow {
+  height: 5px;
+  background: #4a3535;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.brow-l {
+  display: none;
+  left: 460px;
+  top: 442px;
+  width: 100px;
+  transform: rotate(-7deg);
+}
+
+.brow-r {
+  left: 705px;
+  top: 472px;
+  width: 92px;
+  transform: rotate(-5deg);
+}
+
+.nose {
+  left: 535px;
+  top: 656px;
+  width: 4px;
+  height: 15px;
+  background: #3e322b;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.mouth {
+  left: 542px;
+  top: 732px;
+  width: 86px;
+  height: 43px;
+  background: #4a362e;
+  clip-path: path("M4,6 C10,9 14,12 22,17 L22,17 C11,15 10,12 4,9 Z M34,21 C50,28 65,32 78,45 L84,45 C65,35 47,31 34,24 Z");
+}
+
+.hand .face-strand {
+  left: 490px;
+  top: 794px;
+  width: 90px;
+  height: 80px;
+  background: #5e4f45;
+  clip-path: path("M8,4 C0,-6.3 6.7,1.3 18,12 C29.3,22.7 68,57.7 76,68 C84,78.3 77.3,84.7 66,74 C54.7,63.3 16,14.3 8,4 Z");
+  filter: blur(3px);
+}
+
+.hand .l32-skin {
+  left: 469px;
+  top: 408px;
+  width: 90px;
+  height: 48px;
+  background: #f7ebdd;
+  clip-path: path("M17,7 C23,-3 44,-2 56,4 C68,7 81,15 86,22 C91,29 99.7,42 86,46 C72.3,50 18,49 4,46 C-10,43 0.3,35 2,28 C3.7,21 5,8 14,4 Z");
+}
+
+.hand .cheek-gap {
+  left: 784px;
+  top: 611px;
+  width: 50px;
+  height: 72px;
+  background: #f7ebdd;
+  clip-path: polygon(30px 4px, 32px 7px, 47px 15px, 46px 18px, 44px 26px, 42px 33px, 38px 46px, 34px 61px, 32px 71px, 1px 71px, 1px 34px, 12px 26px, 18px 18px, 24px 10px);
+}
+
+.hand .l32-hi {
+  left: 496px;
+  top: 337px;
+  width: 72px;
+  height: 114px;
+  background: #efe4d6;
+  clip-path: path("M64,4 C66.33,3 70.33,2 70,4 C69.67,6 65,11.33 65,19 C62,23.67 58.33,29.67 55,32 C48.67,37.33 45.33,42.67 42,48 C38.67,53.33 35.33,58.67 32,64 C28.67,69.33 25.33,74.67 22,80 C18.67,85.33 15,91 12,96 C9,101 5.33,111 4,110 C2.67,109 2,97.33 4,90 C6,82.67 12,73.67 16,66 C20,58.33 23.67,51 28,44 C32.33,37 37.33,29.67 42,24 C46.67,18.33 52.33,13.33 56,10 C59.67,6.67 61.67,5 64,4 Z");
+}
+
+.hand .lc-skin {
+  left: 437px;
+  top: 424px;
+  width: 42px;
+  height: 40px;
+  background: #f5e6d6;
+}
+
+.hand .bridge-skin {
+  left: 570px;
+  top: 518px;
+  width: 46px;
+  height: 11px;
+  background: #f7ebdd;
+  filter: blur(2px);
+}
+
+.hand .chin-tongue {
+  left: 600px;
+  top: 830px;
+  width: 92px;
+  height: 24px;
+  background: linear-gradient(90deg, #7a6a5a 0%, #6a5949 40%, #584434 100%);
+  clip-path: polygon(82px 4px, 74px 5px, 60px 9px, 46px 11px, 32px 13px, 18px 15px, 8px 17px, 6px 20px, 12px 20px, 26px 17px, 40px 15px, 54px 13px, 68px 11px, 80px 8px);
+}
+
+.hand .forehead-fix {
+  left: 610px;
+  top: 517px;
+  width: 172px;
+  height: 23px;
+  background: #f7ebdd;
+  clip-path: path("M2,0 C30.3,-1 141.7,-1 170,0 C198.3,1 172.7,3.7 172,6 C171.3,8.3 168.3,11.2 166,14 C163.7,16.8 184,21.5 158,23 C132,24.5 36.3,24.5 10,23 C-16.3,21.5 1.7,16.8 0,14 C-1.7,11.2 -0.3,8.3 0,6 C0.3,3.7 -26.3,1 2,0 Z");
+}
+
+.hand .brow-tan {
+  left: 424px;
+  top: 408px;
+  width: 30px;
+  height: 58px;
+  background: #bd9a90;
+  clip-path: path("M20,4 C21.83,2.33 26.67,1.33 27,4 C27.33,6.67 23.67,14.67 22,20 C20.33,25.33 18,30 17,36 C16,42 18.17,52.67 16,56 C13.83,59.33 6,58 4,56 C2,54 3.5,47.67 4,44 C4.5,40.33 5.83,37.33 7,34 C8.17,30.67 9.5,27.33 11,24 C12.5,20.67 14.5,17.33 16,14 C17.5,10.67 18.17,5.67 20,4 Z");
+}
+
+.hand .ear-tanr {
+  left: 446px;
+  top: 388px;
+  width: 30px;
+  height: 52px;
+  background: #c0a095;
+  clip-path: polygon(16px 2px, 26px 4px, 8px 48px, 0px 44px);
+  filter: blur(3px);
+}
+
+.hand .rbrow {
+  left: 683px; top: 460px; width: 67px; height: 33px;
+  background: linear-gradient(180deg, #5a4534 0%, #5f4837 26%, #74594a 30%, #cbab98 36%, #cfae9c 60%, #d2b3a0 100%);
+  clip-path: polygon(1px 31px, 3px 26px, 5px 21px, 7px 16px, 9px 12px, 11px 8px, 13px 5px, 17px 3px, 23px 2px, 31px 2px, 39px 3px, 47px 5px, 55px 7px, 62px 9px, 65px 11px, 63px 13px, 57px 15px, 49px 16px, 41px 17px, 33px 19px, 25px 21px, 17px 23px, 11px 26px, 6px 28px, 3px 30px);
+}
+
+.hand .rbrow-s {
+  left: 748px; top: 458px; width: 8px; height: 34px;
+  background: linear-gradient(180deg, #574134 0%, #524031 20%, #4e392c 55%, #4a3629 85%, #55402f 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 55% 98%, 0 98%);
+}
+
+.hand .rbrow-s2 {
+  left: 758px; top: 472px; width: 14px; height: 6px;
+  background: #5b4534;
+  clip-path: polygon(0 0, 100% 0, 72% 60%, 20% 100%, 0 100%);
+}
+
+.hand .neck-l {
+  left: 528px;
+  top: 902px;
+  width: 72px;
+  height: 116px;
+  background: linear-gradient(180deg, #ceb2a6 0%, #d1b8ab 100%);
+  clip-path: polygon(68px 2px, 67px 94px, 26px 98px, 22px 102px, 20px 106px, 18px 110px, 6px 110px, 10px 102px, 13px 94px, 17px 86px, 21px 78px, 25px 70px, 29px 62px, 33px 54px, 37px 46px, 42px 38px, 46px 30px, 51px 22px, 56px 14px, 61px 6px, 64px 2px);
+}
+
+.hand .temple-skin {
+  left: 428px; top: 470px; width: 22px; height: 62px;
+  background: linear-gradient(180deg, #f3e4d8 0%, #f4e6d8 40%, #f5e6d6 70%, #f6e8da 100%);
+  clip-path: path("M2,4 C2.67,3.67 4.33,3.67 6,4 C7.67,4.33 10.83,5.33 12,6 C13.17,6.67 13,7.33 13,8 C13,8.67 12.17,8 12,10 C11.83,12 12,17 12,20 C12,23 11.83,25.67 12,28 C12.17,30.33 12.67,32.33 13,34 C13.33,35.67 13.67,36.67 14,38 C14.33,39.33 14.67,40.67 15,42 C15.33,43.33 15.67,44.67 16,46 C16.33,47.33 16.67,48.67 17,50 C17.33,51.33 17.67,52.33 18,54 C18.33,55.67 20.33,59 19,60 C17.67,61 11.5,60.83 10,60 C8.5,59.17 10,56.67 10,55 C10,53.33 10.17,51.5 10,50 C9.83,48.5 9.17,47.33 9,46 C8.83,44.67 9.17,43.33 9,42 C8.83,40.67 8.33,39.67 8,38 C7.67,36.33 7.33,34 7,32 C6.67,30 6.33,28 6,26 C5.67,24 5.33,22 5,20 C4.67,18 4.33,15.67 4,14 C3.67,12.33 3.17,11 3,10 C2.83,9 3.17,8.67 3,8 C2.83,7.33 2.17,6.67 2,6 C1.83,5.33 1.33,4.33 2,4 Z");
+}
+
+.hand .fh-notch {
+  left: 696px; top: 544px; width: 46px; height: 15px;
+  background: #4a3629;
+  clip-path: polygon(14px 2px, 38px 2px, 40px 6px, 26px 8px, 20px 9px, 6px 13px, 4px 11px);
+  filter: blur(1px);
+}
+
+.hand .fh-gray {
+  left: 715px; top: 544px; width: 25px; height: 25px;
+  background: #c8babb;
+  clip-path: polygon(13px 3px, 23px 3px, 21px 12px, 16px 20px, 11px 23px, 2px 13px, 5px 7px);
+  filter: blur(1.5px);
+}
+
+.hand .neck-hi {
+  left: 562px; top: 958px; width: 46px; height: 40px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(250,240,227,1) 0%, rgba(250,240,227,.90) 55%, rgba(250,240,227,0) 100%);
+  filter: blur(1.5px);
+  z-index: 7;
+}
+
+/* --- fitted colours (compare.py objective) --- */
+.rey { left: 690px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.rey > div { position: absolute; }
+
+.rey-sclera {
+  left: 0; top: 0; width: 170px; height: 160px; background: #efede9;
+  clip-path: path("M45,47 C36,50 25,58 18,70 C12,81 10,94 11,106 C12,117 18,127 27,132 C34,136 40,134 44,131 C37,124 32,113 31,100 C30,87 34,72 41,60 C43,55 45,50 45,47 Z");
+}
+
+.rey-iris {
+  left: 0; top: 0; width: 170px; height: 160px;
+  background:
+    radial-gradient(ellipse 62% 85% at 96% 52%, rgba(18,26,18,.80) 0%, rgba(34,18,18,.35) 55%, rgba(34,18,18,0) 82%),
+    radial-gradient(ellipse 32% 28% at 28% 78%, #bb3f3e 0%, #c83a3b 42%, rgba(144,59,59,.5) 70%, rgba(95,48,46,0) 90%),
+    linear-gradient(180deg, #372822 0%, #563b31 42%, #673332 56%, #602c2c 66%, #c22026 76%, #a64840 88%, #8a7070 100%);
+  clip-path: path("M48,47 C56,40 68,35 80,35 C89,36 106,42 118,52 C130,58 135,66 134,78 C134,92 132,106 128,114 C124,121 117,127 110,132 C103,136 93,137 83,135 C69,134 55,130 44,121 C35,113 31,101 32,87 C33,73 37,61 43,53 C45,50 47,48 48,47 Z");
+}
+
+.rey-lash {
+  left: 118px; top: 104px; width: 8px; height: 38px;
+  background: #38261e;
+  border-radius: 50%;
+  transform: rotate(43deg);
+  filter: blur(1px);
+}
+
+.rey-cat {
+  left: 29px; top: 76px; width: 23px; height: 18px;
+  background: #f4f1ec; border-radius: 50%;
+}
+
+.rey-pink {
+  left: 52px; top: 115px; width: 46px; height: 20px;
+  background: radial-gradient(ellipse at 45% 45%, #f6a0a0 0%, #fa9a92 55%, rgba(242,162,154,0) 92%);
+  border-radius: 50%; transform: rotate(-8deg);
+}
+
+.rey { left: 693px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.rey-sclera {
+  left: 3px; top: 0px; width: 170px; height: 160px;
+  clip-path: path("M49,58 C45,61 24,61 9,67 C9,78 11,94 20,106 C23,106 31,116 33,126 C39,133 40,131 38,131 C33,127 26,119 39,111 C30,87 34,72 41,60 C43,55 45,50 45,47 Z");
+}
+
+.rey-iris {
+  left: 0px; top: -3px; width: 169px; height: 151px;
+  clip-path: path("M58,53 C52,29 59,35 76,38 C83,42 103,45 116,55 C124,55 126,58 149,84 C147,90 123,102 120,108 C128,126 119,132 113,135 C102,139 87,145 75,138 C67,135 51,133 44,124 C38,119 31,100 32,79 C33,73 37,61 43,53 C43,50 52,51 46,51 Z");
+}
+
+.rey-lash { left: 120px; top: 101px; width: 11px; height: 35px; transform: rotate(50deg); }
+
+.rey-cat { left: 26px; top: 78px; width: 23px; height: 16px; }
+
+.rey-pink { left: 51px; top: 112px; width: 43px; height: 23px; transform: rotate(2deg); }
+
+.hand .leye-red {
+  left: 498px;
+  top: 528px;
+  width: 38px;
+  height: 22px;
+  background: #c13e3c;
+  border-radius: 50% 50% 40% 40%;
+}
+
+.hand .leye-pink {
+  left: 496px;
+  top: 549px;
+  width: 30px;
+  height: 13px;
+  background: #ec9c94;
+  border-radius: 50%;
+}
+
+.hand .leye-white {
+  left: 483px;
+  top: 514px;
+  width: 20px;
+  height: 15px;
+  background: #f1f2ed;
+  border-radius: 50%;
+}
+
+.ley { left: 450px; top: 450px; width: 120px; height: 140px; z-index: 1; }
+
+.ley > div { position: absolute; }
+
+.ley-sclera {
+  left: 0; top: 0; width: 120px; height: 140px; background: #efede9;
+  clip-path: path("M32,22 C24,24 14,32 8,44 C3,55 4,72 8,88 C11,101 18,109 25,109 C33,107 37,99 37,88 C39,74 40,60 40,48 C42,37 44,28 42,24 C38,22 34,21 32,22 Z");
+}
+
+.ley-iris {
+  left: 0; top: 0; width: 120px; height: 140px;
+  background:
+    radial-gradient(ellipse 22% 20% at 52% 68%, #c3453c 0%, #bd3739 45%, rgba(146,61,61,.5) 72%, rgba(95,48,46,0) 90%),
+    linear-gradient(180deg, #443330 0%, #583833 38%, #673a33 55%, #6f4a45 68%, #54523e 80%, #724a38 90%, #bc3c3a 100%);
+  clip-path: path("M40,18 C50,12 62,13 72,18 C82,23 90,33 94,45 C97,56 98,68 95,80 C92,92 86,103 76,110 C67,116 55,117 47,112 C39,107 35,96 34,84 L34,78 L47,72 L47,66 L34,60 C33,55 35,48 36,44 C38,34 39,25 40,18 Z");
+}
+
+.ley-pink {
+  left: 40px; top: 97px; width: 40px; height: 16px;
+  background: radial-gradient(ellipse at 45% 45%, #f09a92 0%, #ea9a92 55%, rgba(242,162,154,0) 92%);
+  border-radius: 50%; transform: rotate(-4deg);
+}
+
+.hand .l33-dark, .hand .leye-red, .hand .leye-pink { display: none; }
+
+.ley { left: 450px; top: 453px; width: 120px; height: 140px; z-index: 1; }
+
+.ley-sclera {
+  left: -2px; top: 3px; width: 120px; height: 140px;
+  clip-path: path("M42,30 C30,32 8,27 -6,40 C17,56 18,74 12,88 C18,93 28,101 39,103 C44,104 49,101 37,88 C36,74 40,60 40,48 C42,37 44,28 42,32 C37,23 33,19 35,22 Z");
+}
+
+.ley-iris {
+  left: 0px; top: 0px; width: 123px; height: 140px;
+  clip-path: path("M32,6 C50,4 54,16 67,18 C82,23 93,33 91,45 C100,60 101,80 100,78 C95,89 86,106 79,110 C79,116 54,114 54,109 C42,104 35,93 34,87 L31,76 L48,72 L50,64 L31,59 C30,56 32,45 33,41 C35,30 44,22 42,21 Z");
+}
+
+.ley-pink { left: 45px; top: 97px; width: 35px; height: 16px; transform: rotate(3deg); }
+
+.bg .s2 {  left: 882px;
+  top: 752px;
+  width: 490px;
+  height: 499px;
+  clip-path: polygon(4px 29.3%, 31.2% 0%, 100% 70.7%, 68.8% 100%);
+}
+
+.back-hair .bh-r-ext {
+  left: 990px;
+  top: 450px;
+  width: 110px;
+  height: 180px;
+  background: #2f2830;
+  clip-path: path("M16,5 C29.33,-22.5 85.33,-1.67 98,5 C110.67,11.67 94.33,33.83 92,45 C89.67,56.17 87.33,61.17 84,72 C80.67,82.83 77.33,97 72,110 C66.67,123 61,140 52,150 C43,160 24,194.17 18,170 C12,145.83 2.67,32.5 16,5 Z");
+}
+
+.side-hair .side-r-ext {
+  left: 780px;
+  top: 758px;
+  width: 190px;
+  height: 140px;
+  background: #2c2020;
+  clip-path: path("M12,0 L190,0 L190,140 L48,140 C33,100 14,44 0,34 L0,36 L12,0 Z");
+  filter: blur(2px);
+}
+
+.back-hair .bh-main {
+  left: 330px;
+  top: 30px;
+  width: 680px;
+  height: 850px;
+  background: #352420;
+  border-radius: 50% 50% 45% 45% / 58% 58% 42% 42%;
+}
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M103.9,54 C108.6,50.8 121.1,50.8 124.1,54 C127.1,57.1 122.6,68.5 121.9,73 C121.3,77.5 121,78.3 120,80.9 C119,83.6 117.1,86.2 116,88.9 C114.8,91.6 115.3,94.4 113,97.1 C110.6,99.8 104.3,102.4 102,105.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 93,121 C91.5,123.7 92.3,126.4 90,129 C87.7,131.7 85.5,134.3 79,137 C72.5,139.7 57.5,143.6 51,145 C44.5,146.3 38.6,147.6 40.1,145 C41.6,142.3 55.5,133 60,129 C64.5,125 65.5,123.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,110.4 68.4,107.7 70,105.1 C71.7,102.4 77.4,99.8 79,97.1 C80.7,94.4 78.4,91.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C90.7,78.3 93.4,77.5 96,73 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 58.7% -8.9%, 56% 5.3%, 44.7% 5.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    44.7% 5.3%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 21%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 52.6%,
+    42% 63.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    24% 78.9%,
+    19.3% 84.2%,
+    40.7% 89.5%,
+    31% 93%,
+    21.3% 96.3%,
+    10% 99.5%,
+    2% 99.5%,
+    1.3% 96.8%,
+    4% 94.7%,
+    6% 89.5%,
+    8% 84.2%,
+    12% 78.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 63.2%,
+    22.7% 57.9%,
+    24.7% 52.6%,
+    28% 47.4%,
+    31.3% 42.1%,
+    32.7% 36.8%,
+    34% 31.6%,
+    38% 26.3%,
+    38.7% 21%,
+    40% 15.8%,
+    43.3% 10.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M103.1,50 C103.4,48.2 115.2,41.7 120,40.1 C124.8,38.4 129.5,36.3 132,40.1 C134.5,43.9 136.3,59.2 135,63.1 C133.7,66.9 126.9,65.1 124.1,63.1 C121.2,61.1 121.6,53.1 118.1,50.9 C114.6,48.7 102.7,51.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    80.7% 21.1%,
+    87.3% 21.1%,
+    90% 31.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    61.3% 73.7%,
+    54% 73.7%,
+    60% 68.4%,
+    70.7% 57.9%,
+    78% 47.4%,
+    80.7% 42.1%,
+    82.7% 36.8%,
+    82.7% 31.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,144 C76.3,143.3 83.8,142.7 86,145 C88.2,147.3 86,154.3 83,158 C80,161.7 76.7,165.2 68,167 C59.3,168.8 36,171.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.ear .ear-m {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #e8cdb8;
+  clip-path: polygon(62% 31.6%, 70% 31.6%, 70% 37.9%, 55% 37.9%);
+
+  display: none;
+}
+
+.face {
+  left: 420px;
+  top: 260px;
+  width: 420px;
+  height: 610px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+.eye-r {
+  left: 700px;
+  top: 535px;
+  width: 142px;
+  height: 118px;
+}
+
+.ribbon .rb-body {
+  left: 968px;
+  top: 476px;
+  width: 148px;
+  height: 448px;
+  background:
+    linear-gradient(100deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 40%, rgba(255,170,150,.10) 74%, rgba(255,200,180,.26) 100%),
+    linear-gradient(180deg, #c0392b 0%, #9c3532 40%, #97332a 72%, #a63328 100%);
+  clip-path: polygon(40% 0, 100% 0, 100% 80%, 70% 100%, 2% 100%);
+  transform: rotate(2deg);
+}
+
+.ribbon .rb-dark {
+  left: 986px;
+  top: 475px;
+  width: 120px;
+  height: 160px;
+  background: linear-gradient(90deg, #2c2422 0%, #2d2229 20%, #2e292f 45%, #383339 70%, #423c40 85%, #4a4448 100%);
+  clip-path: path("M0,0 C18.67,-26.67 94.33,-3.33 112,0 C129.67,3.33 108.17,12.67 106,20 C103.83,27.33 100.33,39 99,44 C97.67,49 98.33,47.67 98,50 C97.67,52.33 99,55.33 97,58 C95,60.67 88.83,63 86,66 C83.17,69 81.67,71 80,76 C78.33,81 77.5,89.5 76,96 C74.5,102.5 72.83,108.5 71,115 C69.17,121.5 67.17,128.33 65,135 C62.83,141.67 68.83,150.83 58,155 C47.17,159.17 9.67,185.83 0,160 C-9.67,134.17 -18.67,26.67 0,0 Z");
+}
+
+.ribbon .rb-stripe3 {
+  left: 872px;
+  top: 615px;
+  width: 223px;
+  height: 190px;
+  background: #5f1414;
+  clip-path: path("M127,5 C142.17,1.67 193,-25 191,5 C189,35 146.33,155 115,185 C83.67,215 21.67,190 3,185 C-15.67,180 -0.67,161.67 3,155 C6.67,148.33 17.17,148.33 25,145 C32.83,141.67 44.17,138.33 50,135 C55.83,131.67 57,128.33 60,125 C63,121.67 65.33,118.33 68,115 C70.67,111.67 73,108.33 76,105 C79,101.67 83.33,97.83 86,95 C88.67,92.17 89.67,99.67 92,88 C94.33,76.33 94.17,38.83 100,25 C105.83,11.17 111.83,8.33 127,5 Z");
+  filter: blur(3px);
+}
+
+.side-hair .side-r {
+  left: 806px;
+  top: 340px;
+  width: 84px;
+  height: 580px;
+  background: linear-gradient(165deg, #202117 0%, #322220 42%, #524330 100%);
+  border-radius: 50% 50% 50% 50% / 8% 8% 74% 80%;
+  transform: rotate(-4deg);
+  filter: blur(2px);
+}
+
+.hand .rhi-band {
+  left: 800px;
+  top: 450px;
+  width: 44px;
+  height: 178px;
+  background: linear-gradient(180deg, #bb9684 0%, #b89285 52%, #b89486 66%, #7a5a4e 76%, #402a24 86%, #402a24 100%);
+  clip-path: path("M25,22 C26.52,22.62 27,28 29,36.43 C31,44.89 35.26,59.65 37.09,72.74 C38.93,85.83 40.06,102.95 40,115 C39.94,127 38.75,138.53 36.74,145 C34.73,151.53 31.1,154.08 27.94,154 C24.77,153.89 20.68,152 17.76,144.46 C14.85,136.94 11.27,121.57 10.44,108.87 C9.61,96.16 11.2,80.9 12.78,68.21 C14.35,55.51 17.85,40.4 19.89,32.7 C21.93,25 23.48,21.38 25,22 Z");
+}
+
+.hand .rhi-r {
+  left: 896px;
+  top: 502px;
+  width: 52px;
+  height: 122px;
+  background: linear-gradient(180deg, #b79789 0%, #dccabb 7%, #f0e6de 16%, #f0e6d8 100%);
+  clip-path: polygon(40px 3px, 48px 8px, 44px 28px, 40px 43px, 36px 56px, 31px 68px, 26px 78px, 21px 88px, 17px 98px, 13px 108px, 10px 118px, 5px 118px, 10px 98px, 15px 80px, 19px 66px, 22px 53px, 28px 40px, 33px 26px, 37px 13px);
+}
+
+.hand .rb-loop {
+  left: 944px;
+  top: 702px;
+  width: 56px;
+  height: 132px;
+  background: #611110;
+  clip-path: path("M12,16.56 C16.43,9.78 21.28,4.63 26.61,6 C31.94,7.37 39.1,16.61 44,24.76 C48.9,32.91 53,43.85 56,54.9 C59,66 63,80 62,91 C61,102.1 56.22,114.37 50,121.19 C43.78,128 32,132.37 24.66,132 C17.33,131.63 10.11,127.19 6,119 C1.89,110.81 1,94.9 0,82.85 C-1,70.8 -2,57.75 0,46.71 C2,35.66 7.57,23.34 12,16.56 Z");
+}
+
+.hand .rb-warmfold {
+  left: 858px;
+  top: 606px;
+  width: 30px;
+  height: 100px;
+  background: #3e302c;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 70% 75%, 45% 100%, 0 100%);
+}
+
+.hand .ear-gr {
+  left: 872px;
+  top: 664px;
+  width: 20px;
+  height: 22px;
+  background: linear-gradient(160deg, #5a4244 0%, #4a3a36 60%, #432b28 100%);
+  border-radius: 40% 60% 50% 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-tn {
+  left: 882px;
+  top: 688px;
+  width: 22px;
+  height: 26px;
+  background: #bd9485;
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-line1 { left: 911px; top: 594px; width: 3px; height: 104px; transform: rotate(7deg); }
+
+.hand .ear-line2 { left: 948px; top: 596px; width: 3px; height: 54px; transform: rotate(35deg); }
+
+.hand .ear-line3 { left: 910px; top: 691px; width: 3px; height: 54px; transform: rotate(76deg); }
+
+.hand .ear-hx {
+  left: 918px;
+  top: 594px;
+  width: 64px;
+  height: 50px;
+  background: #e9d3cb;
+  clip-path: polygon(40px 4px, 58px 6px, 60px 14px, 52px 16px, 42px 20px, 34px 26px, 26px 32px, 18px 40px, 4px 46px, 10px 36px, 20px 26px, 30px 18px, 38px 10px);
+  filter: blur(3px);
+}
+
+.hand .ear-hb {
+  left: 920px;
+  top: 684px;
+  width: 30px;
+  height: 22px;
+  background: #f5e7d9;
+  clip-path: polygon(8px 4px, 26px 6px, 20px 18px, 4px 18px);
+  filter: blur(3px);
+}
+
+.hand .er-teeth {
+  left: 957px;
+  top: 460px;
+  width: 18px;
+  height: 146px;
+  background: #2a2220;
+  transform: rotate(11deg);
+  transform-origin: 0 0;
+  clip-path: polygon(18px 0px, 1px 5px, 18px 12px, 1px 19px, 18px 26px, 1px 33px, 18px 40px, 1px 47px, 18px 54px, 1px 61px, 18px 68px, 1px 75px, 18px 82px, 1px 89px, 18px 96px, 1px 103px, 18px 110px, 1px 117px, 18px 124px, 1px 131px, 18px 138px, 1px 146px, 18px 146px);
+}
+
+.hand .ear-ridge {
+  left: 921px; top: 604px; width: 50px; height: 32px;
+  background: #f5e7d9;
+  clip-path: polygon(32px 0, 49px 0, 16px 32px, 0 32px);
+  z-index: 7;
+  filter: blur(3px);
+}
+
+.hand .rb-redtop {
+  left: 888px; top: 755px; width: 58px; height: 82px;
+  background: #620c0c;
+  clip-path: polygon(24px 0, 58px 0, 58px 82px, 0 82px, 0 78px, 17px 45px, 24px 15px);
+}
+
+.hand .ear-temple {
+  left: 850px; top: 455px; width: 150px; height: 330px;
+  background: linear-gradient(135deg, #2d2816 0%, #251a1e 30%, #2b2120 50%, #322a26 68%, #402328 85%, #4a332c 100%);
+  clip-path: polygon(6px 5px, 150px 5px, 150px 200px, 131px 206px, 115px 231px, 99px 251px, 83px 271px, 67px 291px, 53px 311px, 40px 325px, 6px 325px);
+  filter: blur(3px);
+}
+
+.hand .ear-thi {
+  left: 904px; top: 455px; width: 24px; height: 160px;
+  background: linear-gradient(180deg, #323625 0%, #42353a 55%, #4d3f3b 100%);
+  transform: rotate(13.5deg);
+  filter: blur(3px);
+}
+
+.hand .ef1 { left: 970.6px;  top: 610.4px;  width: 13px;   transform: rotate(157.4deg); }
+
+.hand .ef2 { left: 960px;    top: 614.1px;  width: 15px;   transform: rotate(137.7deg); }
+
+.hand .ef3 { left: 949px;    top: 624.1px;  width: 16.3px; transform: rotate(137.5deg); }
+
+.hand .ef4 { left: 944px;    top: 633.5px;  width: 18px; }
+
+.hand .ef5 { left: 934.06px; top: 689.94px; width: 7.1px;  transform: rotate(135deg); }
+
+.hand .ef6 { left: 901px;    top: 699.5px;  width: 8px; }
+
+.hand .ef7 { left: 935.06px; top: 704.94px; width: 14.1px; transform: rotate(135deg); }
+
+.hand .ef8 { left: 920.26px; top: 701.48px; width: 23.3px; transform: rotate(170.1deg); }
+
+.hand .ef9 { left: 898px;    top: 705.1px;  width: 20px;   transform: rotate(136.5deg); }
+
+.hand .ef10 { left: 947px; top: 644px; width: 20px; transform: rotate(153deg); }
+
+.hand .ef11 { left: 954px; top: 646px; width: 10px; transform: rotate(84deg); }
+
+.hand .ef12 { left: 955px; top: 656px; width: 13px; transform: rotate(108deg); }
+
+.hand .ef13 { left: 951px; top: 668px; width: 11px; transform: rotate(124deg); }
+
+.hand .ef14 { left: 933px; top: 690px; width: 15px; transform: rotate(148deg); }
+
+.hand .ef15 { left: 920px; top: 698px; width: 15px; transform: rotate(172deg); }
+
+.rey { left: 690px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.hand .ear-line4 {
+  left: 907px; top: 709px; width: 41px; height: 6px;
+  background: linear-gradient(90deg, rgba(26,8,6,0) 0%, rgba(32,16,12,0.95) 15%, rgba(32,22,20,0.95) 85%, rgba(26,8,6,0) 100%);
+  transform: rotate(-45deg);
+  filter: blur(1px);
+  z-index: 7;
+}
+
+.hand .ear-skin-gap {
+  left: 916px; top: 643px; width: 18px; height: 18px;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%,
+    rgba(200,158,142,1) 0%, rgba(206,172,150,.95) 45%, rgba(206,172,150,.60) 70%, rgba(206,172,150,0) 100%);
+  filter: blur(0.8px);
+  z-index: 7;
+}
+
+.rey { left: 693px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M106.9,61 C106.6,55.8 124.1,57.8 125.1,59 C130.1,60.1 125.6,71.5 124.9,76 C124.3,80.5 124,81.3 123,83.9 C122,86.6 120.1,89.2 121,90.9 C116.8,93.6 115.3,94.4 116,100.1 C113.6,100.8 107.3,105.4 105,108.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 94,124 C94.5,126.7 95.3,126.4 93,132 C90.7,134.7 88.5,134.3 82,140 C76.5,142.7 60.5,146.6 54,148 C41.5,151.3 36.6,150.6 39.1,146 C44.6,142.3 55.5,133 60,129 C66.5,125 65.5,121.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,115.4 68.4,108.7 70,102.1 C74.7,102.4 80.4,102.8 79,100.1 C75.7,91.4 75.4,94.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C95.7,79.3 98.4,84.5 96,76 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 556px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 55.7% -11.9%, 56% 5.3%, 49.7% 2.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 153px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    51.7% -1.7%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 26%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 53.6%,
+    42% 65.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    22% 81.9%,
+    21.3% 86.2%,
+    41.7% 89.5%,
+    36% 93%,
+    24.3% 96.3%,
+    5% 99.5%,
+    -3% 104.5%,
+    1.3% 96.8%,
+    1% 97.7%,
+    6% 88.5%,
+    8% 84.2%,
+    12% 75.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 62.2%,
+    22.7% 54.9%,
+    26.7% 47.6%,
+    27% 47.4%,
+    28.3% 44.1%,
+    29.7% 39.8%,
+    34% 31.6%,
+    38% 21.3%,
+    41.7% 21%,
+    45% 15.8%,
+    46.3% 13.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M105.1,52 C100.4,50.2 112.2,41.7 117,40.1 C121.8,38.4 128.5,36.3 135,43.1 C137.5,46.9 139.3,62.2 135,66.1 C133.7,69.9 129.9,68.1 127.1,60.1 C124.2,58.1 124.6,53.1 118.1,50.9 C114.6,51.7 99.7,54.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 558px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    83.7% 21.1%,
+    87.3% 21.1%,
+    90% 34.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    58.3% 73.7%,
+    51% 70.7%,
+    57% 68.4%,
+    67.7% 57.9%,
+    78% 47.4%,
+    80.7% 39.1%,
+    82.7% 36.8%,
+    82.7% 34.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 847px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,147 C79.3,143.3 80.8,142.7 89,145 C91.2,147.3 83,154.3 80,158 C80,161.7 76.7,165.2 71,167 C62.3,171.8 36,174.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.face {
+  left: 420px;
+  top: 257px;
+  width: 423px;
+  height: 607px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+.bg .s2 {  left: 882px;
+  top: 752px;
+  width: 490px;
+  height: 499px;
+  clip-path: polygon(4px 29.3%, 31.2% 0%, 100% 70.7%, 68.8% 100%);
+}
+
+.back-hair .bh-r-ext {
+  left: 990px;
+  top: 450px;
+  width: 110px;
+  height: 180px;
+  background: #2f2830;
+  clip-path: path("M16,5 C29.33,-22.5 85.33,-1.67 98,5 C110.67,11.67 94.33,33.83 92,45 C89.67,56.17 87.33,61.17 84,72 C80.67,82.83 77.33,97 72,110 C66.67,123 61,140 52,150 C43,160 24,194.17 18,170 C12,145.83 2.67,32.5 16,5 Z");
+}
+
+.side-hair .side-r-ext {
+  left: 780px;
+  top: 758px;
+  width: 190px;
+  height: 140px;
+  background: #2a2020;
+  clip-path: path("M12,0 L190,0 L190,140 L48,140 C33,100 14,44 0,34 L0,36 L12,0 Z");
+  filter: blur(2px);
+}
+
+.bg .s5 {
+  left: 1092px;
+  top: 760px;
+  width: 162px;
+  height: 174px;
+  background: linear-gradient(180deg, #3b3836 0%, #302e2c 45%, #26251f 100%);
+  clip-path: polygon(20% 13px, 100% 145.7px, 100% 100%, 0 100%, 0 6%);
+}
+
+.bg .s5-dk {
+  left: 1075px; top: 862px; width: 110px; height: 72px;
+  background: radial-gradient(ellipse 55px 42px at 32% 88%,
+    rgba(0,0,0,.55) 0%, rgba(0,0,0,.28) 50%, rgba(0,0,0,0) 100%);
+  filter: blur(2px);
+}
+
+.back-hair .bh-main {
+  left: 330px;
+  top: 30px;
+  width: 680px;
+  height: 850px;
+  background: #332a26;
+  border-radius: 50% 50% 45% 45% / 58% 58% 42% 42%;
+}
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M103.9,54 C108.6,50.8 121.1,50.8 124.1,54 C127.1,57.1 122.6,68.5 121.9,73 C121.3,77.5 121,78.3 120,80.9 C119,83.6 117.1,86.2 116,88.9 C114.8,91.6 115.3,94.4 113,97.1 C110.6,99.8 104.3,102.4 102,105.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 93,121 C91.5,123.7 92.3,126.4 90,129 C87.7,131.7 85.5,134.3 79,137 C72.5,139.7 57.5,143.6 51,145 C44.5,146.3 38.6,147.6 40.1,145 C41.6,142.3 55.5,133 60,129 C64.5,125 65.5,123.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,110.4 68.4,107.7 70,105.1 C71.7,102.4 77.4,99.8 79,97.1 C80.7,94.4 78.4,91.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C90.7,78.3 93.4,77.5 96,73 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 58.7% -8.9%, 56% 5.3%, 44.7% 5.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    44.7% 5.3%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 21%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 52.6%,
+    42% 63.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    24% 78.9%,
+    19.3% 84.2%,
+    40.7% 89.5%,
+    31% 93%,
+    21.3% 96.3%,
+    10% 99.5%,
+    2% 99.5%,
+    1.3% 96.8%,
+    4% 94.7%,
+    6% 89.5%,
+    8% 84.2%,
+    12% 78.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 63.2%,
+    22.7% 57.9%,
+    24.7% 52.6%,
+    28% 47.4%,
+    31.3% 42.1%,
+    32.7% 36.8%,
+    34% 31.6%,
+    38% 26.3%,
+    38.7% 21%,
+    40% 15.8%,
+    43.3% 10.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M103.1,50 C103.4,48.2 115.2,41.7 120,40.1 C124.8,38.4 129.5,36.3 132,40.1 C134.5,43.9 136.3,59.2 135,63.1 C133.7,66.9 126.9,65.1 124.1,63.1 C121.2,61.1 121.6,53.1 118.1,50.9 C114.6,48.7 102.7,51.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    80.7% 21.1%,
+    87.3% 21.1%,
+    90% 31.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    61.3% 73.7%,
+    54% 73.7%,
+    60% 68.4%,
+    70.7% 57.9%,
+    78% 47.4%,
+    80.7% 42.1%,
+    82.7% 36.8%,
+    82.7% 31.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,144 C76.3,143.3 83.8,142.7 86,145 C88.2,147.3 86,154.3 83,158 C80,161.7 76.7,165.2 68,167 C59.3,168.8 36,171.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.ear .ear-m {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #e8cdb8;
+  clip-path: polygon(62% 31.6%, 70% 31.6%, 70% 37.9%, 55% 37.9%);
+
+  display: none;
+}
+
+.face {
+  left: 420px;
+  top: 260px;
+  width: 420px;
+  height: 610px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+.eye-r {
+  left: 700px;
+  top: 535px;
+  width: 142px;
+  height: 118px;
+}
+
+.ribbon .rb-body {
+  left: 968px;
+  top: 476px;
+  width: 148px;
+  height: 448px;
+  background:
+    linear-gradient(100deg, rgba(0,8,16,.28) 0%, rgba(0,0,0,0) 40%, rgba(247,178,150,.10) 74%, rgba(239,192,172,.26) 100%),
+    linear-gradient(180deg, #b84133 0%, #a83d32 40%, #ab3328 72%, #ae2b20 100%);
+  clip-path: polygon(40% 0, 100% 0, 100% 80%, 70% 100%, 2% 100%);
+  transform: rotate(2deg);
+}
+
+.ribbon .rb-brcorner {
+  left: 1073px;
+  top: 852px;
+  width: 34px;
+  height: 62px;
+  background: linear-gradient(135deg, #a83d32 0%, #ab3328 60%, #9e3b30 100%);
+  clip-path: polygon(2px 53px, 7px 41px, 17px 22px, 27px 4px, 32px 8px, 32px 42px,
+    27px 43px, 17px 49px, 7px 55px, 2px 58px);
+  z-index: 1;
+}
+
+.ribbon .rb-red {
+  left: 1045px;
+  top: 478px;
+  width: 80px;
+  height: 190px;
+  background: linear-gradient(180deg, #a04a4c 0%, #673035 35%, #a6524b 100%);
+  clip-path: path("M46,2 C51.17,-1 66.17,-3 71,2 C75.83,7 74.33,18.67 75,32 C75.67,45.33 75.83,67 75,82 C74.17,97 71.67,108.67 70,122 C68.33,135.33 66.67,150.67 65,162 C63.33,173.33 70.83,185.33 60,190 C49.17,194.67 10,201.33 0,190 C-10,178.67 -1,135.33 0,122 C1,108.67 4,114.33 6,110 C8,105.67 10,100.33 12,96 C14,91.67 16,88 18,84 C20,80 22,76 24,72 C26,68 28,65.33 30,60 C32,54.67 34.33,46.67 36,40 C37.67,33.33 38.33,26.33 40,20 C41.67,13.67 40.83,5 46,2 Z");
+}
+
+.ribbon .rb-dark {
+  left: 986px;
+  top: 475px;
+  width: 120px;
+  height: 160px;
+  background: linear-gradient(90deg, #2c1e22 0%, #272229 20%, #36292f 45%, #383339 70%, #4a3c40 85%, #523c40 100%);
+  clip-path: path("M0,0 C18.67,-26.67 94.33,-3.33 112,0 C129.67,3.33 108.17,12.67 106,20 C103.83,27.33 100.33,39 99,44 C97.67,49 98.33,47.67 98,50 C97.67,52.33 99,55.33 97,58 C95,60.67 88.83,63 86,66 C83.17,69 81.67,71 80,76 C78.33,81 77.5,89.5 76,96 C74.5,102.5 72.83,108.5 71,115 C69.17,121.5 67.17,128.33 65,135 C62.83,141.67 68.83,150.83 58,155 C47.17,159.17 9.67,185.83 0,160 C-9.67,134.17 -18.67,26.67 0,0 Z");
+}
+
+.ribbon .rb-stripe3 {
+  left: 872px;
+  top: 615px;
+  width: 223px;
+  height: 190px;
+  background: #5f1414;
+  clip-path: path("M127,5 C142.17,1.67 193,-25 191,5 C189,35 146.33,155 115,185 C83.67,215 21.67,190 3,185 C-15.67,180 -0.67,161.67 3,155 C6.67,148.33 17.17,148.33 25,145 C32.83,141.67 44.17,138.33 50,135 C55.83,131.67 57,128.33 60,125 C63,121.67 65.33,118.33 68,115 C70.67,111.67 73,108.33 76,105 C79,101.67 83.33,97.83 86,95 C88.67,92.17 89.67,99.67 92,88 C94.33,76.33 94.17,38.83 100,25 C105.83,11.17 111.83,8.33 127,5 Z");
+  filter: blur(3px);
+}
+
+.ribbon .rb-stripe1 {
+  left: 890px;
+  top: 820px;
+  width: 155px;
+  height: 12px;
+  background: #621214;
+  transform: rotate(6deg);
+  filter: blur(3px);
+}
+
+.ribbon .rb-stripe2 {
+  left: 900px;
+  top: 870px;
+  width: 148px;
+  height: 12px;
+  background: #62120c;
+  transform: rotate(6deg);
+  filter: blur(3px);
+}
+
+.bangs .top-hair {
+  left: 390px;
+  top: 45px;
+  width: 720px;
+  height: 490px;
+  background:
+    radial-gradient(ellipse 22% 15% at 96% 40%, rgba(180,174,186,.42) 0%, rgba(150,145,155,0) 75%),
+    radial-gradient(ellipse 18% 14% at 88% 20%, rgba(216,212,224,.52) 0%, rgba(172,168,182,.24) 45%, rgba(150,140,135,0) 100%),
+    radial-gradient(ellipse 42% 24% at 50% 0%, rgba(198,196,208,.42) 0%, rgba(158,156,168,.20) 50%, rgba(150,140,135,0) 100%),
+    linear-gradient(160deg, #3e373c 0%, #2c2527 60%, #241d1c 100%);
+  border-radius: 48% 52% 42% 42% / 60% 62% 36% 34%;
+}
+
+.bangs .b6 {
+  left: 825px;
+  top: 240px;
+  width: 28px;
+  height: 270px;
+  transform: rotate(-12deg);
+  filter: blur(3px);
+}
+
+.bangs .shine4 {
+  left: 800px;
+  top: 300px;
+  width: 40px;
+  height: 130px;
+  background: linear-gradient(180deg, #524647 0%, #4c4142 45%, #3e3234 78%, #302628 100%);
+  transform: rotate(10deg);
+  filter: blur(3px);
+}
+
+.side-hair .side-r {
+  left: 806px;
+  top: 340px;
+  width: 84px;
+  height: 580px;
+  background: linear-gradient(165deg, #241d1f 0%, #2a2220 42%, #463528 100%);
+  border-radius: 50% 50% 50% 50% / 8% 8% 74% 80%;
+  transform: rotate(-4deg);
+  filter: blur(2px);
+}
+
+.hand .bg-right-gray {
+  display: none;
+  left: 1075px;
+  top: 295px;
+  width: 185px;
+  height: 185px;
+  background: #5f5a60;
+  clip-path: polygon(5px 5px, 30px 5px, 30px 65px, 55px 61px, 105px 48px, 155px 38px, 179px 33px, 179px 109px, 16px 177px, 5px 177px);
+  filter: blur(6px);
+}
+
+.hand .cr-redfix {
+  left: 1005px;
+  top: 920px;
+  width: 70px;
+  height: 28px;
+  background: #2a2422;
+  clip-path: polygon(5px 3px, 65px 3px, 65px 26px, 5px 26px);
+}
+
+.hand .cheek-gap {
+  left: 784px;
+  top: 614px;
+  width: 50px;
+  height: 72px;
+  background: #f7ebdd;
+  clip-path: polygon(30px 4px, 35px 4px, 44px 12px, 46px 18px, 44px 26px, 42px 36px, 38px 46px, 34px 58px, 32px 68px, 4px 68px, 4px 34px, 12px 26px, 18px 18px, 24px 10px);
+}
+
+.hand .rhi-skin {
+  left: 804px;
+  top: 517px;
+  width: 26px;
+  height: 46px;
+  background: #f6e8da;
+  border-radius: 45% 45% 0 0 / 55% 55% 0 0;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 16px);
+}
+
+.hand .rhi-tan {
+  left: 824px;
+  top: 455px;
+  width: 10px;
+  height: 56px;
+  background: #b99386;
+  border-radius: 50%;
+}
+
+.hand .r55-hi {
+  left: 808px;
+  top: 848px;
+  width: 92px;
+  height: 90px;
+  background: #f4f6f5;
+  clip-path: polygon(8px 4px, 20px 4px, 28px 16px, 44px 30px, 62px 44px, 70px 58px, 76px 72px, 82px 86px, 8px 86px, 4px 68px, 12px 48px, 19px 30px, 13px 18px);
+}
+
+.hand .rhi-band {
+  left: 800px;
+  top: 450px;
+  width: 44px;
+  height: 178px;
+  background: linear-gradient(180deg, #bb9684 0%, #b89285 52%, #b89486 66%, #7a5a4e 76%, #402a24 86%, #402a24 100%);
+  clip-path: path("M25,22 C26.52,22.62 27,28 29,36.43 C31,44.89 35.26,59.65 37.09,72.74 C38.93,85.83 40.06,102.95 40,115 C39.94,127 38.75,138.53 36.74,145 C34.73,151.53 31.1,154.08 27.94,154 C24.77,153.89 20.68,152 17.76,144.46 C14.85,136.94 11.27,121.57 10.44,108.87 C9.61,96.16 11.2,80.9 12.78,68.21 C14.35,55.51 17.85,40.4 19.89,32.7 C21.93,25 23.48,21.38 25,22 Z");
+}
+
+.hand .rb-slit {
+  left: 790px;
+  top: 588px;
+  width: 46px;
+  height: 56px;
+  background: #f2e0d8;
+  clip-path: polygon(38px 4px, 35px 12px, 32px 20px, 30px 24px, 28px 28px, 24px 32px, 20px 36px, 16px 40px, 11px 45px, 6px 49px, 2px 53px, 6px 53px, 10px 49px, 15px 45px, 20px 40px, 24px 36px, 28px 32px, 32px 28px, 34px 24px, 36px 20px, 39px 12px, 42px 4px);
+  filter: blur(0.7px);
+  z-index: 2;
+}
+
+.hand .rhi-r {
+  left: 896px;
+  top: 502px;
+  width: 52px;
+  height: 122px;
+  background: linear-gradient(180deg, #b79789 0%, #dccabb 7%, #f0e6d8 16%, #f0e6d8 100%);
+  clip-path: polygon(40px 3px, 48px 8px, 44px 28px, 40px 43px, 36px 56px, 31px 68px, 26px 78px, 21px 88px, 17px 98px, 13px 108px, 10px 118px, 5px 118px, 10px 98px, 15px 80px, 19px 66px, 22px 53px, 28px 40px, 33px 26px, 37px 13px);
+}
+
+.hand .rb-lobe {
+  left: 869px;
+  top: 828px;
+  width: 96px;
+  height: 52px;
+  background: linear-gradient(180deg, #6a161b 0%, #5a1214 100%);
+  clip-path: polygon(0 35%, 35% 0, 100% 5%, 100% 95%, 40% 100%, 0 70%);
+}
+
+.hand .rb-shadow {
+  left: 873px;
+  top: 884px;
+  width: 62px;
+  height: 60px;
+  background: linear-gradient(90deg, #5b2b2e 0%, #522e2a 40%, #322e2c 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 47px 50px, 32px 40px, 0 20px);
+}
+
+.hand .rb-top {
+  display: none;
+  left: 1046px;
+  top: 436px;
+  width: 66px;
+  height: 42px;
+  background: linear-gradient(90deg, #3a3339 0%, #3a3339 55%, #4a4249 78%, #565059 92%, #5f5a60 100%);
+  clip-path: polygon(0 15%, 90% 0, 100% 25%, 88% 50%, 15% 100%, 0 80%);
+}
+
+.hand .rb-gapfill {
+  left: 1086px;
+  top: 454px;
+  width: 32px;
+  height: 27px;
+  background: linear-gradient(180deg, #575050 0%, #4a434a 55%, #423433 100%);
+}
+
+.hand .rb-loop {
+  left: 944px;
+  top: 702px;
+  width: 56px;
+  height: 132px;
+  background: #611110;
+  clip-path: path("M12,16.56 C16.43,9.78 21.28,4.63 26.61,6 C31.94,7.37 39.1,16.61 44,24.76 C48.9,32.91 53,43.85 56,54.9 C59,66 63,80 62,91 C61,102.1 56.22,114.37 50,121.19 C43.78,128 32,132.37 24.66,132 C17.33,131.63 10.11,127.19 6,119 C1.89,110.81 1,94.9 0,82.85 C-1,70.8 -2,57.75 0,46.71 C2,35.66 7.57,23.34 12,16.56 Z");
+}
+
+.hand .rb-lowred {
+  left: 973px;
+  top: 853px;
+  width: 28px;
+  height: 68px;
+  background: linear-gradient(180deg, #6d1512 0%, #a8352a 50%, #ad382e 100%);
+  clip-path: polygon(0 30%, 40% 0, 100% 10%, 100% 100%, 30% 100%);
+}
+
+.hand .rb-rhi {
+  left: 1096px;
+  top: 675px;
+  width: 22px;
+  height: 118px;
+  background: linear-gradient(180deg, #b36255 0%, #ae5346 50%, #b14a3c 100%);
+  clip-path: polygon(0 0, 100% 10%, 100% 100%, 25% 100%, 0 60%);
+}
+
+.hand .rb-tan2 {
+  left: 944px;
+  top: 449px;
+  width: 22px;
+  height: 26px;
+  background: #b08e8a;
+  border-radius: 40% 60% 50% 50%;
+}
+
+.hand .rb-tan3 {
+  left: 951px;
+  top: 407px;
+  width: 18px;
+  height: 90px;
+  background: #b8968a;
+  border-radius: 45% 55% 50% 50%;
+  transform-origin: center;
+  transform: rotate(10deg);
+  filter: blur(0.8px);
+}
+
+.hand .rb-sheen {
+  left: 932px;
+  top: 384px;
+  width: 6px;
+  height: 60px;
+  background: #9e919c;
+  transform-origin: center;
+  transform: rotate(12deg);
+  filter: blur(1.2px);
+}
+
+.hand .rb-warmfold {
+  left: 858px;
+  top: 606px;
+  width: 30px;
+  height: 100px;
+  background: #3e302c;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 70% 75%, 45% 100%, 0 100%);
+}
+
+.hand .rb-wcorner {
+  left: 1106px;
+  top: 450px;
+  width: 148px;
+  height: 28px;
+  background: #f4f5f7;
+  clip-path: polygon(12px 0, 148px 0, 148px 28px, 0 28px);
+}
+
+.hand .rb-band2 {
+  left: 992px;
+  top: 810px;
+  width: 120px;
+  height: 34px;
+  background: #422b25;
+  clip-path: polygon(3px 14px, 11px 14px, 27px 16px, 43px 16px, 59px 14px, 75px 11px,
+    91px 7px, 107px 3px, 115px 0px, 115px 15px, 107px 18px, 91px 22px, 75px 26px,
+    59px 29px, 43px 31px, 27px 31px, 11px 29px, 3px 29px);
+  filter: blur(1px);
+}
+
+.hand .rb-band3 {
+  left: 992px;
+  top: 856px;
+  width: 116px;
+  height: 34px;
+  background: #412823;
+  clip-path: polygon(3px 16px, 11px 16px, 27px 15px, 43px 12px, 59px 9px, 75px 5px,
+    91px 1px, 107px 0px, 107px 11px, 91px 16px, 75px 20px, 59px 24px, 43px 28px,
+    27px 31px, 11px 31px, 3px 31px);
+  filter: blur(1px);
+}
+
+.hand .rb-blfill {
+  left: 822px;
+  top: 818px;
+  width: 45px;
+  height: 48px;
+  background: linear-gradient(180deg, #332a28 0%, #3a2d29 100%);
+  clip-path: polygon(0 0, 45px 0, 45px 48px, 14px 48px, 0 33px);
+}
+
+.hand .rb-midgrad {
+  left: 1074px;
+  top: 536px;
+  width: 46px;
+  height: 115px;
+  background: linear-gradient(90deg, #6f3138 0%, #964640 42%, #af645c 100%);
+  filter: blur(1.5px);
+}
+
+.hand .cl-grayn {
+  left: 813px;
+  top: 870px;
+  width: 27px;
+  height: 46px;
+  background: #b3afaf;
+  clip-path: polygon(0 0, 100% 8%, 100% 100%, 20% 94%, 0 62%);
+}
+
+.hand .ear-gr {
+  left: 872px;
+  top: 664px;
+  width: 20px;
+  height: 22px;
+  background: linear-gradient(160deg, #52423c 0%, #4a3a36 60%, #2f2320 100%);
+  border-radius: 40% 60% 50% 50%;
+  filter: blur(3px);
+}
+
+.hand .ear-tn {
+  left: 882px;
+  top: 688px;
+  width: 22px;
+  height: 26px;
+  background: #c9a893;
+  border-radius: 50%;
+  filter: blur(3px);
+}
+
+.hand .cl-red {
+  left: 864px;
+  top: 850px;
+  width: 16px;
+  height: 38px;
+  background: #6a1e20;
+  clip-path: polygon(0 0, 100% 8%, 100% 90%, 60% 100%, 0 95%);
+}
+
+.hand .cl-gray2 {
+  left: 813px;
+  top: 870px;
+  width: 27px;
+  height: 46px;
+  background: #b6b0b1;
+  clip-path: polygon(0 0, 100% 10%, 100% 88%, 45% 100%, 0 92%);
+}
+
+.hand .rb-wf2 {
+  left: 816px;
+  top: 786px;
+  width: 82px;
+  height: 34px;
+  background: #342528;
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 85% 100%, 0 100%);
+}
+
+.hand .rb-dk1 {
+  left: 948px;
+  top: 814px;
+  width: 56px;
+  height: 14px;
+  background: #331f1f;
+}
+
+.hand .rb-bandM {
+  left: 862px;
+  top: 846px;
+  width: 108px;
+  height: 11px;
+  background: #3c2727;
+}
+
+.hand .rb-hair {
+  left: 1020px;
+  top: 270px;
+  width: 240px;
+  height: 250px;
+  background: linear-gradient(115deg, #373038 0%, #423b3c 30%, #4c4650 55%, #5b554f 75%, #59535d 100%);
+  clip-path: path("M15,5 L75,8 C82,32 86,58 90,78 C122,74 144,64 160,56 C172,51 184,47 196,43 C206,40 216,37 234,32 L234,140 C200,144 164,152 140,158 C119,170 104,185 85,196 C72,209 63,228 58,242 L38,215 C45,188 49,168 51,150 C51,132 52,118 46,96 C41,78 34,55 26,32 C22,18 18,9 15,5 Z");
+  filter: blur(3px);
+}
+
+.hand .rb-hair-bot {
+  left: 858px;
+  top: 878px;
+  width: 100px;
+  height: 82px;
+  background: linear-gradient(100deg, #2a2b27 0%, #222320 55%, #241f1d 100%);
+  clip-path: path("M22,10 C45,6 80,-2 100,0 C113,13.67 104.33,68.33 100,82 C95.67,95.67 83.33,88 74,82 C64.67,76 52.67,56.67 44,46 C35.33,35.33 25.67,25.67 22,18 C18.33,14 9,6 22,10 Z");
+}
+
+.hand .ear-line1 { left: 911px; top: 594px; width: 3px; height: 104px; transform: rotate(7deg); }
+
+.hand .ear-line2 { left: 948px; top: 596px; width: 3px; height: 54px; transform: rotate(35deg); }
+
+.hand .ear-line3 { left: 910px; top: 691px; width: 3px; height: 54px; transform: rotate(76deg); }
+
+.hand .ear-hx {
+  left: 918px;
+  top: 594px;
+  width: 64px;
+  height: 50px;
+  background: #f5e7d9;
+  clip-path: polygon(40px 4px, 58px 6px, 60px 14px, 52px 16px, 42px 20px, 34px 26px, 26px 32px, 18px 40px, 4px 46px, 10px 36px, 20px 26px, 30px 18px, 38px 10px);
+  filter: blur(3px);
+}
+
+.hand .ear-hb {
+  left: 920px;
+  top: 684px;
+  width: 30px;
+  height: 22px;
+  background: #f5e7d9;
+  clip-path: polygon(8px 4px, 26px 6px, 20px 18px, 4px 18px);
+  filter: blur(3px);
+}
+
+.hand .er-str {
+  left: 936px;
+  top: 470px;
+  width: 26px;
+  height: 40px;
+  background: #b8968a;
+  clip-path: path("M12,2 C14.67,1 22.67,1.67 24,4 C25.33,6.33 21.67,12 20,16 C18.33,20 16,24.33 14,28 C12,31.67 10,36.33 8,38 C6,39.67 2.67,40.33 2,38 C1.33,35.67 3,28.67 4,24 C5,19.33 6.67,13.67 8,10 C9.33,6.33 9.33,3 12,2 Z");
+}
+
+.hand .er-teeth {
+  left: 957px;
+  top: 460px;
+  width: 18px;
+  height: 146px;
+  background: #2a2220;
+  transform: rotate(11deg);
+  transform-origin: 0 0;
+  clip-path: polygon(18px 0px, 1px 5px, 18px 12px, 1px 19px, 18px 26px, 1px 33px, 18px 40px, 1px 47px, 18px 54px, 1px 61px, 18px 68px, 1px 75px, 18px 82px, 1px 89px, 18px 96px, 1px 103px, 18px 110px, 1px 117px, 18px 124px, 1px 131px, 18px 138px, 1px 146px, 18px 146px);
+}
+
+.hand .ear-ridge {
+  left: 921px; top: 604px; width: 50px; height: 32px;
+  background: #f5e7d9;
+  clip-path: polygon(32px 0, 49px 0, 16px 32px, 0 32px);
+  z-index: 7;
+  filter: blur(3px);
+}
+
+.hand .rb-redtop {
+  left: 888px; top: 755px; width: 58px; height: 82px;
+  background: #621214;
+  clip-path: polygon(24px 0, 58px 0, 58px 82px, 0 82px, 0 78px, 17px 45px, 24px 15px);
+}
+
+.hand .collar-strandT  { left: 828.5px;  top: 857px;    width: 3px;  height: 43px;  background: #3a2c24; transform: rotate(-41.2deg); }
+
+.hand .collar-strandP1 { left: 852px;    top: 899px;    width: 3px;  height: 48px;  background: #2a2624; transform: rotate(-18.1deg); }
+
+.hand .collar-strandP2 { left: 884.5px;  top: 936px;    width: 3px;  height: 72px;  background: #2a2624; transform: rotate(-43.9deg); }
+
+.hand .collar-strandQ  { left: 923.5px;  top: 880px;    width: 3px;  height: 134px; background: #232320; transform: rotate(-45.6deg); }
+
+.hand .r55-white {
+  left: 893px; top: 942px; width: 47px; height: 62px;
+  background: #fafafa;
+  clip-path: polygon(0 0, 22px 0, 47px 22px, 47px 62px, 0 62px);
+}
+
+.hand .rb-ctop {
+  left: 1101px;
+  top: 477px;
+  width: 29px;
+  height: 58px;
+  background: #f4f5f7;
+  clip-path: polygon(5px 0, 12px 6px, 16px 12px, 18px 20px, 19px 28px, 20px 40px, 21px 52px, 21px 58px, 29px 58px, 29px 0);
+}
+
+.hand .ear-temple {
+  left: 850px; top: 455px; width: 150px; height: 330px;
+  background: linear-gradient(135deg, #251a1e 0%, #251a1e 30%, #2b2120 50%, #382a24 68%, #48312a 85%, #4a332c 100%);
+  clip-path: polygon(6px 5px, 150px 5px, 150px 200px, 131px 206px, 115px 231px, 99px 251px, 83px 271px, 67px 291px, 53px 311px, 40px 325px, 6px 325px);
+  filter: blur(3px);
+}
+
+.hand .ear-thi {
+  left: 904px; top: 455px; width: 24px; height: 160px;
+  background: linear-gradient(180deg, #3a2e33 0%, #42353a 55%, #4d3f3b 100%);
+  transform: rotate(13.5deg);
+  filter: blur(3px);
+}
+
+.hand .ef1 { left: 970.6px;  top: 610.4px;  width: 13px;   transform: rotate(157.4deg); }
+
+.hand .ef2 { left: 960px;    top: 614.1px;  width: 15px;   transform: rotate(137.7deg); }
+
+.hand .ef3 { left: 949px;    top: 624.1px;  width: 16.3px; transform: rotate(137.5deg); }
+
+.hand .ef4 { left: 944px;    top: 633.5px;  width: 18px; }
+
+.hand .ef5 { left: 934.06px; top: 689.94px; width: 7.1px;  transform: rotate(135deg); }
+
+.hand .ef6 { left: 901px;    top: 699.5px;  width: 8px; }
+
+.hand .ef7 { left: 935.06px; top: 704.94px; width: 14.1px; transform: rotate(135deg); }
+
+.hand .ef8 { left: 920.26px; top: 701.48px; width: 23.3px; transform: rotate(170.1deg); }
+
+.hand .ef9 { left: 898px;    top: 705.1px;  width: 20px;   transform: rotate(136.5deg); }
+
+.hand .ef10 { left: 947px; top: 644px; width: 20px; transform: rotate(153deg); }
+
+.hand .ef11 { left: 954px; top: 646px; width: 10px; transform: rotate(84deg); }
+
+.hand .ef12 { left: 955px; top: 656px; width: 13px; transform: rotate(108deg); }
+
+.hand .ef13 { left: 951px; top: 668px; width: 11px; transform: rotate(124deg); }
+
+.hand .ef14 { left: 933px; top: 690px; width: 15px; transform: rotate(148deg); }
+
+.hand .ef15 { left: 920px; top: 698px; width: 15px; transform: rotate(172deg); }
+
+.rey { left: 690px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.hand .rb-bandT2 {
+  left: 852px; top: 810px; width: 96px; height: 17px;
+  background: #3a2c2c;
+  clip-path: polygon(0 5px, 20px 3px, 58px 2px, 94px 3px, 94px 12px, 40px 15px, 0 14px);
+  filter: blur(1.5px);
+}
+
+.hand .ear-line4 {
+  left: 907px; top: 709px; width: 41px; height: 6px;
+  background: linear-gradient(90deg, rgba(26,8,6,0) 0%, rgba(26,8,6,0.95) 15%, rgba(26,8,6,0.95) 85%, rgba(26,8,6,0) 100%);
+  transform: rotate(-45deg);
+  filter: blur(1px);
+  z-index: 7;
+}
+
+.hand .lash-sp2 {
+  left: 822px; top: 559.5px; width: 12px; height: 5px;
+  background: linear-gradient(90deg, rgba(34,20,7,0) 0%, rgba(34,20,7,1) 22%, rgba(34,20,7,1) 74%, rgba(34,20,7,0) 100%);
+  transform: rotate(18.5deg);
+  filter: blur(0.6px);
+  z-index: 13;
+}
+
+.hand .ear-skin-gap {
+  left: 916px; top: 643px; width: 18px; height: 18px;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%,
+    rgba(206,172,150,1) 0%, rgba(206,172,150,.95) 45%, rgba(206,172,150,.60) 70%, rgba(206,172,150,0) 100%);
+  filter: blur(0.8px);
+  z-index: 7;
+}
+
+.bg .s5-dk2 {
+  left: 1080px; top: 872px; width: 60px; height: 56px;
+  background: radial-gradient(ellipse 30px 28px at 50% 50%,
+    rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 100%);
+  filter: blur(2px);
+}
+
+.rey { left: 693px; top: 505px; width: 170px; height: 160px; z-index: 1; }
+
+.ear .ear-sh {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #c49a8a;
+  clip-path: path("M106.9,61 C106.6,55.8 124.1,57.8 125.1,59 C130.1,60.1 125.6,71.5 124.9,76 C124.3,80.5 124,81.3 123,83.9 C122,86.6 120.1,89.2 121,90.9 C116.8,93.6 115.3,94.4 116,100.1 C113.6,100.8 107.3,105.4 105,108.1 C99.7,107.7 100.5,110.4 99,113 C97.5,115.7 94.5,118.4 94,124 C94.5,126.7 95.3,126.4 93,132 C90.7,134.7 88.5,134.3 82,140 C76.5,142.7 60.5,146.6 54,148 C41.5,151.3 36.6,150.6 39.1,146 C44.6,142.3 55.5,133 60,129 C66.5,125 65.5,121.7 67,121 C68.5,118.4 68.5,115.7 69,113 C69.5,115.4 68.4,108.7 70,102.1 C74.7,102.4 80.4,102.8 79,100.1 C75.7,91.4 75.4,94.6 79.9,88.9 C81.4,86.2 85.4,83.6 88.1,80.9 C95.7,79.3 98.4,84.5 96,76 C98.6,68.5 99.3,57.1 103.9,54 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-t {
+  left: 850px;
+  top: 556px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(50.7% -8.9%, 55.7% -11.9%, 56% 5.3%, 49.7% 2.3%);
+  filter: blur(2px);
+}
+
+.ear .ear-l {
+  left: 850px;
+  top: 555px;
+  width: 153px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    51.7% -1.7%,
+    56% 5.3%,
+    49.3% 15.8%,
+    42% 26%,
+    45.3% 36.8%,
+    55.3% 42.1%,
+    49.3% 47.4%,
+    44% 53.6%,
+    42% 65.2%,
+    35.3% 68.4%,
+    28.7% 73.7%,
+    22% 81.9%,
+    21.3% 86.2%,
+    41.7% 89.5%,
+    36% 93%,
+    24.3% 96.3%,
+    5% 99.5%,
+    -3% 104.5%,
+    1.3% 96.8%,
+    1% 97.7%,
+    6% 88.5%,
+    8% 84.2%,
+    12% 75.9%,
+    13.3% 73.7%,
+    16.7% 68.4%,
+    19.3% 62.2%,
+    22.7% 54.9%,
+    26.7% 47.6%,
+    27% 47.4%,
+    28.3% 44.1%,
+    29.7% 39.8%,
+    34% 31.6%,
+    38% 21.3%,
+    41.7% 21%,
+    45% 15.8%,
+    46.3% 13.5%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-r2 {
+  left: 850px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M105.1,52 C100.4,50.2 112.2,41.7 117,40.1 C121.8,38.4 128.5,36.3 135,43.1 C137.5,46.9 139.3,62.2 135,66.1 C133.7,69.9 129.9,68.1 127.1,60.1 C124.2,58.1 124.6,53.1 118.1,50.9 C114.6,51.7 99.7,54.8 103.1,50 Z");
+  filter: blur(2px);
+}
+
+.ear .ear-r {
+  left: 850px;
+  top: 558px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: polygon(
+    83.7% 21.1%,
+    87.3% 21.1%,
+    90% 34.6%,
+    87.3% 42.1%,
+    84.7% 47.4%,
+    77.3% 57.9%,
+    67.3% 68.4%,
+    58.3% 73.7%,
+    51% 70.7%,
+    57% 68.4%,
+    67.7% 57.9%,
+    78% 47.4%,
+    80.7% 39.1%,
+    82.7% 36.8%,
+    82.7% 34.6%
+  );
+  filter: blur(2px);
+}
+
+.ear .ear-l2 {
+  left: 847px;
+  top: 555px;
+  width: 150px;
+  height: 190px;
+  background: #f5e7d9;
+  clip-path: path("M70,147 C79.3,143.3 80.8,142.7 89,145 C91.2,147.3 83,154.3 80,158 C80,161.7 76.7,165.2 71,167 C62.3,171.8 36,174.3 31,169 C26,166.7 35.2,156.3 38,153 C40.8,149.7 42.7,150.5 48,149 C53.3,147.5 63.7,144.7 70,144 Z");
+}
+
+.face {
+  left: 420px;
+  top: 257px;
+  width: 423px;
+  height: 607px;
+  background: #f7ebdd;
+  border-radius: 50% 50% 42% 42% / 55% 55% 38% 38%;
+}
+
+.hand .cheek-gap {
+  left: 784px;
+  top: 611px;
+  width: 50px;
+  height: 72px;
+  background: #f7ebdd;
+  clip-path: polygon(30px 4px, 32px 7px, 47px 15px, 46px 18px, 44px 26px, 42px 33px, 38px 46px, 34px 61px, 32px 71px, 1px 71px, 1px 34px, 12px 26px, 18px 18px, 24px 10px);
+}
+

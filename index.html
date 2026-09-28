@@ -1,0 +1,482 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Kaguya in CSS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="stage">
+    <!-- background diagonal stripes -->
+    <div class="bg">
+      <div class="stripe bg-corner"></div>
+      <div class="stripe s1"></div>
+      <div class="stripe s1-glow"><div class="s1-glow-in"></div></div>
+      <div class="stripe s2"></div>
+      <div class="stripe s3"></div>
+      <div class="stripe s5"></div>
+      <div class="s5-dk"></div>
+      <div class="s5-dk2"></div>
+      <div class="stripe s6"></div>
+      <div class="stripe s7"></div>
+      <div class="stripe s8"></div>
+      <div class="stripe s9"></div>
+      <div class="stripe s10"></div>
+    </div>
+
+    <!-- back hair / ponytail -->
+    <div class="back-hair">
+      <div class="bh-main"></div>
+      <div class="pony5"></div>
+      <div class="bh-shine1"></div>
+      <div class="bh-shine2"></div>
+      <div class="bh-shine3"></div>
+      <div class="bh-r-ext"></div>
+    </div>
+
+    <!-- neck -->
+    <div class="neck">
+      <div class="neck-shadow"></div>
+    </div>
+
+    <!-- white sailor collar -->
+    <div class="collar">
+      <div class="collar-l"></div>
+      <div class="collar-line-r"></div>
+      <div class="jaw-shadow"></div>
+      <div class="neck-dark"></div>
+      <div class="neck-sh2"></div>
+    </div>
+
+    <!-- black coat -->
+    <div class="coat">
+      <div class="coat-l"></div>
+      <div class="coat-r"></div>
+      <div class="white-sleeve-r"></div>
+      <div class="ribbon-rope1"></div>
+      <div class="ribbon-rope2"></div>
+      <div class="chest"></div>
+      <div class="collar-l2"></div>
+      <div class="coat-gray2"></div>
+      <div class="coat-gray"></div>
+    </div>
+
+    <!-- right ear -->
+    <div class="ear">
+      <div class="ear-sh"></div>
+      <div class="ear-t"></div>
+      <div class="ear-l"></div>
+      <div class="ear-l2"></div>
+      <div class="ear-r"></div>
+      <div class="ear-r2"></div>
+      <div class="ear-m"></div>
+    </div>
+
+    <!-- face -->
+    <div class="face"></div>
+    <div class="face2"><div class="chin"></div></div>
+
+    <!-- right eye rebuilt with smooth clip-path: path() curves -->
+    <div class="rey">
+      <div class="rey-sclera"></div>
+      <div class="rey-iris"></div>
+      <div class="rey-cat"></div>
+      <div class="rey-lash"></div>
+      <div class="rey-pink"></div>
+    </div>
+
+    <!-- left eye rebuilt with smooth clip-path: path() curves -->
+    <div class="ley">
+      <div class="ley-sclera"></div>
+      <div class="ley-iris"></div>
+      <div class="ley-pink"></div>
+    </div>
+
+    <!-- blush -->
+    <div class="blush blush-l"></div>
+    <div class="blush blush-r"></div>
+
+    <!-- eyebrows -->
+    <div class="brow brow-l"></div>
+    <div class="brow brow-r"></div>
+
+    <!-- left eye (viewer left) -->
+    <div class="eye eye-l">
+      <div class="eye-white"></div>
+      <div class="iris">
+        <div class="pupil"></div>
+        <div class="hi1"></div>
+        <div class="hi2"></div>
+      </div>
+      <div class="lid"></div>
+    </div>
+
+    <!-- right eye (viewer right) -->
+    <div class="eye eye-r">
+      <div class="eye-white"></div>
+      <div class="iris">
+        <div class="pupil"></div>
+        <div class="hi1"></div>
+        <div class="hi2"></div>
+      </div>
+      <div class="lid"></div>
+    </div>
+
+    <!-- nose -->
+    <div class="nose"></div>
+
+    <!-- mouth -->
+    <div class="mouth"></div>
+
+    <!-- red ribbon -->
+    <div class="ribbon">
+      <div class="rb-body"></div>
+      <div class="rb-brcorner"></div>
+      <div class="rb-red"></div>
+      <div class="rb-dark"></div>
+      <div class="rb-stripe1"></div>
+      <div class="rb-stripe2"></div>
+      <div class="rb-stripe3"></div>
+    </div>
+
+    <!-- front hair / bangs -->
+    <div class="bangs">
+      <div class="top-hair"></div>
+      <div class="hair-strk1"></div>
+      <div class="hair-strk2"></div>
+      <div class="temple-tan"></div>
+      <div class="dome-notch"></div>
+      <div class="strand-c"></div>
+      <div class="temple-glow"></div>
+      <div class="dome-l"></div>
+      <div class="hair-strk4"></div>
+      <div class="hair-strk5"></div>
+      <div class="hair-strk6"></div>
+      <div class="hair-strk7"></div>
+      <div class="hair-strk8"></div>
+      <div class="hair-strk9"></div>
+      <div class="hair-strkA"></div>
+      <div class="hair-strkB"></div>
+      <div class="temple-hi"></div>
+      <div class="forehead"></div>
+      <div class="bang-gap"></div>
+      <div class="apex-dk"></div>
+      <div class="shine shine4"></div>
+      <div class="bh-streakA"></div>
+      <div class="bh-streakB"></div>
+    </div>
+
+    <!-- side hair -->
+    <div class="side-hair">
+      <div class="side-l"></div>
+      <div class="side-r"></div>
+      <div class="side-l-shine"></div>
+      <div class="side-l-hi2"></div>
+      <div class="side-l-hi3"></div>
+      <div class="side-l-ext"></div>
+      <div class="side-r-ext"></div>
+    </div>
+
+    <!-- hanging strand held by hand -->
+    <div class="strand"></div>
+
+    <!-- hand -->
+    <div class="hand">
+      <div class="nk-merge"></div>
+      <div class="ear-temple"></div>
+      <div class="ear-thi"></div>
+      <div class="bg-right-gray"></div>
+      <div class="cr-shadow"></div>
+      <div class="cr-band-dark"></div>
+      <div class="bg-right-wedge"></div>
+      <div class="bg-gap"></div>
+      <div class="lock-dark"></div>
+      <div class="temple-hair"></div>
+      <div class="left-hair-gap"></div>
+      <div class="temple-tip"></div>
+      <div class="arm-fore"></div>
+      <div class="hand-dark"></div>
+      <div class="hand-sh"></div>
+      <div class="hand-sh2"></div>
+      <div class="diag-band"></div>
+      <div class="palm"></div>
+      <div class="finger f1"></div>
+      <div class="finger f2"></div>
+      <div class="finger f3"></div>
+      <div class="thumb"></div>
+      <div class="finger fa"></div>
+      <div class="finger fb"></div>
+      <div class="finger fc"></div>
+      <div class="idx"></div>
+      <div class="crease cr1"></div>
+      <div class="crease cr2"></div>
+      <div class="crease cr3"></div>
+      <div class="fing-edge"></div>
+      <div class="thumb-edge"></div>
+      <div class="crl1"></div>
+      <div class="crl2"></div>
+      <div class="cr1s"></div>
+      <div class="arm-edge"></div>
+      <div class="cuff"></div>
+      <div class="bl-white"></div>
+      <div class="bl-white2"></div>
+      <div class="coat-band"></div>
+      <div class="coat-band2"></div>
+      <div class="cr-filament"></div>
+      <div class="cr-redfix"></div>
+      <div class="cr-band"></div>
+      <div class="b2-gap"></div>
+      <div class="b2-sh"></div>
+      <div class="l16-gap"></div>
+      <div class="forehead-fix"></div>
+      <div class="fh-notch"></div>
+      <div class="fh-gray"></div>
+      <div class="cheek-gap"></div>
+      <div class="lsclera"></div>
+      <div class="l33-dark"></div>
+      <div class="lpupil"></div>
+      <div class="lhi"></div>
+      <div class="leye-red"></div>
+      <div class="leye-pink"></div>
+      <div class="lc-skin"></div>
+      <div class="lc-lash"></div>
+      <div class="lsclera-top"></div>
+      <div class="bridge-skin"></div>
+      <div class="rlash2"></div>
+      <div class="riris-red"></div>
+      <div class="riris-pink"></div>
+      <div class="rlash-top"></div>
+      <div class="leye-white"></div>
+      <div class="l32-hi"></div>
+      <div class="l32-strand2"></div>
+      <div class="l35-dark1"></div>
+      <div class="l35-dark2"></div>
+      <div class="chin-tongue"></div>
+      <div class="c55-dark"></div>
+      <div class="c55-strand"></div>
+      <div class="c55-notch"></div>
+      <div class="l32-skin"></div>
+      <div class="lstr0"></div>
+      <div class="lstr1"></div>
+      <div class="lstr2"></div>
+      <div class="lstr3"></div>
+      <div class="lstr4"></div>
+      <div class="lstr5"></div>
+      <div class="lstr6"></div>
+      <div class="lstr7"></div>
+      <div class="r55-hi"></div>
+      <div class="rhi-band"></div>
+      <div class="rb-slit"></div>
+      <div class="rhi-l"></div>
+      <div class="rhi-r"></div>
+      <div class="top-halo"></div>
+      <div class="top-white"></div>
+      <div class="top-hi"></div>
+      <div class="top-hi2"></div>
+      <div class="shine-a"></div>
+      <div class="shine-b"></div>
+      <div class="shine-c"></div>
+      <div class="shine-d"></div>
+      <div class="shine-e"></div>
+      <div class="shine-f"></div>
+      <div class="nl-black"></div>
+      <div class="nl-gap"></div>
+      <div class="bl-skin"></div>
+      <div class="hand-gap-w"></div>
+      <div class="hand-band3"></div>
+      <div class="cuff-shadow"></div>
+      <div class="ll-band"></div>
+      <div class="ll-crease"></div>
+      <div class="ll-thumb"></div>
+      <div class="bl-wedge"></div>
+      <div class="rhi-dark3"></div>
+      <div class="rhi-skin"></div>
+      <div class="rhi-tan"></div>
+      <div class="rhi-dark2"></div>
+      <div class="hl-darkA"></div>
+      <div class="hl-darkE"></div>
+      <div class="palm-shadow"></div>
+      <div class="hl-wedge"></div>
+      <div class="hl-creamfix"></div>
+      <div class="hl-creamD"></div>
+      <div class="hl-lineD"></div>
+      <div class="sh-band"></div>
+      <div class="sh-wedge"></div>
+      <div class="hl-darkD"></div>
+      <div class="hr-topline"></div>
+      <div class="hr-wedge"></div>
+      <div class="hr-sleeve-w"></div>
+      <div class="hr-topline2"></div>
+      <div class="hr-dash"></div>
+      <div class="hr-diag"></div>
+      <div class="rb-lobe"></div>
+      <div class="rb-shadow"></div>
+      <div class="rb-top"></div>
+      <div class="rb-gapfill"></div>
+      <div class="rb-loop"></div>
+      <div class="rb-lowred"></div>
+      <div class="rb-rhi"></div>
+      <div class="rb-tan2"></div>
+      <div class="rb-tan3"></div>
+      <div class="rb-warmfold"></div>
+      <div class="rb-wcorner"></div>
+      <div class="rb-ctop"></div>
+      <div class="rb-band2"></div>
+      <div class="rb-band3"></div>
+      <div class="rb-blfill"></div>
+      <div class="rb-midgrad"></div>
+      <div class="cl-grayn"></div>
+      <div class="cl-tan"></div>
+      <div class="sh-hair"></div>
+      <div class="sh-gap"></div>
+      <div class="ear-gr"></div>
+      <div class="ear-tn"></div>
+      <div class="cl-red"></div>
+      <div class="cl-gray2"></div>
+      <div class="ear-wd"></div>
+      <div class="lc-gap"></div>
+      <div class="sb-strand1"></div>
+      <div class="sb-strand2"></div>
+      <div class="temple-band"></div>
+      <div class="temple-strand2"></div>
+      <div class="rb-wf2"></div>
+      <div class="rb-dk1"></div>
+      <div class="rb-bandM"></div>
+      <div class="ear-blk"></div>
+      <div class="brow-tan"></div>
+      <div class="ear-tanr"></div>
+      <div class="br-hi"></div>
+      <div class="br-dk"></div>
+      <div class="bl-stripe"></div>
+      <div class="tr-gray"></div>
+      <div class="rb-hair"></div>
+      <div class="rb-hair-gap"></div>
+      <div class="rb-hair-gap2"></div>
+      <div class="rb-hair-hi"></div>
+      <div class="bl-gap"></div>
+      <div class="rb-gap-str"></div>
+      <div class="cuff-edge"></div>
+      <div class="cuff-line"></div>
+      <div class="strand-tick"></div>
+      <div class="str-v2"></div>
+      <div class="str-v3"></div>
+      <div class="lash-sp1"></div>
+      <div class="lash-sp2"></div>
+      <div class="rh-edge"></div>
+      <div class="el-gap"></div>
+      <div class="temple-skin"></div>
+      <div class="temple-strand"></div>
+      <div class="rbrow"></div>
+      <div class="rbrow-s"></div>
+      <div class="rbrow-s2"></div>
+      <div class="re-dk"></div>
+      <div class="re-tan"></div>
+      <div class="re-dkb"></div>
+      <div class="hr-band"></div>
+      <div class="rb-hair-bot"></div>
+      <div class="collar-line1"></div>
+      <div class="collar-line2"></div>
+      <div class="ear-line ear-line1"></div>
+      <div class="ear-line ear-line2"></div>
+      <div class="ear-line ear-line3"></div>
+      <div class="cline cline1"></div>
+      <div class="cline cline2"></div>
+      <div class="strand-r"></div>
+      <div class="strand-wedge"></div>
+      <div class="ear-ridge"></div>
+      <div class="er-fold ef1"></div>
+      <div class="er-fold ef2"></div>
+      <div class="er-fold ef3"></div>
+      <div class="er-fold ef4"></div>
+      <div class="er-fold ef5"></div>
+      <div class="er-fold ef6"></div>
+      <div class="er-fold ef7"></div>
+      <div class="er-fold ef8"></div>
+      <div class="er-fold ef9"></div>
+      <div class="er-fold ef10"></div>
+      <div class="er-fold ef11"></div>
+      <div class="er-fold ef12"></div>
+      <div class="er-fold ef13"></div>
+      <div class="er-fold ef14"></div>
+      <div class="er-fold ef15"></div>
+      <div class="efS1"></div>
+      <div class="efS2"></div>
+      <div class="efS3"></div>
+      <div class="efS4"></div>
+      <div class="ear-line4"></div>
+      <div class="ear-skin-gap"></div>
+      <div class="arm-shadow"></div>
+      <div class="hair-rim"></div>
+      <div class="stripe-edge"></div>
+      <div class="ear-hx"></div>
+      <div class="ear-hb"></div>
+      <div class="er-str"></div>
+      <div class="rb-sheen"></div>
+      <div class="er-teeth"></div>
+      <div class="rb-redtop"></div>
+      <div class="rb-bandT2"></div>
+
+      <div class="fg-line1"></div>
+      <div class="fg-line2"></div>
+      <div class="fg-line3"></div>
+      <div class="th-out"></div>
+      <div class="th-und"></div>
+      <div class="th-fold"></div>
+      <div class="arm-crease1"></div>
+      <div class="arm-crease2"></div>
+      <div class="neck-l"></div>
+      <div class="neck-hi"></div>
+      <div class="fg-mass"></div>
+      <div class="fg-mass-top"></div>
+      <div class="fg-wedge"></div>
+      <div class="fg-skin"></div>
+      <div class="fg-edge"></div>
+      <div class="fg-crease2"></div>
+      <div class="collar-crease-a"></div>
+      <div class="hl-darkW"></div>
+      <div class="th-fill2"></div>
+      <div class="th-gapv"></div>
+      <div class="str-v1"></div>
+      <div class="str-d1"></div>
+      <div class="hl-strA"></div>
+      <div class="hl-strD"></div>
+      <div class="hl-strE"></div>
+      <div class="hl-strG"></div>
+      <div class="hl-strH"></div>
+      <div class="hl-strI"></div>
+      <div class="hl-strJ"></div>
+      <div class="hl-strK"></div>
+      <div class="hl-strL"></div>
+      <div class="hl-creaseC"></div>
+      <div class="hl-creaseD1"></div>
+      <div class="hl-creaseD2"></div>
+      <div class="hl-tanKnuck"></div>
+      <div class="hl-brightKnuck"></div>
+      <div class="hl-thbright"></div>
+      <div class="hl-thshadow"></div>
+      <div class="hl-thstrand"></div>
+      <div class="pk-fill"></div>
+      <div class="pk-out"></div>
+      <div class="pk-tipcrease"></div>
+      <div class="pk-crease"></div>
+      <div class="hl-hairEdge"></div>
+      <div class="neck-r"></div>
+      <div class="notch-d"></div>
+      <div class="notch-d2"></div>
+      <div class="r55-white"></div>
+      <div class="collar-strandV"></div>
+      <div class="collar-strandA"></div>
+      <div class="collar-strandB"></div>
+      <div class="collar-strandG"></div>
+      <div class="collar-strandS"></div>
+      <div class="collar-strandT"></div>
+      <div class="collar-strandP1"></div>
+      <div class="collar-strandP2"></div>
+      <div class="collar-strandQ"></div>
+      <div class="c2-notch"></div>
+    </div>
+  </div>
+</body>
+
+</html>
