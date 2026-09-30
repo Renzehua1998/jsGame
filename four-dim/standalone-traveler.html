@@ -1,0 +1,4544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>四维亲历 · First-Person 4D</title>
+  <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===== 主题变量（暗色为默认，body.light 切换亮色） ===== */
+:root {
+  --bg-top: #070b16;
+  --bg-bottom: #0a1020;
+  --divider-a: #2a3a66;
+  --divider-b: #4a6bc0;
+  --label-title: #a8c4ff;
+  --label-sub: #8b98b8;
+  --info-top: #ffb37a;
+  --info-bottom: #7affc4;
+  --info-bg: rgba(5, 8, 16, 0.6);
+  --info-border: rgba(120, 140, 200, 0.3);
+}
+
+body.light {
+  --bg-top: #e9eef6;
+  --bg-bottom: #dee6f1;
+  --divider-a: #8099c6;
+  --divider-b: #3f639e;
+  --label-title: #1c3772;
+  --label-sub: #46536e;
+  --info-top: #a34a00;
+  --info-bottom: #006e49;
+  --info-bg: rgba(255, 255, 255, 0.75);
+  --info-border: rgba(40, 60, 100, 0.28);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg-top);
+  color: #dfe6f1;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+body.light { color: #22304a; }
+
+#app {
+  display: flex;
+  width: 100%; height: 100%;
+}
+
+/* 布局：默认按屏幕宽度自动（≥700px 左右 / <700px 上下）；
+   main.js 设置 .layout-row / .layout-col 覆盖默认（优先级更高，含手动切换）。
+   guiDock：控制面板停靠区——左右布局为右侧栏（不遮挡视图），
+   上下布局为顶部下拉栏（收起仅标题条，展开限高 42vh 内部滚动）。 */
+@media (min-width: 700px) {
+  #app { flex-direction: row; }
+  #guiDock { order: 3; width: 310px; border-left: 3px solid var(--divider-b); }
+  #guiDock .lil-gui.root { height: 100%; }
+  #divider { background: linear-gradient(180deg, var(--divider-a), var(--divider-b), var(--divider-a)); }
+  .view-label p { max-width: 22em; }
+}
+@media (max-width: 699px) {
+  #app { flex-direction: column; }
+  #guiDock { order: -1; width: 100%; border-bottom: 3px solid var(--divider-b); }
+  #guiDock .lil-gui.root { max-height: 30vh; }
+}
+
+#app.layout-row { flex-direction: row; }
+#app.layout-col { flex-direction: column; }
+
+#app.layout-row #divider {
+  background: linear-gradient(180deg, var(--divider-a), var(--divider-b), var(--divider-a));
+}
+#app.layout-row .view-label p { max-width: 22em; }
+
+#app.layout-row #guiDock {
+  order: 3;
+  width: 310px;
+  border-left: 3px solid var(--divider-b);
+}
+#app.layout-col #guiDock {
+  order: -1;
+  width: 100%;
+  border-bottom: 3px solid var(--divider-b);
+}
+#app.layout-col #guiDock .lil-gui.root { max-height: 42vh; }
+
+.view {
+  position: relative;
+  flex: 1 1 50%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#view4d  { background: var(--bg-top); }
+#view3d  { background: var(--bg-bottom); }
+
+.view canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#divider {
+  flex: 0 0 3px;
+  background: linear-gradient(90deg, var(--divider-a), var(--divider-b), var(--divider-a));
+}
+
+/* ===== GUI 停靠区 ===== */
+#guiDock {
+  flex: 0 0 auto;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* JS 挂载 lil-gui 前隐藏空停靠区（避免首帧空条闪现） */
+#guiDock:empty { display: none; }
+
+#guiDock .lil-gui.root { width: 100%; }
+
+.view-label {
+  position: absolute;
+  top: 12px; left: 16px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+body:not(.light) .view-label { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
+
+.view-label h1 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--label-title);
+}
+
+.view-label p {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--label-sub);
+  max-width: 36em;
+}
+
+.view-info {
+  position: absolute;
+  bottom: 12px; left: 16px;
+  z-index: 5;
+  font-size: 13.5px;
+  font-family: Consolas, "Courier New", monospace;
+  background: var(--info-bg);
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--info-border);
+  pointer-events: none;
+  max-width: 90%;
+}
+
+#info4d { color: var(--info-top); }
+#info3d { color: var(--info-bottom); }
+
+/* ===== lil-gui 放大与双主题 =====
+   lil-gui 在运行时向 <head> 注入样式（晚于本文件，同优先级会覆盖本文件），
+   故用 body 前缀提高优先级。面板停靠在 #guiDock（见上），不再浮层遮挡视图。 */
+body .lil-gui {
+  --widget-height: 28px;
+  --font-size: 14px;
+  --input-font-size: 13.5px;
+  --padding: 6px;
+  --spacing: 6px;
+  --name-width: 47%;
+}
+
+body .lil-gui .title { font-size: 15px; font-weight: 600; }
+
+/* 右侧栏模式：面板随停靠区通高，内容滚动 */
+#app.layout-row #guiDock .lil-gui.root { height: 100%; }
+
+body.light .lil-gui {
+  --background-color: rgba(250, 252, 255, 0.95);
+  --text-color: #1e2836;
+  --title-background-color: #d7e0ee;
+  --title-text-color: #16233a;
+  --widget-color: #c6d2e2;
+  --hover-color: #b7c5d9;
+  --focus-color: #a3b4cc;
+  --number-color: #0066cc;
+  --string-color: #3d7a00;
+}
+
+/* ===== 移动端（窄屏）微调：面板更紧凑，把空间尽量留给视图 ===== */
+@media (max-width: 699px) {
+  .view-label { top: 8px; left: 10px; }
+  .view-label h1 { font-size: 15px; letter-spacing: 0.5px; }
+  .view-label p { font-size: 12px; max-width: 90%; }
+  .view-info { font-size: 12px; padding: 4px 10px; bottom: 8px; left: 10px; }
+  #app.layout-col #guiDock .lil-gui.root { max-height: 30vh; }
+  body .lil-gui {
+    --font-size: 12.5px;
+    --input-font-size: 12px;
+    --widget-height: 24px;
+    --padding: 4px;
+    --spacing: 4px;
+    --name-width: 50%;
+  }
+  body .lil-gui .title { font-size: 13.5px; }
+}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  /* 本页为全屏第一人称画布（无双视图布局），仅复用 style.css 的主题变量。
+     HUD 全部 absolute 覆盖在画布上，pointer-events 精确放行按钮/面板。 */
+  html, body { overflow: hidden; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+  /* ---- 顶栏：标题 + w 轴带 + 功能按钮 ---- */
+  #topbar {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap; /* 窄窗口不再硬挤：装不下就换行（宽窗口单行不变） */
+    padding: 8px 12px;
+  }
+  #titleChip {
+    font-size: 13px; color: var(--label-title);
+    background: var(--info-bg); border: 1px solid var(--info-border);
+    padding: 4px 10px; border-radius: 6px; white-space: nowrap;
+  }
+  #wbandWrap { flex: 1 1 240px; min-width: 0; text-align: center; }
+  /* 基宽 240：窄窗口先换行到自己的行，而不是被挤成细条让标签文字竖排成巨柱 */
+  #wband {
+    position: relative; height: 14px; margin: 0 auto; max-width: 420px;
+    background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 7px;
+    overflow: hidden;
+    pointer-events: auto; cursor: ew-resize; touch-action: none;
+  }
+  #wband:active { border-color: var(--divider-b); }
+  .wseg {
+    position: absolute; top: 2px; bottom: 2px; border-radius: 3px;
+    opacity: 0.85; min-width: 2px;
+  }
+  .wseg.off { opacity: 0.25; }
+  #wmark {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+    background: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.9);
+  }
+  #wlabel { font-size: 10px; color: var(--label-sub); margin-top: 2px; }
+  #rotlabel { font-size: 10px; color: var(--label-sub); margin-top: 1px; opacity: 0.85; }
+  #rotlabel b { color: #6b99f2; font-weight: 600; }
+  body.light #rotlabel b { color: #3d5dc9; }
+  #poslabel { font-size: 10px; color: var(--label-sub); margin-top: 1px; opacity: 0.85; }
+  #poslabel b { color: #40d9bf; font-weight: 600; }
+  #viewToast {
+    position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: var(--label-sub); background: var(--info-bg);
+    border: 1px solid var(--info-border); border-radius: 8px;
+    padding: 6px 14px; opacity: 0; pointer-events: none; white-space: nowrap;
+  }
+  #viewToast.show { animation: viewtoast 2.7s ease; }
+  @keyframes viewtoast { 0% { opacity: 0; } 8% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* ---- 自动导览字幕条（底部居中；移动端抬高避开按钮组） ---- */
+  #tourBar {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+    max-width: min(760px, 86vw);
+    background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 10px;
+    padding: 10px 14px; pointer-events: auto;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  }
+  #tourBar.hidden { display: none; }
+  #tourCaption { font-size: 13px; line-height: 1.65; color: var(--label-sub); text-align: left; }
+  #tourCaption b { color: #6b99f2; font-weight: 600; white-space: nowrap; }
+  body.light #tourCaption b { color: #3d5dc9; }
+  #tourMeta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  #tourDots { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+  #tourDots span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--divider-b); opacity: 0.45;
+  }
+  #tourDots span.past { opacity: 0.8; }
+  #tourDots span.on { background: #6b99f2; opacity: 1; box-shadow: 0 0 5px rgba(107, 153, 242, 0.8); }
+  #tourMeta .hbtn { font-size: 11px; padding: 4px 10px; }
+  @media (pointer: coarse) {
+    /* 移动端：字幕条右侧让位按钮组（right:128px），底部避开按钮组
+       （mvRow 顶约 102px → bottom:108px 贴其上方，不再横向重叠挡按钮）；
+       z-index 浮上摇杆区（touchUI 绘制在后）保证可点/可滚。
+       两列网格：进度点竖排紧贴文字左侧，文字占右列可滚、⏭/退出在其下（可换行不溢出）。
+       四维转身面板展开时字幕条让位隐藏（收起即回） */
+    #tourBar {
+      left: 12px; right: 128px; bottom: 108px; transform: none;
+      max-width: none; z-index: 3;
+      display: grid; grid-template-columns: auto minmax(0, 1fr);
+      gap: 4px 10px; padding: 8px 10px;
+    }
+    body:has(#rot4Panel.open) #tourBar { display: none; }
+    body.infoOpen #tourBar { display: none; } /* 信息栏展开阅读时同区叠压——让位（收起即回） */
+    #tourDots {
+      grid-row: 1 / 3; grid-column: 1;
+      flex-direction: column; gap: 0;
+      justify-content: space-between; /* 点沿左列均匀分布、高度自适应文字列，
+        跨行项固有高度不再撑高 grid 行（那会让文字下方留白） */
+      flex: 0 0 auto; align-self: stretch;
+    }
+    #tourDots span { width: 4px; height: 4px; }
+    #tourCaption {
+      grid-row: 1; grid-column: 2;
+      font-size: 12px; min-width: 0;
+      max-height: 13vh; overflow-y: auto;
+    }
+    #tourMeta {
+      grid-row: 2; grid-column: 2; margin-top: 2px;
+      flex-wrap: wrap; gap: 6px;
+    }
+    #tourMeta .hbtn { font-size: 10px; padding: 3px 8px; }
+  }
+
+  /* ---- 类比小窗（右下角第二画布：把「你在四维」翻译成「二维旅人在三维」） ---- */
+  #analogyWin {
+    position: absolute; right: 12px; bottom: 56px;
+    width: 248px; pointer-events: none; /* 纯展示：不拦画面拖拽（248×215 死区），
+      也避免与移动端转身面板等浮层抢点击 */
+    background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 8px;
+    padding: 6px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  }
+  #analogyWin.hidden { display: none; }
+  #anaTitle {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 11px; color: var(--label-sub); padding: 0 2px 5px;
+  }
+  #anaTitle b { color: #6b99f2; font-weight: 600; }
+  body.light #anaTitle b { color: #3d5dc9; }
+  #anaCv { display: block; width: 236px; height: 177px; border-radius: 4px; }
+  @media (pointer: coarse) {
+    #analogyWin { bottom: 162px; right: 10px; }
+  }
+
+  #viewPanel {
+    position: absolute; top: 60px; right: 10px;
+    display: none; grid-template-columns: repeat(2, max-content); gap: 6px;
+    pointer-events: auto; background: var(--info-bg);
+    border: 1px solid var(--info-border); border-radius: 8px; padding: 8px;
+    max-height: 78vh; overflow: auto;
+  }
+  #viewPanel.open { display: grid; }
+  #viewPanel .vbtn {
+    display: flex; align-items: center; gap: 7px; justify-content: flex-start;
+    font-size: 12px; font-family: inherit; color: var(--label-sub);
+    background: rgba(5, 8, 16, 0.45); border: 1px solid var(--info-border);
+    border-radius: 6px; padding: 6px 10px; cursor: pointer; white-space: nowrap;
+  }
+  #viewPanel .vbtn:hover { border-color: var(--divider-b); background: rgba(74, 107, 192, 0.25); }
+  #viewPanel .vbtn b { color: #6b99f2; font-weight: 600; min-width: 14px; text-align: center; }
+  body.light #viewPanel .vbtn b { color: #3d5dc9; }
+  body.light #viewPanel .vbtn { background: rgba(255, 255, 255, 0.55); }
+  #hudBtns { display: flex; gap: 6px; pointer-events: auto; }
+  .hbtn {
+    font-size: 12px; font-family: inherit;
+    color: var(--label-sub); background: var(--info-bg);
+    border: 1px solid var(--info-border); border-radius: 6px;
+    padding: 4px 9px; cursor: pointer; white-space: nowrap;
+  }
+  .hbtn:hover, .hbtn.on { color: var(--label-title); border-color: var(--divider-b); }
+
+  /* ---- 信息栏 ---- */
+  #info {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    max-width: min(86vw, 640px); text-align: center;
+    font-size: 12px; line-height: 1.55; color: var(--info-top);
+    background: var(--info-bg); border: 1px solid var(--info-border);
+    border-radius: 6px; padding: 5px 12px;
+  }
+  #info .hint { color: #ffd166; }
+  body.light #info .hint { color: #a36900; }
+
+  /* ---- 准星与锁定提示 ---- */
+  #crosshair {
+    position: absolute; left: 50%; top: 50%; width: 4px; height: 4px;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    background: rgba(255, 255, 255, 0.65);
+  }
+  #lockHint {
+    position: absolute; left: 50%; top: 60%; transform: translateX(-50%);
+    font-size: 12px; color: var(--label-sub);
+    background: var(--info-bg); border: 1px solid var(--info-border);
+    border-radius: 6px; padding: 4px 12px;
+  }
+  #lockHint.hidden { display: none; }
+
+  /* ---- 移动端控件（粗指针设备显示） ---- */
+  #touchUI { display: none; }
+  @media (pointer: coarse) {
+    #touchUI { display: block; }
+    #lockHint { display: none; }
+    /* 顶栏两行化：一行放不下六个按钮 + w 轴带（会挤压塌陷、按钮命中区溢出错位）——
+       按钮右对齐占第一行，w 轴带独占第二行居中 */
+    #topbar { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+    #hudBtns { order: 1; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+    #wbandWrap { order: 2; flex-basis: 100%; min-width: 0; margin: 0; }
+    /* 展品描述框（随视角变化的橙字）：不挡右侧按钮组/转身面板——
+       贴底收起为单行细条（截断），点击展开全文（限高可滚动），再点收起 */
+    #info {
+      left: 12px; right: auto; transform: none;
+      bottom: 6px; max-width: min(42vw, calc(100vw - 262px)); font-size: 11px;
+      height: 22px; overflow: hidden;
+      padding: 3px 24px 3px 9px; text-align: left; cursor: pointer;
+      pointer-events: auto; z-index: 3; /* 浮上摇杆区（touchUI 绘制在后）保证可点；
+        max-width 上限保证右缘不越过按钮组（mvRow 左缘 = 100vw − 246px），
+        收起细条只盖住 joyZone 最底 22px 一条，起摇不受影响 */
+    }
+    #info::after {
+      content: '⌃'; position: absolute; right: 7px; top: 50%;
+      transform: translateY(-50%); color: var(--label-sub); font-size: 11px;
+    }
+    #info.open { max-width: 72vw; height: auto; max-height: 30vh; overflow-y: auto; padding: 5px 14px 5px 9px; }
+    #info.open::after { content: '⌄'; }
+    #titleChip { display: none; }
+    .hbtn { padding: 4px 6px; }
+  }
+  #joyZone {
+    position: absolute; left: 0; bottom: 0; width: 45%; height: 45%;
+    pointer-events: auto;
+  }
+  #joyBase {
+    position: absolute; width: 104px; height: 104px; border-radius: 50%;
+    border: 2px solid var(--info-border); background: var(--info-bg);
+    display: none; transform: translate(-50%, -50%);
+  }
+  #joyStick {
+    position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
+    border-radius: 50%; background: var(--divider-b); opacity: 0.85;
+    transform: translate(-50%, -50%);
+  }
+  #mvBtns {
+    position: absolute; right: 10px; bottom: 16px;
+    display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+    pointer-events: auto;
+  }
+  .tbtn {
+    width: 52px; height: 44px; font-size: 13px; font-family: inherit;
+    color: var(--label-title); background: var(--info-bg);
+    border: 1px solid var(--info-border); border-radius: 8px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .tbtn:active { border-color: var(--divider-b); background: rgba(74, 107, 192, 0.35); }
+  #mvRow { display: flex; gap: 8px; }
+  #rot4Btn { width: auto; padding: 0 10px; height: 34px; font-size: 12px; color: var(--label-sub); }
+  #rot4Panel {
+    position: absolute; right: 10px; bottom: 148px;
+    display: none; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    pointer-events: auto;
+  }
+  #rot4Panel.open { display: grid; }
+  #rot4Panel .tbtn { width: 56px; height: 40px; font-size: 11px; }
+
+  /* ---- 帮助覆盖层 ---- */
+  #helpOverlay {
+    position: absolute; inset: 0; pointer-events: auto;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(3, 6, 14, 0.72);
+  }
+  #helpOverlay.hidden { display: none; }
+  #helpCard {
+    max-width: min(92vw, 560px); max-height: 86vh; overflow: auto;
+    background: var(--bg-bottom); border: 1px solid var(--info-border);
+    border-radius: 10px; padding: 22px 26px;
+    color: #dfe6f1; font-size: 13px; line-height: 1.7;
+  }
+  body.light #helpCard { color: #22304a; }
+  #helpCard h2 { font-size: 17px; margin-bottom: 10px; color: var(--label-title); }
+  #helpCard table { border-collapse: collapse; margin: 8px 0; }
+  #helpCard td { border: 1px solid var(--info-border); padding: 3px 10px; }
+  #helpCard td:first-child { white-space: nowrap; color: var(--label-title); }
+  #helpCard p { margin: 8px 0; color: var(--label-sub); }
+  #btnStart {
+    margin-top: 14px; width: 100%; padding: 9px; font-size: 15px; font-family: inherit;
+    color: #fff; background: #3f639e; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  body.light #btnStart { color: #fff; }
+  @media (pointer: coarse) {
+    #helpCard .deskOnly { display: none; }
+  }
+
+  #backLink {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    z-index: 6;
+    font-size: 13px;
+    color: var(--label-sub);
+    text-decoration: none;
+    background: var(--info-bg);
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--info-border);
+  }
+  #backLink:hover { color: var(--label-title); }
+  @media (pointer: coarse) {
+    /* 粗指针下返回链接由 JS 移进顶栏 hudBtns 成为首枚 chip（随按钮流式排布，
+      永不重叠——固定定位放哪都会与排满整行的按钮或拖拽区相争） */
+    #backLink { position: static; padding: 4px 6px; font-size: 12px; }
+  }
+  /* 桌面导览时字幕条与信息栏同位（底部居中）互相叠压——隐藏信息栏（body.touring 由 JS 写） */
+  @media (pointer: fine) {
+    body.touring #info { visibility: hidden; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div id="topbar">
+    <div id="titleChip">四维亲历 · 第一人称穿越</div>
+    <div id="wbandWrap">
+      <div id="wband"><div id="wmark"></div></div>
+      <div id="wlabel">第四维 w · 中心白线 = 你的三维世界（彩色带 = 各物体沿 w 的存在范围），左右拖动色带可直接搬运你的 w</div>
+      <div id="rotlabel">姿态 XW 0° · ZW 0° · YW 0°</div>
+      <div id="poslabel">位置 0.0, 0.0, 0.0 · w 0.00</div>
+    </div>
+    <div id="hudBtns">
+      <button class="hbtn" id="btnJump" type="button">跃迁</button>
+      <button class="hbtn" id="btnViews" type="button">视角</button>
+      <button class="hbtn" id="btnGhost" type="button">幽灵</button>
+      <button class="hbtn" id="btnTheme" type="button">主题</button>
+      <button class="hbtn" id="btnReset" type="button">重置</button>
+      <button class="hbtn" id="btnHelp" type="button">帮助</button>
+    </div>
+  </div>
+
+  <div id="info"></div>
+  <div id="viewToast"></div>
+  <div id="viewPanel"></div>
+  <div id="analogyWin" class="hidden">
+    <div id="anaTitle"><b>类比小窗</b><span id="anaLabel">—</span></div>
+    <canvas id="anaCv" width="236" height="177"></canvas>
+  </div>
+  <div id="tourBar" class="hidden">
+    <div id="tourCaption"></div>
+    <div id="tourMeta">
+      <span id="tourDots"></span>
+      <button id="tourNext" class="hbtn" type="button">⏭ 下一站</button>
+      <button id="tourExit" class="hbtn" type="button">退出导览</button>
+    </div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="lockHint">点击画面锁定鼠标视角 · ESC 解锁 · H 查看帮助</div>
+
+  <div id="touchUI">
+    <div id="joyZone"><div id="joyBase"><div id="joyStick"></div></div></div>
+    <div id="rot4Panel">
+      <button class="tbtn" data-hold="rotXW-" type="button">XW−</button>
+      <button class="tbtn" data-hold="rotZW-" type="button">ZW−</button>
+      <button class="tbtn" data-hold="rotYW-" type="button">YW−</button>
+      <button class="tbtn" data-hold="rotXW+" type="button">XW+</button>
+      <button class="tbtn" data-hold="rotZW+" type="button">ZW+</button>
+      <button class="tbtn" data-hold="rotYW+" type="button">YW+</button>
+    </div>
+    <div id="mvBtns">
+      <button class="tbtn" id="rot4Btn" type="button">四维转身…</button>
+      <div id="mvRow">
+        <button class="tbtn" data-hold="w-" type="button">w−</button>
+        <button class="tbtn" data-hold="down" type="button">▼</button>
+        <button class="tbtn" data-hold="up" type="button">▲</button>
+        <button class="tbtn" data-hold="w+" type="button">w+</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="helpOverlay">
+    <div id="helpCard">
+      <h2>四维亲历 · 操作说明</h2>
+      <p>你是走进四维空间的三维旅人。你的眼睛只能聚焦<b>自己所在三维超平面</b>内的光，
+      所以眼前永远是四维物体与你世界的<b>三维截面</b>——顶栏彩色带显示各物体沿第四维 w
+      的存在范围，白线是你此刻的位置：沿 w 移动（穿越），截面会像 CT 一样扫过物体的每一层。</p>
+      <table class="deskOnly">
+        <tr><td>W A S D</td><td>在你的三维世界里走动</td></tr>
+        <tr><td>空格 / C</td><td>上升 / 下降（你的世界里没有重力，自由漂浮）</td></tr>
+        <tr><td>鼠标（点击锁定）</td><td>环顾四周</td></tr>
+        <tr><td>Q / E</td><td>沿第四维 w 后退 / 前进（四维穿越）；也可直接左右拖动顶栏 w 轴带</td></tr>
+        <tr><td>U J · I K · O L</td><td>四维转身：把你的 x / z / y 轴倾入第四维（XW / ZW / YW 平面；6°/秒自由旋转不限幅，轻点不足 1°；+Shift 1.5°/秒精调；与斜置物体精确共面请用数字键视角预设）</td></tr>
+        <tr><td>数字 0–9</td><td>快速视角（顶栏「视角」按钮可点选，移动端同）：①出生点 ②匣·钥匙断层 ③平行之匣 ④球壳·病灶断层 ⑤球壳·内部 ⑥魔戒·正圆 ⑦克莱因瓶·原生截面 ⑧公园俯瞰 ⑨魔戒·斜切 ⓪虚空之间（试试⑥⑨对照：同一地点、不同姿态，截面完全不同）</td></tr>
+        <tr><td>M / 视角面板 ▶</td><td>自动导览：12 站讲解飞行（出生点 → 匣断层 → 平行世界跃迁 → 病灶断层 → 球壳对齐 → 超立方体两态 → 魔戒斜切/正圆 → 克莱因瓶 → 虚空 → 归来），底部字幕条显示讲解词（移动端抬到按钮组上方、讲解词可上下滑动）；<b>随时可自由探索</b>——任何移动操作自动暂停导览交还控制，看完点「⏭ 下一站」继续；M 或「退出导览」结束</td></tr>
+        <tr><td>视角面板 · 类比小窗</td><td>右下角小窗把你的处境降一维翻译：你是三维旅人在四维里看截面，小窗里是<b>二维旅人在三维里</b>看线段——匣中钥匙↔框中钥匙、斜置球壳↔嵌套圆环、魔戒↔实心环面、克莱因瓶↔莫比乌斯带。你转身/穿越 w，小窗里的类比物体同步倾侧/升降（超立方体没有低维类比，聚焦它时小窗歇业）</td></tr>
+        <tr><td>P / 跃迁按钮</td><td>平行世界跃迁：w 在 0 ↔ 2.2 两层间瞬移，位置/朝向/姿态不变——盯着同一地点看匣A 消失、平行之匣原地出现（轮廓相同）；也可以按住 Q/E 沿 w 慢慢走过去，看顶栏白线滑过色带</td></tr>
+        <tr><td>Shift</td><td>疾跑</td></tr>
+        <tr><td>G / T / R / H</td><td>幽灵 / 主题 / 重置 / 帮助</td></tr>
+      </table>
+      <table>
+        <tr><td>左侧摇杆</td><td>走动（上摇杆 = 前进）</td></tr>
+        <tr><td>右侧拖动</td><td>环顾四周</td></tr>
+        <tr><td>▲ ▼</td><td>上升 / 下降</td></tr>
+        <tr><td>w− / w+</td><td>沿第四维后退 / 前进</td></tr>
+        <tr><td>四维转身…</td><td>展开 XW / ZW / YW 六个转身按钮（按住持续转）</td></tr>
+      </table>
+      <p>场景里散布着六件展品：两只在第四维上叠放的<b>匣中钥匙</b>（同一地点、不同 w——
+      这是"平行世界"最直观的模样）、一只在四维里<b>斜置的嵌套球壳</b>、一枚斜插的<b>魔戒</b>、
+      一只倾斜的<b>克莱因瓶</b>、一只正放的<b>超立方体</b>（出生点右前方：沿 w 穿越看它两态——
+      w=0 是 8 个小球，w≈±0.75 是嵌套立方框；按 U/J 转身则连续变形）。三维物体在 w 方向没有厚度——
+      稍微沿 w 一移就会整体消失；
+      四维物体则会随你的穿越连续变形。转身则把你的超平面斜过来：走近匣中钥匙按
+      I/K（ZW），钥匙的截面会在匣壁的断层片里露出来；而斜置球壳正相反——出生点你
+      看到的就是它的断层（病灶直接露出），走到它跟前、按 U 把姿态转到 <b>XW 40°</b>
+      （顶栏姿态读数），它才整个显形与你共面。</p>
+      <button id="btnStart" type="button">开始体验</button>
+    </div>
+  </div>
+</div>
+
+<a id="backLink" href="standalone.html">← 返回切片实验室</a>
+  <script type="module">
+/* ===== js/math4d.js ===== */
+/**
+ * math4d.js —— 维度无关的旋转与变换工具（纯数学，无 three.js 依赖，可用 node 单测）
+ *
+ * 约定：
+ *  - 点用普通数组表示：4D → [x, y, z, w]，3D → [x, y, z]
+ *  - “切片超平面” 固定为坐标轴 axis 上的 0 值面（4D 用 w=0，3D 用 y=0）
+ *  - 旋转 = 在某个坐标平面 (i, j) 内做二维旋转；n 维空间有 C(n,2) 个旋转平面
+ *  - 4D 的 6 个平面：XY, XZ, XW, YZ, YW, ZW（顺序固定，依次施加）
+ *  - 3D 的 3 个平面：XZ, XY, YZ（即绕 y / z / x 轴的旋转；顺序见 PLANES3 注释）
+ */
+
+/** 4D 旋转平面（按施加顺序） */
+const PLANES4 = [
+  [0, 1], // XY
+  [0, 2], // XZ
+  [0, 3], // XW
+  [1, 2], // YZ
+  [1, 3], // YW
+  [2, 3], // ZW
+];
+
+/**
+ * 3D 旋转平面（按施加顺序）。
+ * 顺序与枚举方向为配合 ROT_BINDING 而定：绑定平面相对顺序须与 4D 侧一致
+ * （4D: XZ→XW→ZW ⟺ 3D: XZ→XY→YZ），且 YZ 以 (z,y) 枚举以与 ZW=(z,w) 同向同号。
+ */
+const PLANES3 = [
+  [0, 2], // XZ
+  [0, 1], // XY
+  [2, 1], // YZ
+];
+
+const PLANE_LABELS3 = ['XZ', 'XY', 'YZ'];
+const PLANE_LABELS4 = ['XY', 'XZ', 'XW', 'YZ', 'YW', 'ZW'];
+
+/**
+ * 四维旋转 ↔ 三维类比旋转 的绑定表（降维类比：丢弃 4D 的 y 轴）。
+ * 坐标对应：4D x → 3D x，4D z → 3D z，4D w → 3D y（下视图的高度轴，即“穿膜”方向）。
+ * 含 y 的 4D 平面（XY/YZ/YW）在类比中无对应，被丢弃。
+ * 在此表下同角度绑定是严格的逐点对应（见 tests 绑定测试）。
+ */
+const ROT_BINDING = { XW: 'XY', XZ: 'XZ', ZW: 'YZ' };
+
+/**
+ * 在点 p 的 (i, j) 坐标平面内旋转 theta 弧度（就地修改，维度无关）。
+ * 标准二维旋转：i' = i·cosθ − j·sinθ; j' = i·sinθ + j·cosθ
+ */
+function rotateInPlane(p, i, j, theta) {
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+  const pi = p[i];
+  const pj = p[j];
+  p[i] = pi * c - pj * s;
+  p[j] = pi * s + pj * c;
+}
+
+/**
+ * 对单个 n 维点施加完整变换：先按 planes 顺序旋转，再沿 axis 平移 offset。
+ * @returns {number[]} 变换后的新点（原数组不被修改）
+ */
+function transformPoint(p, angles, planes, axis, offset) {
+  const q = p.slice();
+  for (let k = 0; k < planes.length; k++) {
+    const theta = angles[k] || 0;
+    if (theta === 0) continue;
+    const [i, j] = planes[k];
+    rotateInPlane(q, i, j, theta);
+  }
+  if (offset !== 0) q[axis] += offset;
+  return q;
+}
+
+/**
+ * 预计算变换器（参数曲面每帧需变换上万采样点时用，避免重复求三角函数）。
+ * @returns {(p:number[])=>number[]}
+ */
+function makeTransform(angles, planes, axis, offset) {
+  const rots = [];
+  for (let k = 0; k < planes.length; k++) {
+    const theta = angles[k] || 0;
+    if (theta) rots.push([planes[k][0], planes[k][1], Math.cos(theta), Math.sin(theta)]);
+  }
+  const doOffset = offset !== 0;
+  return (p) => {
+    const q = p.slice();
+    for (const [i, j, c, s] of rots) {
+      const vi = q[i];
+      const vj = q[j];
+      q[i] = vi * c - vj * s;
+      q[j] = vi * s + vj * c;
+    }
+    if (doOffset) q[axis] += offset;
+    return q;
+  };
+}
+
+/**
+ * 预计算逆变换器：makeTransform 的精确逆（隐式物体体素化用）。
+ * 正变换 T = 平移 ∘ R(n-1)∘…∘R(0)，故逆为 T⁻¹ = R(0)⁻¹∘…∘R(n-1)⁻¹∘平移⁻¹：
+ * 先沿 axis 平移 −offset，再按 planes 逆序施加反向旋转。
+ * @returns {(p:number[])=>number[]}
+ */
+function makeInverseTransform(angles, planes, axis, offset) {
+  const rots = [];
+  for (let k = 0; k < planes.length; k++) {
+    const theta = angles[k] || 0;
+    if (theta) rots.push([planes[k][0], planes[k][1], Math.cos(theta), Math.sin(theta)]);
+  }
+  const doOffset = offset !== 0;
+  return (p) => {
+    const q = p.slice();
+    if (doOffset) q[axis] -= offset;
+    for (let k = rots.length - 1; k >= 0; k--) {
+      const [i, j, c, s] = rots[k];
+      const vi = q[i];
+      const vj = q[j];
+      q[i] = vi * c + vj * s; // 逆旋转：转置矩阵
+      q[j] = -vi * s + vj * c;
+    }
+    return q;
+  };
+}
+
+/**
+ * 对一组 n 维顶点施加完整变换：先按 planes 顺序旋转，再沿 axis 平移 offset。
+ * @param {number[][]} vertices 原始顶点（不会被修改）
+ * @param {number[]} angles 与 planes 等长的弧度数组
+ * @param {number[][]} planes 旋转平面列表（PLANES4 / PLANES3）
+ * @param {number} axis 平移轴下标（4D 切片用 3 即 w；3D 类比用 1 即 y）
+ * @param {number} offset 平移量（物体沿轴正向移动）
+ * @returns {number[][]} 变换后的新顶点数组
+ */
+function transformVertices(vertices, angles, planes, axis, offset) {
+  const T = makeTransform(angles, planes, axis, offset);
+  return vertices.map(T);
+}
+
+/**
+ * 预计算“四维视角”映射（view4d 页面用）：三维物体躺在超平面 H₀ = {w=0} 内，
+ * 经 4D 旋转 R 后以 w=+K 处的“光源”透视投影回 w=0（与主视图 project4 同一约定，
+ * 但不加 clamp——view4d 物体外接球半径 2 << K）。
+ *
+ * 正向 forward(P₃) → Q₃：V = R(P,0)，Q₃ = V.xyz · K/(K−V.w)。
+ * 逆向 inverse(Q₃) → P₃：像点 Q₃ 的四维原像位于从光源 L=(0,0,0,K) 出发、
+ * 经过 (Q₃,0) 的射线上：V(s) = (Q₃·(K−s)/K, s)。该射线与旋转后超平面
+ * H = R(H₀)（法向 n = R(e₄)，方程 V·n = 0）的交点为闭式解：
+ *   令 a = Q₃·n.xyz，则 s = aK / (a − n_w·K)，P₃ = R⁻¹(V(s)).xyz。
+ * 分母 a − n_w·K = 0 ⟺ 射线与 H 平行（投影中心躺在 H 内，如 XW=90° 的
+ * “四维侧视”——整张射影像被压扁进一张平面）→ 逆映射退化，返回 null。
+ * @param {number[]} angles 与 PLANES4 等长的弧度数组
+ * @param {number} K 投影光源距离（w = +K）
+ * @returns {{normal:number[], forward:(p:number[])=>number[], inverse:(q:number[])=>number[]|null}}
+ */
+function makeObjectView(angles, K) {
+  const T = makeTransform(angles, PLANES4, 3, 0);
+  const Tinv = makeInverseTransform(angles, PLANES4, 3, 0);
+  const n = T([0, 0, 0, 1]); // 旋转后超平面法向（旋转保范数，|n| = 1）
+  return {
+    normal: n,
+    forward(p) {
+      const V = T([p[0], p[1], p[2], 0]);
+      const f = K / (K - V[3]);
+      return [V[0] * f, V[1] * f, V[2] * f];
+    },
+    inverse(q) {
+      const a = q[0] * n[0] + q[1] * n[1] + q[2] * n[2];
+      const denom = a - n[3] * K;
+      if (Math.abs(denom) < 1e-9 * Math.max(1, Math.abs(a), K)) return null;
+      const s = (a * K) / denom;
+      const g = (K - s) / K;
+      const P = Tinv([q[0] * g, q[1] * g, q[2] * g, s]);
+      return [P[0], P[1], P[2]];
+    },
+  };
+}
+
+/** 角度 → 弧度 */
+function deg2rad(deg) {
+  return (deg * Math.PI) / 180;
+}
+
+/* ============ 4×4 矩阵工具（旅人第一人称页 traveler.js 用，可 node 单测） ============ */
+/**
+ * 显式矩阵表示：预计算变换器（makeTransform）只能表达“坐标平面欧拉角”，
+ * 而第一人称旅人需要“绕自身坐标平面的增量旋转”（R ← R·δ，四维任意姿态），
+ * 欧拉角数组无法廉价表达——用行主序 16 元素平铺矩阵 + mat4Mul 组合。
+ * 约定与 rotateInPlane 完全一致：平面 (i,j) 内旋转 θ 使
+ *   i' = i·cosθ − j·sinθ，j' = i·sinθ + j·cosθ
+ * 旋转矩阵正交：逆 = 转置（mat4Transpose），无需通用求逆。
+ */
+
+/** 单位阵（行主序 16 元素） */
+function mat4Identity() {
+  return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+}
+
+/** 坐标平面 (i,j) 内旋转 theta 的 4×4 矩阵（行主序） */
+function rotMat4(i, j, theta) {
+  const M = mat4Identity();
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+  M[i * 4 + i] = c;
+  M[i * 4 + j] = -s;
+  M[j * 4 + i] = s;
+  M[j * 4 + j] = c;
+  return M;
+}
+
+/** 矩阵乘积 A·B（行主序） */
+function mat4Mul(A, B) {
+  const C = new Array(16);
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += A[r * 4 + k] * B[k * 4 + c];
+      C[r * 4 + c] = s;
+    }
+  return C;
+}
+
+/** 矩阵作用于 4 维点：q = M·p（返回新数组） */
+function mat4Apply(M, p) {
+  return [
+    M[0] * p[0] + M[1] * p[1] + M[2] * p[2] + M[3] * p[3],
+    M[4] * p[0] + M[5] * p[1] + M[6] * p[2] + M[7] * p[3],
+    M[8] * p[0] + M[9] * p[1] + M[10] * p[2] + M[11] * p[3],
+    M[12] * p[0] + M[13] * p[1] + M[14] * p[2] + M[15] * p[3],
+  ];
+}
+
+/** 转置（旋转矩阵的逆） */
+function mat4Transpose(M) {
+  return [
+    M[0], M[4], M[8], M[12],
+    M[1], M[5], M[9], M[13],
+    M[2], M[6], M[10], M[14],
+    M[3], M[7], M[11], M[15],
+  ];
+}
+
+/**
+ * 欧拉角数组 → 4×4 旋转矩阵：与 makeTransform(angles, PLANES4, 3, 0) 的线性部分
+ * 完全一致（按 PLANES4 顺序施加，后施加的在左侧）：M_total = M₅·M₄·…·M₀。
+ */
+function eulerMat4(angles) {
+  let T = mat4Identity();
+  for (let k = 0; k < PLANES4.length; k++) {
+    const theta = angles[k] || 0;
+    if (theta) T = mat4Mul(rotMat4(PLANES4[k][0], PLANES4[k][1], theta), T);
+  }
+  return T;
+}
+
+/* ===== js/shapes4d.js ===== */
+/**
+ * shapes4d.js —— 四维物体与其三维类比物的数据定义（纯数据+参数方程，无 three.js 依赖）
+ *
+ * 防幻觉设计：所有多胞体的“棱”不手写边表，而是用【最小距离规则】程序化生成
+ * （正多胞体的棱 = 顶点对中距离最小者的集合），并用已知边数断言自检：
+ *   超正方体 16顶点/32棱 · 正五胞体 5/10 · 正十六胞体 8/24 · 正二十四胞体 24/96
+ *   正六百胞体 120/720 · （类比物）立方体 8/12 · 正四面体 4/6 · 正八面体 6/12
+ *   菱形十二面体 14/24 · 正二十面体 12/30
+ * 所有多胞体统一缩放至外接球半径 2（穿膜位移另按当前姿态归一化，见 main.js）。
+ */
+
+const EPS = 1e-9;
+
+/** 用最小距离规则生成棱（正多胞体适用），返回 [[i,j], ...] */
+function edgesByMinDistance(vertices, expectedCount, label) {
+  let min2 = Infinity;
+  const n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const d2 = dist2(vertices[i], vertices[j]);
+      if (d2 < min2) min2 = d2;
+    }
+  }
+  const tol = min2 * (1 + 1e-6);
+  const edges = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (dist2(vertices[i], vertices[j]) <= tol) edges.push([i, j]);
+    }
+  }
+  if (expectedCount !== undefined && edges.length !== expectedCount) {
+    throw new Error(
+      `${label}: 期望 ${expectedCount} 条棱，实际生成 ${edges.length} 条（顶点数据可能有误）`
+    );
+  }
+  return edges;
+}
+
+function dist2(a, b) {
+  let s = 0;
+  for (let k = 0; k < a.length; k++) s += (a[k] - b[k]) ** 2;
+  return s;
+}
+
+/** 将顶点组居中并缩放至外接球半径 R（返回新数组） */
+function normalizeRadius(vertices, R) {
+  const n = vertices.length;
+  const dim = vertices[0].length;
+  const c = new Array(dim).fill(0);
+  for (const v of vertices) for (let k = 0; k < dim; k++) c[k] += v[k] / n;
+  const centered = vertices.map((v) => v.map((x, k) => x - c[k]));
+  let r2 = 0;
+  for (const v of centered) r2 = Math.max(r2, dist2(v, new Array(dim).fill(0)));
+  const s = R / Math.sqrt(r2);
+  return centered.map((v) => v.map((x) => x * s));
+}
+
+/* ============ 四维多胞体 ============ */
+
+// 超正方体：(±1)^4，外接球半径 2
+const TESSERACT_VERTS = [];
+for (const xs of [-1, 1]) for (const ys of [-1, 1]) for (const zs of [-1, 1]) for (const ws of [-1, 1])
+  TESSERACT_VERTS.push([xs, ys, zs, ws]);
+
+const TESSERACT = {
+  vertices: TESSERACT_VERTS,
+  edges: edgesByMinDistance(TESSERACT_VERTS, 32, '超正方体'),
+};
+
+// 正五胞体（4D 单纯形）：e1..e4 + t·(1,1,1,1)，t=(1−√5)/4，居中缩放至半径 2
+const t5 = (1 - Math.sqrt(5)) / 4;
+const CELL5_VERTS = normalizeRadius(
+  [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [t5, t5, t5, t5]],
+  2
+);
+const CELL5 = {
+  vertices: CELL5_VERTS,
+  edges: edgesByMinDistance(CELL5_VERTS, 10, '正五胞体'),
+};
+
+// 正十六胞体：±2e_i，外接球半径 2
+const CELL16_VERTS = [];
+for (let k = 0; k < 4; k++) {
+  for (const s of [-2, 2]) {
+    const v = [0, 0, 0, 0];
+    v[k] = s;
+    CELL16_VERTS.push(v);
+  }
+}
+const CELL16 = {
+  vertices: CELL16_VERTS,
+  edges: edgesByMinDistance(CELL16_VERTS, 24, '正十六胞体'),
+};
+
+// 正二十四胞体：(±√2,±√2,0,0) 的全排列，外接球半径 2
+const CELL24_VERTS = [];
+{
+  const r = Math.SQRT2;
+  const signs = [-r, r];
+  for (let a = 0; a < 4; a++)
+    for (let b = a + 1; b < 4; b++)
+      for (const sa of signs)
+        for (const sb of signs) {
+          const v = [0, 0, 0, 0];
+          v[a] = sa;
+          v[b] = sb;
+          CELL24_VERTS.push(v);
+        }
+}
+const CELL24 = {
+  vertices: CELL24_VERTS,
+  edges: edgesByMinDistance(CELL24_VERTS, 96, '正二十四胞体'),
+};
+
+// 正六百胞体（600-cell，4D 的“二十面体对应物”）：外接球半径 1 的三族顶点，缩放至 2
+//   8 个 (±1,0,0,0) 全排列 + 16 个 (±½)⁴ + 96 个 (±φ/2, ±½, ±1/(2φ), 0) 偶排列
+const PHI = (1 + Math.sqrt(5)) / 2;
+
+/** 4 元素的全部偶排列（共 12 个），按逆序数奇偶性过滤 */
+function evenPermutations4() {
+  const all = [];
+  const used = [false, false, false, false];
+  const cur = [];
+  (function rec() {
+    if (cur.length === 4) {
+      all.push(cur.slice());
+      return;
+    }
+    for (let k = 0; k < 4; k++) {
+      if (used[k]) continue;
+      used[k] = true;
+      cur.push(k);
+      rec();
+      cur.pop();
+      used[k] = false;
+    }
+  })();
+  return all.filter((q) => {
+    let inv = 0;
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) if (q[i] > q[j]) inv++;
+    return inv % 2 === 0;
+  });
+}
+
+const CELL600_VERTS_RAW = [];
+{
+  for (let a = 0; a < 4; a++)
+    for (const s of [-1, 1]) {
+      const v = [0, 0, 0, 0];
+      v[a] = s;
+      CELL600_VERTS_RAW.push(v);
+    }
+  for (const xs of [-0.5, 0.5]) for (const ys of [-0.5, 0.5]) for (const zs of [-0.5, 0.5]) for (const ws of [-0.5, 0.5])
+    CELL600_VERTS_RAW.push([xs, ys, zs, ws]);
+  const base = [PHI / 2, 0.5, 1 / (2 * PHI), 0];
+  for (const q of evenPermutations4())
+    for (const s0 of [-1, 1]) for (const s1 of [-1, 1]) for (const s2 of [-1, 1]) {
+      const signs = [s0, s1, s2, 1];
+      CELL600_VERTS_RAW.push(q.map((idx) => base[idx] * signs[idx]));
+    }
+  const uniq = new Set(CELL600_VERTS_RAW.map((v) => v.join(',')));
+  if (CELL600_VERTS_RAW.length !== 120 || uniq.size !== 120) {
+    throw new Error(`正六百胞体: 顶点生成错误（${uniq.size}/120 唯一）`);
+  }
+}
+const CELL600_VERTS = normalizeRadius(CELL600_VERTS_RAW, 2);
+const CELL600 = {
+  vertices: CELL600_VERTS,
+  edges: edgesByMinDistance(CELL600_VERTS, 720, '正六百胞体'),
+};
+
+/* ============ 超球体（3-球面） ============ */
+
+const HYPERSPHERE = { radius: 2 };
+
+/* ============ 克莱因瓶（图8浸入 + 第四维 w 提升，R^4 中无自相交嵌入） ============ */
+/**
+ * 图8（figure-8）浸入：v 沿主环扫掠（xy 平面内半径 R 的圆），u 沿图8截面。
+ * 3D 投影中两支薄片在圆 (R·cos v, R·sin v, 0) 处交错——(u=0, v) 与 (u=π, v)
+ * 映到同一 3D 点；第四维提升 w = k·cos u 在两支上取 ±k，将其分离 → R^4 嵌入无自相交。
+ * 粘合关系：(u, v+2π) ~ (−u, v)（v 走一圈，图8翻转——不可定向性的来源）。
+ * u ∈ [0, 2π), v ∈ [0, 2π)
+ * @param {number} R 主环半径（自交圆半径）
+ * @param {number} k w 提升强度：k=0 时 3D 投影真正自交（交错圆完全重合）
+ */
+function kleinPoint(u, v, R = 2, k = 1) {
+  const cv = Math.cos(v);
+  const sv = Math.sin(v);
+  const ch = Math.cos(v / 2);
+  const sh = Math.sin(v / 2);
+  const su = Math.sin(u);
+  const s2u = Math.sin(2 * u);
+  const r = R + ch * su - sh * s2u;
+  const z = sh * su + ch * s2u;
+  return [r * cv, r * sv, z, k * Math.cos(u)];
+}
+const KLEIN = { R: 2, k: 1, point: kleinPoint };
+
+/* ============ 克利夫环面（S³ 内的平坦环面） ============ */
+/**
+ * (R·cos u, R·sin u, R·cos v, R·sin v)，R=√2 → 4D 范数恒 √(2R²) = 2。
+ * 两个方向都是平凡的周期粘合（u、v 各自绕 2π），无克莱因瓶式的扭转——
+ * 在 4D 中无自相交且“处处等距于平环”（平坦环面）；w = R·sin v。
+ * 切片：无旋转时 w=0 ⟺ sin v = const → 两条半径 R 的圆，z = R·cos v = ±√(2−d²)。
+ * @param {number} R 两个圆的半径（√2 时 4D 范数恰为 2）
+ */
+function cliffordPoint(u, v, R = Math.SQRT2) {
+  return [R * Math.cos(u), R * Math.sin(u), R * Math.cos(v), R * Math.sin(v)];
+}
+const CLIFFORD = { R: Math.SQRT2, point: cliffordPoint };
+
+/* ============ 魔戒：四维实心超环面（S¹×B³，边界 S¹×S²） ============ */
+/**
+ * 《三体》“魔戒”的数学模型：主圆（角 u，xy 平面）× 实心三维球管。
+ * 边界为三维流形 S¹×S²，参数 (u, v, w)：v ∈ [0,π] 为管内球坐标极角
+ * （从主圆径向起量），w ∈ [0,2π) 为方位角——比“v 也取 2π”的写法少一半冗余覆盖。
+ * 隐式方程：(√(x²+y²) − R)² + z² + w² = r²（边界）；≤ 为实体。
+ * w=0 超平面切片 = 三维实心环面（甜甜圈），带半径 R−r 的洞——即“戒指”形态；
+ * 旋转后切片可分裂为两团。比例按原著 R≈45km、r≈10km（R/r≈4.5），
+ * 统一缩放至外接球半径 2：R=1.64, r=0.36。
+ * @param {number} R 主半径（中心到环管中心）
+ * @param {number} r 管半径（实心三维球管）
+ */
+function ringPoint(u, v, w, R = 1.64, r = 0.36) {
+  const c = R + r * Math.cos(v);
+  const sv = r * Math.sin(v);
+  return [c * Math.cos(u), c * Math.sin(u), sv * Math.cos(w), sv * Math.sin(w)];
+}
+/** 有符号距离场：负值在实心超环面内部，0 为边界（S¹×S²），正值在外。
+ *  用距离而非 (ρ−R)²+z²+w²−r² 的平方型场：等值面相同，但体素插值更精确。 */
+function ringImplicit(p, R = 1.64, r = 0.36) {
+  return Math.hypot(Math.hypot(p[0], p[1]) - R, p[2], p[3]) - r;
+}
+const RING = { R: 1.64, r: 0.36, point: ringPoint, f: ringImplicit };
+
+/* ============ 超正方体棱管（实体化 tesseract：32 条棱各膨胀为半径 r 的四维圆管） ============ */
+/**
+ * 旅人页“超立方体”展品的隐式场：min(点到各棱线段的距离) − r，负值在任一管内。
+ * 正放时沿 w 穿越的两态：w=0 切中 8 个小球（w 向棱被拦腰截断），
+ * w≈±s 切出嵌套立方框（x/y/z 向棱所在的两个胞面层）——经典嵌套立方构图。
+ * 距离用轴向棱的快速公式：棱沿轴 k 从 −s 到 s、其余坐标固定 ±s，
+ * 点到棱距离² = Σ_{m≠k}(p_m−a_m)² + max(0,|p_k|−s)²。
+ * @param {number} s 半边长（顶点 (±s)⁴）
+ * @param {number} r 圆管半径
+ */
+const TESS_TUBE_EDGES = TESSERACT.edges.map(([i, j]) => {
+  const a = TESSERACT.vertices[i];
+  const b = TESSERACT.vertices[j];
+  let k = -1;
+  for (let m = 0; m < 4; m++) if (a[m] !== b[m]) k = m;
+  const fixed = [0, 1, 2, 3].filter((m) => m !== k).map((m) => a[m]); // 三个 ±1 固定坐标
+  return { k, fixed };
+});
+function tesseractTubeImplicit(p, s = 0.75, r = 0.13) {
+  // 单坐标早退：所有圆管都在 { |q_m| ≤ s+r } 盒内（保守下界，远离过零带时省去逐棱计算）
+  let outside = -Infinity;
+  for (let m = 0; m < 4; m++) {
+    const d = Math.abs(p[m]) - s - r;
+    if (d > outside) outside = d;
+  }
+  if (outside > r) return outside;
+  let d2min = Infinity;
+  for (const { k, fixed } of TESS_TUBE_EDGES) {
+    let d2 = 0;
+    let f = 0;
+    for (let m = 0; m < 4; m++) {
+      if (m === k) {
+        const dk = Math.abs(p[m]) - s;
+        if (dk > 0) d2 += dk * dk;
+      } else {
+        const dd = p[m] - fixed[f++] * s;
+        d2 += dd * dd;
+      }
+    }
+    if (d2 < d2min) d2min = d2;
+  }
+  return Math.sqrt(d2min) - r;
+}
+/** 支撑函数（HUD w 区间用）：管并集沿方向 g 的上确界 = s·Σ|g_m| + r（顶点 (±s)⁴ 取最优符号） */
+function tesseractTubeSupport(g, s = 0.75, r = 0.13) {
+  return s * (Math.abs(g[0]) + Math.abs(g[1]) + Math.abs(g[2]) + Math.abs(g[3])) + r;
+}
+const TUBE_S = 0.75;
+const TUBE_R = 0.13;
+const TESS_TUBE_VERTS = TESSERACT_VERTS.map((v) =>
+  [v[0] * TUBE_S, v[1] * TUBE_S, v[2] * TUBE_S, v[3] * TUBE_S]
+);
+const TESS_TUBE = {
+  s: TUBE_S, r: TUBE_R,
+  f: tesseractTubeImplicit,
+  support: tesseractTubeSupport,
+  verts: TESS_TUBE_VERTS,
+  edges: TESSERACT.edges,
+};
+
+/* ============ 三维类比物 ============ */
+
+// 立方体：±2/√3，外接球半径 2
+const c3 = 2 / Math.sqrt(3);
+const CUBE_VERTS = [];
+for (const xs of [-c3, c3]) for (const ys of [-c3, c3]) for (const zs of [-c3, c3])
+  CUBE_VERTS.push([xs, ys, zs]);
+const CUBE = { vertices: CUBE_VERTS, edges: edgesByMinDistance(CUBE_VERTS, 12, '立方体') };
+
+// 正四面体：(±1 反号组合) 缩放至半径 2
+const TETRA_VERTS = normalizeRadius(
+  [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]],
+  2
+);
+const TETRA = { vertices: TETRA_VERTS, edges: edgesByMinDistance(TETRA_VERTS, 6, '正四面体') };
+
+// 正八面体：±2e_i
+const OCTA_VERTS = [];
+for (let k = 0; k < 3; k++) {
+  for (const s of [-2, 2]) {
+    const v = [0, 0, 0];
+    v[k] = s;
+    OCTA_VERTS.push(v);
+  }
+}
+const OCTA = { vertices: OCTA_VERTS, edges: edgesByMinDistance(OCTA_VERTS, 12, '正八面体') };
+
+// 菱形十二面体（正二十四胞体的三维类比）：8 立方顶点 + 6 轴顶点
+const RHOMBIC_VERTS = [];
+for (const xs of [-1, 1]) for (const ys of [-1, 1]) for (const zs of [-1, 1]) RHOMBIC_VERTS.push([xs, ys, zs]);
+for (let k = 0; k < 3; k++) {
+  for (const s of [-2, 2]) {
+    const v = [0, 0, 0];
+    v[k] = s;
+    RHOMBIC_VERTS.push(v);
+  }
+}
+const RHOMBIC = {
+  vertices: RHOMBIC_VERTS,
+  edges: edgesByMinDistance(RHOMBIC_VERTS, 24, '菱形十二面体'),
+};
+
+// 正二十面体（正六百胞体的三维类比）：(0, ±1, ±φ) 的循环排列，缩放至半径 2
+const ICOSA_VERTS = normalizeRadius(
+  [
+    [0, 1, PHI], [0, 1, -PHI], [0, -1, PHI], [0, -1, -PHI],
+    [1, PHI, 0], [1, -PHI, 0], [-1, PHI, 0], [-1, -PHI, 0],
+    [PHI, 0, 1], [PHI, 0, -1], [-PHI, 0, 1], [-PHI, 0, -1],
+  ],
+  2
+);
+const ICOSA = {
+  vertices: ICOSA_VERTS,
+  edges: edgesByMinDistance(ICOSA_VERTS, 30, '正二十面体'),
+};
+
+// 球体
+const SPHERE3 = { radius: 2 };
+
+// 莫比乌斯环（克莱因瓶的三维类比）：v ∈ [0, 2π]，s ∈ [−0.5, 0.5]
+function mobiusPoint(v, s, R = 1.5) {
+  const c2 = Math.cos(v / 2);
+  const s2 = Math.sin(v / 2);
+  const r = R + s * c2;
+  return [r * Math.cos(v), s * s2, r * Math.sin(v)];
+}
+const MOBIUS = { R: 1.5, sMax: 0.5, point: mobiusPoint };
+
+// 普通环面（克利夫环面的三维类比）：u 沿主环（xz 平面），v 沿管
+// 高度 y = r0·sin v ↔ 克利夫环面的第四维 w = R·sin v（同为 sin v 驱动）
+function torus3Point(u, v, R0 = 1.4, r0 = 0.55) {
+  const c = R0 + r0 * Math.cos(v);
+  return [c * Math.cos(u), r0 * Math.sin(v), c * Math.sin(u)];
+}
+const TORUS3 = { R0: 1.4, r0: 0.55, point: torus3Point };
+
+/* 实心环面（“魔戒”的三维类比）：与魔戒同比例（R0/r0 = R/r）。
+ * 有符号距离场：(√(x²+z²) − R0)² + y² ≤ r0²（主圆在 xz 平面，边界为普通环面）。
+ * y=0 切片 = 圆环带（annulus）{|√(x²+z²)−R0| ≤ r0}——正是魔戒 w=0 切片的“再切片”。 */
+function donut3Implicit(p, R0 = 1.64, r0 = 0.36) {
+  return Math.hypot(Math.hypot(p[0], p[2]) - R0, p[1]) - r0;
+}
+const DONUT3 = { R0: 1.64, r0: 0.36, f: donut3Implicit };
+
+/* ============ 物体注册表（4D 物体 ↔ 3D 类比物） ============ */
+
+const OBJECTS4D = {
+  tesseract: {
+    kind: 'polytope',
+    polytope: TESSERACT,
+    analog: 'cube',
+    name: '超正方体 Tesseract',
+    desc: '16 顶点 · 32 棱 · 24 面 · 8 个立方体胞',
+  },
+  cell5: {
+    kind: 'polytope',
+    polytope: CELL5,
+    analog: 'tetra',
+    name: '正五胞体 5-cell',
+    desc: '5 顶点 · 10 棱 · 5 个四面体胞（4D 单纯形）',
+  },
+  cell16: {
+    kind: 'polytope',
+    polytope: CELL16,
+    analog: 'octa',
+    name: '正十六胞体 16-cell',
+    desc: '8 顶点 · 24 棱 · 16 个四面体胞',
+  },
+  cell24: {
+    kind: 'polytope',
+    polytope: CELL24,
+    analog: 'rhombic',
+    name: '正二十四胞体 24-cell',
+    desc: '24 顶点 · 96 棱 · 24 个八面体胞',
+  },
+  cell600: {
+    kind: 'polytope',
+    polytope: CELL600,
+    analog: 'icosa',
+    name: '正六百胞体 600-cell',
+    desc: '120 顶点 · 720 棱 · 600 个四面体胞（4D 的“二十面体”，φ 家族）',
+  },
+  hypersphere: {
+    kind: 'sphere',
+    sphere: HYPERSPHERE,
+    analog: 'sphere',
+    name: '超球体 Hypersphere',
+    desc: '3-球面。切片恒为球，半径 √(R²−d²)，与旋转无关',
+  },
+  klein: {
+    kind: 'surface',
+    surface: KLEIN,
+    analog: 'mobius',
+    name: '克莱因瓶 Klein Bottle',
+    desc: '图8浸入的不可定向曲面；两支薄片在 3D 投影中交错，由第四维 w 提升分离',
+  },
+  clifford: {
+    kind: 'clifford',
+    surface: CLIFFORD,
+    analog: 'torus3',
+    name: '克利夫环面 Clifford Torus',
+    desc: 'S³ 内的平坦环面，4D 范数恒为 2；切片为两条圆，z = ±√(2−d²)',
+  },
+  ring: {
+    kind: 'ring',
+    surface: RING,
+    analog: 'donut3',
+    name: '魔戒 Ring（四维超环面）',
+    desc: '实心超环面 S¹×B³（边界 S¹×S²）：w=0 切片是带洞的三维实心环面，旋转后可分裂为两团——《三体》四维碎块中的“魔戒”',
+  },
+};
+
+const ANALOGS3D = {
+  cube: { kind: 'polytope', polytope: CUBE, name: '立方体' },
+  tetra: { kind: 'polytope', polytope: TETRA, name: '正四面体' },
+  octa: { kind: 'polytope', polytope: OCTA, name: '正八面体' },
+  rhombic: { kind: 'polytope', polytope: RHOMBIC, name: '菱形十二面体' },
+  icosa: { kind: 'polytope', polytope: ICOSA, name: '正二十面体' },
+  sphere: { kind: 'sphere', sphere: SPHERE3, name: '球体' },
+  mobius: { kind: 'surface', surface: MOBIUS, name: '莫比乌斯环' },
+  torus3: { kind: 'torus', surface: TORUS3, name: '普通环面' },
+  donut3: { kind: 'donut', surface: DONUT3, name: '实心环面（三维魔戒）' },
+};
+
+/** 启动自检：验证所有物体的顶点/棱数（供 main.js 与测试共用） */
+function validateShapes() {
+  const checks = [
+  ['超正方体', TESSERACT.vertices.length, 16, TESSERACT.edges.length, 32],
+  ['正五胞体', CELL5.vertices.length, 5, CELL5.edges.length, 10],
+  ['正十六胞体', CELL16.vertices.length, 8, CELL16.edges.length, 24],
+  ['正二十四胞体', CELL24.vertices.length, 24, CELL24.edges.length, 96],
+  ['正六百胞体', CELL600.vertices.length, 120, CELL600.edges.length, 720],
+  ['立方体', CUBE.vertices.length, 8, CUBE.edges.length, 12],
+  ['正四面体', TETRA.vertices.length, 4, TETRA.edges.length, 6],
+  ['正八面体', OCTA.vertices.length, 6, OCTA.edges.length, 12],
+  ['菱形十二面体', RHOMBIC_VERTS.length, 14, RHOMBIC.edges.length, 24],
+  ['正二十面体', ICOSA_VERTS.length, 12, ICOSA.edges.length, 30],
+  ];
+  for (const [name, nv, ev, ne, ee] of checks) {
+    if (nv !== ev || ne !== ee) {
+      throw new Error(`${name}: 顶点 ${nv}(期望 ${ev})，棱 ${ne}(期望 ${ee})`);
+    }
+  }
+  return checks.length;
+}
+
+// 供测试直接引用已知期望值
+const EXPECTED = {
+  tesseract: { vertices: 16, edges: 32 },
+  cell5: { vertices: 5, edges: 10 },
+  cell16: { vertices: 8, edges: 24 },
+  cell24: { vertices: 24, edges: 96 },
+  cell600: { vertices: 120, edges: 720 },
+};
+
+/* ===== js/slicer.js ===== */
+/**
+ * slicer.js —— 通用切片算法（纯数学，无 three.js 依赖，可用 node 单测）
+ *
+ * 五件套：
+ *  1. sliceEdges      多胞体“棱 × 超平面”求交（维度无关：4D切w=0 / 3D切y=0 共用）
+ *  2. convexHull2D    二维凸包（monotone chain），用于类比区平面截面
+ *  3. marchingContours marching-squares 等值线提取 + 折线缝合（精确键 + 容差两遍），
+ *                      用于参数曲面（克莱因瓶/莫比乌斯环）的切片，
+ *                      支持参数域扭转边界粘合（(u, v+2π)~(−u, v)）的跨边缝合
+ *  4. surfaceNets     Naive Surface Nets 三维等值面提取（无查找表的对偶轮廓法），
+ *                      用于四维实体（如“魔戒”超环面）的体素化切片
+ *  5. chamfer3D       三维 chamfer 距离变换（26 邻域两遍扫描），
+ *                      用于 view4d 魔戒轮廓 SDF 的 CPU 预计算
+ *  6. polygonArea / pointInPoly / nestLoops
+ *                      闭合环线的区域化（外环-内洞嵌套分组），
+ *                      用于“四维漫游”页切面/截面区域的填充三角化
+ */
+
+/**
+ * 棱与超平面求交：超平面为坐标 axis 上的 0 值面（变换已含平移）。
+ * 对每条棱 (A,B)：若两端 w 值异号（或一端恰为 0），线性插值得交点；
+ * 若棱整体平行于超平面且恰好躺在面内，则两端点都计入。
+ * @returns {number[][]} 交点数组（已去重），每个点去掉 axis 分量后为 (n−1) 维
+ */
+function sliceEdges(vertices, edges, axis) {
+  const raw = [];
+  for (const [i, j] of edges) {
+    const a = vertices[i];
+    const b = vertices[j];
+    const wa = a[axis];
+    const wb = b[axis];
+    if (Math.abs(wa - wb) < 1e-12) {
+      // 棰平行于超平面：仅当恰好位于面内时才包含
+      if (Math.abs(wa) < 1e-7) {
+        raw.push(dropAxis(a, axis));
+        raw.push(dropAxis(b, axis));
+      }
+      continue;
+    }
+    if ((wa <= 0 && wb >= 0) || (wa >= 0 && wb <= 0)) {
+      const t = wa / (wa - wb); // 交点处坐标恒为 0
+      const p = new Array(a.length);
+      for (let k = 0; k < a.length; k++) p[k] = a[k] + t * (b[k] - a[k]);
+      raw.push(dropAxis(p, axis));
+    }
+  }
+  return dedupePoints(raw, 1e-7);
+}
+
+function dropAxis(p, axis) {
+  const out = [];
+  for (let k = 0; k < p.length; k++) if (k !== axis) out.push(p[k]);
+  return out;
+}
+
+/** 去重（坐标容差 eps，O(n²)，本项目点数 ≤ 数百，足够快） */
+function dedupePoints(points, eps = 1e-9) {
+  const out = [];
+  outer: for (const p of points) {
+    for (const q of out) {
+      let d2 = 0;
+      for (let k = 0; k < p.length; k++) d2 += (p[k] - q[k]) ** 2;
+      if (d2 < eps * eps) continue outer;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+/**
+ * 二维凸包（monotone chain），返回逆时针顶点环（共线点已剔除）。
+ * 点数 < 3 时原样返回（调用方需处理退化情形）。
+ */
+function convexHull2D(points) {
+  if (points.length < 3) return points.slice();
+  const pts = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  const hull = lower.concat(upper);
+  return hull.length >= 3 ? hull : pts; // 全共线时退化为排序点列，由调用方兜底
+}
+
+/**
+ * marching-squares 等值线提取，并缝合为折线。
+ * 网格含边界采样（i=0..nx-1 沿 u，j=0..ny-1 沿 v，行优先 vals[j*nx+i]）。
+ * 签名约定：val − iso > 1e-12 记为 “+”，否则（含恰好等于）记为 “−”，
+ * 因此恰好落在等值上的采样点会通过相邻格子的穿越被正确捕获。
+ * 鞍点（4 个穿越点）用中心均值符号决定配对，属标准启发式。
+ *
+ * @param {number[]} vals        标量场
+ * @param {number} nx, ny        网格尺寸
+ * @param {(i:number,j:number)=>[number,number]} toParam  网格索引（可为小数）→ 参数
+ * @param {(u:number,v:number)=>number[]} toPoint         参数 → 三维位置
+ * @param {number} iso           等值（默认 0）
+ * @returns {{closed:boolean, points:number[][]}[]}       折线数组（三维点）
+ */
+function marchingContours(vals, nx, ny, toParam, toPoint, iso = 0) {
+  const SIGN_TOL = 1e-12;
+  const val = (i, j) => vals[j * nx + i] - iso;
+  const sign = (i, j) => (val(i, j) > SIGN_TOL ? 1 : -1);
+
+  // 生成所有等值线段
+  const segments = [];
+  const addCrossing = (i0, j0, i1, j1) => {
+    const v0 = val(i0, j0);
+    const v1 = val(i1, j1);
+    const t = v0 / (v0 - v1); // ∈ (0,1]
+    const [u0, v0p] = toParam(i0, j0);
+    const [u1, v1p] = toParam(i1, j1);
+    return toPoint(u0 + t * (u1 - u0), v0p + t * (v1p - v0p));
+  };
+
+  for (let j = 0; j < ny - 1; j++) {
+    for (let i = 0; i < nx - 1; i++) {
+      const sa = sign(i, j);
+      const sb = sign(i + 1, j);
+      const sc = sign(i + 1, j + 1);
+      const sd = sign(i, j + 1);
+      // 四条边按顺序：a→b, b→c, c→d, d→a
+      const crossings = [];
+      if (sa !== sb) crossings.push(addCrossing(i, j, i + 1, j));
+      if (sb !== sc) crossings.push(addCrossing(i + 1, j, i + 1, j + 1));
+      if (sc !== sd) crossings.push(addCrossing(i + 1, j + 1, i, j + 1));
+      if (sd !== sa) crossings.push(addCrossing(i, j + 1, i, j));
+      if (crossings.length === 2) {
+        pushSegment(segments, crossings[0], crossings[1]);
+      } else if (crossings.length === 4) {
+        // 鞍点：按中心均值符号配对
+        const center = (val(i, j) + val(i + 1, j) + val(i + 1, j + 1) + val(i, j + 1)) / 4;
+        if (center > 0) {
+          pushSegment(segments, crossings[0], crossings[3]);
+          pushSegment(segments, crossings[1], crossings[2]);
+        } else {
+          pushSegment(segments, crossings[0], crossings[1]);
+          pushSegment(segments, crossings[2], crossings[3]);
+        }
+      }
+      // 0 个穿越：无等值线经过该格
+    }
+  }
+
+  return stitch(segments);
+}
+
+function pushSegment(segments, p, q) {
+  if (samePoint(p, q)) return; // 退化零长度段
+  segments.push({ p, q, kp: keyOf(p), kq: keyOf(q), used: false });
+}
+
+function samePoint(a, b) {
+  return keyOf(a) === keyOf(b);
+}
+
+function keyOf(p) {
+  // 用三维坐标量化做缝合键（跨界识别：同一 3D 点即同一键）
+  return p.map((x) => Math.round(x * 1e6)).join(',');
+}
+
+/** 将线段缝合为折线：同键的端点相连；首尾相遇则为闭合环 */
+function stitch(segments) {
+  const map = new Map(); // key → 段索引列表
+  segments.forEach((s, idx) => {
+    if (!map.has(s.kp)) map.set(s.kp, []);
+    if (!map.has(s.kq)) map.set(s.kq, []);
+    map.get(s.kp).push(idx);
+    map.get(s.kq).push(idx);
+  });
+
+  const polylines = [];
+  for (let idx = 0; idx < segments.length; idx++) {
+    const s0 = segments[idx];
+    if (s0.used) continue;
+    s0.used = true;
+    const points = [s0.p, s0.q];
+    const startKey = s0.kp;
+
+    // 向 q 端延伸
+    let closed = false;
+    for (;;) {
+      const tailKey = keyOf(points[points.length - 1]);
+      if (tailKey === startKey && points.length > 2) {
+        closed = true;
+        points.pop(); // 去掉与起点重复的点
+        break;
+      }
+      const next = findUnused(segments, map, tailKey);
+      if (!next) break;
+      next.used = true;
+      points.push(next.kp === tailKey ? next.q : next.p);
+    }
+
+    if (!closed) {
+      // 向 p 端延伸（开放链）
+      points.reverse();
+      for (;;) {
+        const tailKey = keyOf(points[points.length - 1]);
+        const next = findUnused(segments, map, tailKey);
+        if (!next) break;
+        next.used = true;
+        points.push(next.kp === tailKey ? next.q : next.p);
+      }
+      points.reverse();
+      // 首尾在三维中重合（跨参数域识别缝合的曲面）→ 视为闭合
+      if (
+        points.length > 2 &&
+        keyOf(points[0]) === keyOf(points[points.length - 1])
+      ) {
+        closed = true;
+        points.pop();
+      }
+    }
+
+    if (points.length >= 2) polylines.push({ closed, points });
+  }
+  return joinOpenPolylines(polylines, JOIN_TOL);
+}
+
+/**
+ * 第二遍缝合（容差拼接）：参数曲面经扭转边界粘合（如克莱因瓶 (u, v+2π)~(−u, v)）时，
+ * 等值线在粘合边两侧的端点只能由网格插值近似（误差 ~1e-3），精确键无法匹配。
+ * 这里按三维就近（< tol）把仍开放的折线拼接起来，并检测自闭合。
+ * tol 取 0.01：远大于插值误差，又远小于真实的端点间距（≥ 一个网格步长 ~0.03）。
+ */
+const JOIN_TOL = 0.01;
+
+function pointDist(a, b) {
+  let d2 = 0;
+  for (let k = 0; k < a.length; k++) d2 += (a[k] - b[k]) ** 2;
+  return Math.sqrt(d2);
+}
+
+function joinOpenPolylines(polylines, tol) {
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    outer:
+    for (let i = 0; i < polylines.length; i++) {
+      const A = polylines[i];
+      if (A.closed) continue;
+      for (let j = 0; j < polylines.length; j++) {
+        if (i === j) continue;
+        const B = polylines[j];
+        if (B.closed) continue;
+        const at = A.points.length - 1;
+        const bt = B.points.length - 1;
+        if (pointDist(A.points[at], B.points[0]) < tol) {
+          A.points.push(...B.points.slice(1)); // A尾 ↔ B头
+        } else if (pointDist(A.points[at], B.points[bt]) < tol) {
+          A.points.push(...B.points.slice(0, bt).reverse()); // A尾 ↔ B尾
+        } else if (pointDist(A.points[0], B.points[0]) < tol) {
+          A.points.reverse();
+          A.points.push(...B.points.slice(1)); // A头 ↔ B头
+        } else if (pointDist(A.points[0], B.points[bt]) < tol) {
+          A.points = B.points.concat(A.points.slice(1)); // A头 ↔ B尾
+        } else {
+          continue;
+        }
+        polylines.splice(j, 1);
+        progressed = true;
+        break outer;
+      }
+    }
+  }
+  for (const p of polylines) {
+    if (!p.closed && p.points.length > 2 && pointDist(p.points[0], p.points[p.points.length - 1]) < tol) {
+      p.closed = true;
+      p.points.pop();
+    }
+  }
+  return polylines;
+}
+
+function findUnused(segments, map, key) {
+  const list = map.get(key);
+  if (!list) return null;
+  for (const idx of list) {
+    if (!segments[idx].used) return segments[idx];
+  }
+  return null;
+}
+
+/**
+ * Naive Surface Nets（简化对偶轮廓）：三维体素标量场 → 等值面三角网格。
+ * 不用 256 项 marching-cubes 查找表：每个“角值异号”的体素单元生成一个顶点
+ * （取该单元 12 条棱穿越点的均值，天然平滑），每条异号网格棱把周围
+ * 4 个单元的对偶顶点连成一个四边形（两个三角形）。
+ * 约定与 marchingContours 一致：val − iso > 1e-12 记 “+”，否则记 “−”。
+ * 注意：若等值面触及网格边界（某个方向处于最外圈），该处不生成面片
+ * （调用方需保证场在边界同号，即区域完整落在网格内部）。
+ *
+ * @param {Float64Array|number[]} vals   标量场，行优先 vals[(k*ny+j)*nx+i]
+ * @param {number} nx, ny, nz            网格尺寸（含边界采样点）
+ * @param {number} iso                   等值（默认 0）
+ * @param {number} origin                索引 0 处的坐标（三轴相同）
+ * @param {number} step                  网格步长（三轴相同）
+ * @returns {{positions:number[], indices:number[]}}   positions 为 x,y,z 三元组平铺；indices 为三角面顶点索引
+ */
+function surfaceNets(vals, nx, ny, nz, iso = 0, origin = 0, step = 1) {
+  const SIGN_TOL = 1e-12;
+  const n = nx * ny * nz;
+  const cellVertex = _snBuf(n);
+  cellVertex.fill(-1, 0, n);
+  const positions = [];
+  const indices = [];
+
+  // 8 个角：编号 c 的二进制位 (i&1, j&1, k&1)；12 条棱为角对
+  const CORNER = [
+    [0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0],
+    [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1],
+  ];
+  const EDGES = [
+    [0, 1], [2, 3], [4, 5], [6, 7], // 沿 i
+    [0, 2], [1, 3], [4, 6], [5, 7], // 沿 j
+    [0, 4], [1, 5], [2, 6], [3, 7], // 沿 k
+  ];
+  const f = new Float64Array(8);
+
+  const cellIndex = (i, j, k) => (k * ny + j) * nx + i;
+
+  // ---- 第一遍：每个异号单元放一个对偶顶点（棱穿越点均值） ----
+  for (let k = 0; k < nz - 1; k++)
+    for (let j = 0; j < ny - 1; j++)
+      for (let i = 0; i < nx - 1; i++) {
+        let mask = 0;
+        for (let c = 0; c < 8; c++) {
+          const v = vals[(k + CORNER[c][2]) * ny * nx + (j + CORNER[c][1]) * nx + (i + CORNER[c][0])] - iso;
+          f[c] = v;
+          if (v > SIGN_TOL) mask |= 1 << c;
+        }
+        if (mask === 0 || mask === 255) continue;
+        let sx = 0, sy = 0, sz = 0, cnt = 0;
+        for (const [a, b] of EDGES) {
+          if (((mask >> a) & 1) === ((mask >> b) & 1)) continue;
+          const t = f[a] / (f[a] - f[b]); // ∈ (0,1)
+          sx += CORNER[a][0] + t * (CORNER[b][0] - CORNER[a][0]);
+          sy += CORNER[a][1] + t * (CORNER[b][1] - CORNER[a][1]);
+          sz += CORNER[a][2] + t * (CORNER[b][2] - CORNER[a][2]);
+          cnt++;
+        }
+        cellVertex[cellIndex(i, j, k)] = positions.length / 3;
+        positions.push(
+          origin + step * (i + sx / cnt),
+          origin + step * (j + sy / cnt),
+          origin + step * (k + sz / cnt)
+        );
+      }
+
+  if (positions.length === 0) return { positions, indices };
+
+  // ---- 第二遍：每条异号网格棱连接周围 4 个单元的对偶顶点成面 ----
+  // 绕向按“棱起点在内侧（val<iso）还是外侧”决定，使面法向恒指向 val>iso 一侧，
+  // 保证整张等值面定向一致（否则 computeVertexNormals 会把 ± 法向平均成乱值，
+  // DoubleSide 材质下呈现随机明暗斑块，看起来像碎块）。
+  const sgn = (v) => (v > SIGN_TOL ? 1 : -1);
+  const quad = (a, b, c, d, flip) => {
+    if (flip) indices.push(a, d, c, a, c, b);
+    else indices.push(a, b, c, a, c, d);
+  };
+  const cellV = (i, j, k) => cellVertex[cellIndex(i, j, k)];
+
+  // 沿 i 的棱：(i,j,k)→(i+1,j,k)，周围单元在 (j,k) 四象限。
+  // A→B→C→D 在 (y,z) 平面逆时针 ⟹ 默认法向 +x。
+  for (let k = 1; k < nz - 1; k++)
+    for (let j = 1; j < ny - 1; j++)
+      for (let i = 0; i < nx - 1; i++) {
+        const g0 = (k * ny + j) * nx + i;
+        if (sgn(vals[g0] - iso) === sgn(vals[g0 + 1] - iso)) continue;
+        const flip = vals[g0] - iso > SIGN_TOL; // 起点在外侧 → 法向应指 −x → 反向
+        quad(cellV(i, j - 1, k - 1), cellV(i, j, k - 1), cellV(i, j, k), cellV(i, j - 1, k), flip);
+      }
+  // 沿 j 的棱：(i,j,k)→(i,j+1,k)，周围单元在 (i,k) 四象限。
+  // A→B→C→D 在 (x,z) 平面逆时针，而 x×z=−y ⟹ 默认法向 −y。
+  for (let k = 1; k < nz - 1; k++)
+    for (let j = 0; j < ny - 1; j++)
+      for (let i = 1; i < nx - 1; i++) {
+        const g0 = (k * ny + j) * nx + i;
+        if (sgn(vals[g0] - iso) === sgn(vals[g0 + nx] - iso)) continue;
+        const flip = !(vals[g0] - iso > SIGN_TOL); // 起点在内侧 → 法向应指 +y → 反向
+        quad(cellV(i - 1, j, k - 1), cellV(i, j, k - 1), cellV(i, j, k), cellV(i - 1, j, k), flip);
+      }
+  // 沿 k 的棱：(i,j,k)→(i,j,k+1)，周围单元在 (i,j) 四象限。
+  // A→B→C→D 在 (x,y) 平面逆时针 ⟹ 默认法向 +z。
+  for (let k = 0; k < nz - 1; k++)
+    for (let j = 1; j < ny - 1; j++)
+      for (let i = 1; i < nx - 1; i++) {
+        const g0 = (k * ny + j) * nx + i;
+        if (sgn(vals[g0] - iso) === sgn(vals[g0 + nx * ny] - iso)) continue;
+        const flip = vals[g0] - iso > SIGN_TOL; // 起点在外侧 → 法向应指 −z → 反向
+        quad(cellV(i - 1, j - 1, k), cellV(i, j - 1, k), cellV(i, j, k), cellV(i - 1, j, k), flip);
+      }
+
+  return { positions, indices };
+}
+
+/** surfaceNets 的单元→顶点索引暂存（避免每次重建分配大数组） */
+let _snCache = null;
+function _snBuf(n) {
+  if (!_snCache || _snCache.length < n) _snCache = new Int32Array(n);
+  return _snCache;
+}
+
+/**
+ * 三角网格的连通块数（顶点按面邻接做并查集，无路径压缩，小网格足够快）。
+ * @param {{positions:number[], indices:number[]}} mesh
+ * @returns {number}
+ */
+function meshComponents(mesh) {
+  const { indices } = mesh;
+  const nv = mesh.positions.length / 3;
+  const parent = new Int32Array(nv).map((_, i) => i);
+  const find = (x) => {
+    while (parent[x] !== x) x = parent[x];
+    return x;
+  };
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = find(indices[t]);
+    const b = find(indices[t + 1]);
+    if (a !== b) parent[a] = b;
+  }
+  let comps = 0;
+  for (let i = 0; i < nv; i++) if (find(i) === i) comps++;
+  return comps;
+}
+
+/**
+ * 3D chamfer 距离变换：两遍扫描（前向 + 后向）的 26 邻域松弛，
+ * 返回每个体素到最近“源”体素（mask 值 === src）的近似欧氏距离（体素单位）。
+ * 权重 1 / √2 / √3（每步代价即该步欧氏长度，任意路径代价 ≥ 直线距离，
+ * 故结果恒为真实欧氏距离的保守上界——方向对球踪 SDF 安全；最坏方向组合误差 ≈ 13%）。
+ * 内部用 1 体素宽的 INF 边界填充，免除逐邻居越界判断。
+ * view4d 的魔戒轮廓 SDF 预计算用它做两次变换（距命中集 / 距未命中集）。
+ * @param {ArrayLike<number>} mask 体素掩码（真值判断 mask[i] === src）
+ * @param {number} nx 网格 x 尺寸
+ * @param {number} ny 网格 y 尺寸
+ * @param {number} nz 网格 z 尺寸
+ * @param {number} [src=1] 作为距离零点的掩码值
+ * @returns {Float32Array} 距离场（下标同 mask：(k*ny+j)*nx+i）
+ */
+function chamfer3D(mask, nx, ny, nz, src = 1) {
+  const INF = 1e9;
+  const px = nx + 2, py = ny + 2;
+  const p = new Float32Array(px * py * (nz + 2)).fill(INF);
+  for (let k = 0; k < nz; k++)
+    for (let j = 0; j < ny; j++) {
+      const srcRow = (k * ny + j) * nx;
+      const dstRow = ((k + 1) * py + (j + 1)) * px + 1;
+      for (let i = 0; i < nx; i++) p[dstRow + i] = mask[srcRow + i] === src ? 0 : INF;
+    }
+  // 前向 13 邻居 = 扫描序（k→j→i 升序）中先于当前体素者；后向为其镜像（13 个）
+  const W = [1, Math.SQRT2, Math.sqrt(3)];
+  const fwd = [], bwd = [];
+  for (let dk = -1; dk <= 1; dk++)
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++) {
+        if (di === 0 && dj === 0 && dk === 0) continue;
+        const w = W[Math.abs(di) + Math.abs(dj) + Math.abs(dk) - 1];
+        const off = (dk * py + dj) * px + di;
+        const isPast = dk < 0 || (dk === 0 && dj < 0) || (dk === 0 && dj === 0 && di < 0);
+        (isPast ? fwd : bwd).push([off, w]);
+      }
+  const pass = (rel) => {
+    for (let k = 1; k <= nz; k++)
+      for (let j = 1; j <= ny; j++) {
+        let idx = (k * py + j) * px + 1;
+        for (let i = 1; i <= nx; i++, idx++) {
+          let v = p[idx];
+          if (v === 0) continue; // 源体素无需松弛
+          for (let q = 0; q < rel.length; q++) {
+            const nv = p[idx + rel[q][0]] + rel[q][1];
+            if (nv < v) v = nv;
+          }
+          p[idx] = v;
+        }
+      }
+  };
+  const passBackward = (rel) => {
+    for (let k = nz; k >= 1; k--)
+      for (let j = ny; j >= 1; j--) {
+        let idx = (k * py + j) * px + nx;
+        for (let i = nx; i >= 1; i--, idx--) {
+          let v = p[idx];
+          if (v === 0) continue;
+          for (let q = 0; q < rel.length; q++) {
+            const nv = p[idx + rel[q][0]] + rel[q][1];
+            if (nv < v) v = nv;
+          }
+          p[idx] = v;
+        }
+      }
+  };
+  pass(fwd);
+  passBackward(bwd);
+  const d = new Float32Array(nx * ny * nz);
+  for (let k = 0; k < nz; k++)
+    for (let j = 0; j < ny; j++) {
+      const srcRow = ((k + 1) * py + (j + 1)) * px + 1;
+      const dstRow = (k * ny + j) * nx;
+      for (let i = 0; i < nx; i++) d[dstRow + i] = p[srcRow + i];
+    }
+  return d;
+}
+
+/**
+ * 简单多边形面积（绝对值，鞋带公式）。顶点顺序任意（不区分方向）。
+ * @param {number[][]} poly [[x,y],…]
+ * @returns {number}
+ */
+function polygonArea(poly) {
+  let s = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++)
+    s += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]);
+  return Math.abs(s / 2);
+}
+
+/**
+ * 射线法点在多边形内判定（不含边界，边界行为未定义——调用方应避免取等值线上的点）。
+ * @param {number[][]} poly [[x,y],…]
+ * @param {number[]} p [x,y]
+ * @returns {boolean}
+ */
+function pointInPoly(poly, p) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * 闭合环线组 → 区域嵌套分组（marching 等值线 → 可填充区域）：
+ * 按面积降序处理，每条环挂到“包含它的最小外层环”；奇偶层交替决定身份——
+ * 第 0 层是外环；第 1 层是洞；第 2 层是洞中的孤岛（新外环）；依此类推。
+ * @param {number[][][]} loops 闭合环线组，每条为 [[x,y],…] 顶点环
+ * @returns {{outer:number[][], holes:number[][][]}[]} 分组（holes 可含洞中岛场景的多层结构）
+ */
+function nestLoops(loops) {
+  const areas = loops.map(polygonArea);
+  const order = loops.map((_, i) => i).sort((a, b) => areas[b] - areas[a]);
+  const groups = [];
+  const groupOf = new Array(loops.length).fill(-1);
+  const levelOf = new Array(loops.length).fill(0);
+  for (const i of order) {
+    let parent = -1;
+    let parentArea = Infinity;
+    for (const j of order) {
+      if (j === i || areas[j] <= areas[i]) continue;
+      if (!pointInPoly(loops[j], loops[i][0])) continue;
+      if (areas[j] < parentArea) {
+        parent = j;
+        parentArea = areas[j];
+      }
+    }
+    const level = parent === -1 ? 0 : levelOf[parent] + 1;
+    levelOf[i] = level;
+    if (level % 2 === 0) {
+      groupOf[i] = groups.length;
+      groups.push({ outer: loops[i], holes: [] });
+    } else {
+      // 奇数层的父环必为偶数层（组外环，已处理）
+      groups[groupOf[parent]].holes.push(loops[i]);
+      groupOf[i] = groupOf[parent];
+    }
+  }
+  return groups;
+}
+
+/* ===== js/demoObjects.js ===== */
+/**
+ * demoObjects.js —— “四维视角”演示物体的结构化 SDF（view4d 页面用）
+ *
+ * 每个物体由若干“结构”拼成：sdf(p) 返回 [距离, 结构id]（取最近的结构）。
+ * 距离为近似有符号距离（Chebyshev/包络混合即可，供软密度渲染与测试断言用）。
+ *
+ * 注意：js/view4d.js 的 GLSL 着色器中手写了同一组 SDF 的镜像实现，
+ * 两处的几何数值必须保持一致（tests/run.js 仅校验本文件，截图目检 GLSL 侧）。
+ *
+ * 物体设计目标：让“四维看穿”有内容可看——
+ *  - 匣中钥匙：密闭匣子 + 悬浮钥匙。三维对照模式下钥匙被匣壳挡住完全不可见；
+ *    四维透视（体渲染）下匣壳半透明、钥匙清晰可见。
+ *  - 嵌套球壳：皮/果肉/骨三层同心球壳 + 两个病灶 + 实心核心。
+ *    类似 CT 切片般的层级透视。
+ *  - 魔戒：真四维实体（S¹×B³，在 w 方向有延展，非躺在超平面内）——
+ *    四维光线被其三维边界表面（S¹×S²）首命中遮挡，即使是四维视角也看不到管内部。
+ *    无 3D SDF 镜像；其“像”由 ringFirstHit 预计算成首命中场（见 js/view4d.js 体纹理管线）。
+ * 所有物体整体装进半径 2 的球（view4d 的包围球/放大上界公式以此为准）。
+ */
+
+
+/** 轴对齐盒 SDF（各轴半边长 b） */
+function sdBox(p, b) {
+  return Math.max(Math.abs(p[0]) - b[0], Math.abs(p[1]) - b[1], Math.abs(p[2]) - b[2]);
+}
+
+/** 线段 ab 上的胶囊 SDF（半径 r） */
+function sdCapsule(p, a, b, r) {
+  const ax = a[0], ay = a[1], az = a[2];
+  const bx = b[0] - ax, by = b[1] - ay, bz = b[2] - az;
+  const t = Math.max(0, Math.min(1, ((p[0] - ax) * bx + (p[1] - ay) * by + (p[2] - az) * bz) / (bx * bx + by * by + bz * bz)));
+  const dx = p[0] - (ax + bx * t), dy = p[1] - (ay + by * t), dz = p[2] - (az + bz * t);
+  return Math.hypot(dx, dy, dz) - r;
+}
+
+/** xz 平面内圆环头 SDF：环心 c、主半径 R、管半径 rt */
+function sdTorusXZ(p, c, R, rt) {
+  return Math.hypot(Math.hypot(p[0] - c[0], p[2] - c[2]) - R, p[1] - c[1]) - rt;
+}
+
+/* 结构 id：匣中钥匙 = 0 匣壳 / 1 展台 / 2 钥匙；嵌套球壳 = 0 皮肤 / 1 果肉 / 2 骨壳 / 3 病灶 / 4 核心 */
+
+const DEMO_OBJECTS = {
+  box: {
+    name: '匣中钥匙',
+    desc: '密闭匣壳内悬浮着一把钥匙——三维视角下永远看不见它',
+    sdf(p) {
+      // 匣壳：外半边 1.10、壁厚 0.07 的空心方匣
+      const shell = Math.max(sdBox(p, [1.1, 1.1, 1.1]), -sdBox(p, [1.03, 1.03, 1.03]));
+      // 展台：匣底的薄台
+      const tray = sdBox([p[0], p[1] + 0.62, p[2]], [0.5, 0.035, 0.5]);
+      // 钥匙：头部圆环 + 轴杆胶囊 + 两齿，水平躺在 y = −0.45 平面
+      const head = sdTorusXZ(p, [-0.45, -0.45, 0], 0.16, 0.055);
+      const shaft = sdCapsule(p, [-0.29, -0.45, 0], [0.55, -0.45, 0], 0.045);
+      const tooth1 = sdBox([p[0] - 0.3, p[1] + 0.45, p[2] + 0.1], [0.05, 0.04, 0.1]);
+      const tooth2 = sdBox([p[0] - 0.48, p[1] + 0.45, p[2] + 0.08], [0.04, 0.04, 0.08]);
+      const key = Math.min(head, shaft, tooth1, tooth2);
+      if (key <= Math.min(shell, tray)) return [key, 2];
+      if (tray <= shell) return [tray, 1];
+      return [shell, 0];
+    },
+  },
+
+  shells: {
+    name: '嵌套球壳',
+    desc: '皮肤/果肉/骨三层同心球壳，骨壳与果肉层之间藏着两个病灶',
+    sdf(p) {
+      const r = Math.hypot(p[0], p[1], p[2]);
+      let d = Math.max(r - 2.0, -(r - 1.94)); // 皮肤壳 2.00–1.94
+      let id = 0;
+      const flesh = Math.max(r - 1.4, -(r - 1.34)); // 果肉壳 1.40–1.34
+      if (flesh < d) { d = flesh; id = 1; }
+      const bone = Math.max(r - 0.8, -(r - 0.75)); // 骨壳 0.80–0.75
+      if (bone < d) { d = bone; id = 2; }
+      // 两个病灶（实心球，位于骨壳 0.80 与果肉层 1.34 之间的空隙）
+      const o1 = Math.hypot(p[0] - 0.85, p[1] - 0.5, p[2] - 0.4) - 0.17;
+      const o2 = Math.hypot(p[0] + 0.7, p[1] + 0.6, p[2] + 0.3) - 0.14;
+      const organ = Math.min(o1, o2);
+      if (organ < d) { d = organ; id = 3; }
+      const core = r - 0.4; // 实心核心
+      if (core < d) { d = core; id = 4; }
+      return [d, id];
+    },
+  },
+
+  ring: {
+    name: '魔戒（真四维实体）',
+    desc: '真正的四维物体（S¹×B³ 实心超环面）：即使是四维视角也无法看穿其内部',
+  },
+};
+
+/**
+ * 魔戒的“四维视角”首命中：像点 q 的光线从四维光源 L=(0,0,0,K) 出发，
+ * 沿 V(s) = (q·(K−s)/K, s) 向 s 减小方向传播（s=K 为光源，s=0 为视网膜超平面），
+ * 用球踪步进（sphere tracing）求与旋转后魔戒表面的首个交点。
+ *
+ * 记 m = √(1+|q|²/K²)（V 对 s 的参数速度，沿光线恒定），
+ * f∘Tinv 是真 SDF（Tinv 为等距旋转），故步进 s −= F/m 不会穿隧表面。
+ * 无旋转时 q=(R,0,0) 有闭式解 s* = r/√(1+(R/K)²)：光线先命中近侧管壁
+ * （s=0 处 F=−r<0 在管内），远侧管壁被遮挡——“即使是四维也看穿不了管内”。
+ *
+ * @param {number[]} q    像空间三维点
+ * @param {(p:number[])=>number[]} Tinv 4D 逆旋转（makeInverseTransform(angles, PLANES4, 3, 0)）
+ * @param {number} K       四维光源距离
+ * @returns {number|null} 首命中的 s*（命中点的 w 坐标）；未命中返回 null
+ */
+function ringFirstHit(q, Tinv, K) {
+  const m = Math.sqrt(1 + (q[0] * q[0] + q[1] * q[1] + q[2] * q[2]) / (K * K));
+  let s = K;
+  for (let i = 0; i < 64; i++) {
+    const g = (K - s) / K;
+    const F = RING.f(Tinv([q[0] * g, q[1] * g, q[2] * g, s]));
+    if (F < 1e-6) return s;
+    s -= F / m;
+    if (s < -3) return null; // 物体外接球半径 2：s<−3 必已远离
+  }
+  return null; // 极端掠射未收敛（轮廓边缘，视为未命中）
+}
+
+/* ===== js/shapes2d.js ===== */
+/**
+ * shapes2d.js —— “四维漫游”页的二维类比物体（结构化 2D SDF，inside4d.html 用）
+ *
+ * 与 js/demoObjects.js 的三维演示物体一一对应降一维：
+ *  - 框中钥匙（二维） ← 匣中钥匙：方框内藏钥匙 + 展台横条
+ *  - 嵌套圆环（二维） ← 嵌套球壳：皮/果肉/骨三层同心圆环 + 两病灶 + 实心核心
+ * 结构 id 语义与配色沿用 demoObjects 的约定：
+ *   框中钥匙 = 0 框壳 / 1 展台 / 2 钥匙
+ *   嵌套圆环 = 0 皮 / 1 果肉 / 2 骨壳 / 3 病灶 / 4 核心
+ *
+ * 坐标约定：物体自身的二维坐标 (u,v) 嵌入三维类比空间为 (u, 0, v)——
+ * 即 4D x↔3D x、4D z↔3D z（4D y 被类比丢弃，见 math4d.js ROT_BINDING），
+ * 三维类比空间中的观察者平面为 {y=0}。
+ *
+ * 直线切片 sliceLine2D：二维旅人的观察平面与其物体平面交于一条直线，
+ * 沿直线采样 SDF 提取“看到”的内部区间（这正是三维旅人在四维中
+ * 看到二维切面这一体验的降维镜像）。
+ */
+
+/** 轴对齐矩形 SDF（各轴半边长 b） */
+function sdBox2(p, b) {
+  return Math.max(Math.abs(p[0]) - b[0], Math.abs(p[1]) - b[1]);
+}
+
+/** 二维胶囊 SDF：线段 a→b，半径 r */
+function sdCapsule2(p, a, b, r) {
+  const abx = b[0] - a[0], aby = b[1] - a[1];
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * abx + (p[1] - a[1]) * aby) / (abx * abx + aby * aby)));
+  return Math.hypot(p[0] - (a[0] + abx * t), p[1] - (a[1] + aby * t)) - r;
+}
+
+/** 圆环（annulus）SDF：环心 c、主半径 R、管半径 rt */
+function sdAnnulus(p, c, R, rt) {
+  return Math.abs(Math.hypot(p[0] - c[0], p[1] - c[1]) - R) - rt;
+}
+
+const DEMO_OBJECTS2D = {
+  frame: {
+    name: '框中钥匙（二维）',
+    desc: '方框内藏着一把二维钥匙——与框共面的二维生物永远看不见它',
+    ids: 3,
+    f(p) {
+      // 框壳：外半边 1.10、壁厚 0.07 的空心方框
+      const frame = Math.max(sdBox2(p, [1.1, 1.1]), -sdBox2(p, [1.03, 1.03]));
+      // 展台：框内下部的薄横条
+      const tray = sdBox2([p[0], p[1] + 0.62], [0.5, 0.035]);
+      // 钥匙：头部圆环 + 轴杆胶囊 + 两齿，水平躺在 v=0 线上
+      const head = sdAnnulus(p, [-0.45, 0], 0.16, 0.055);
+      const shaft = sdCapsule2(p, [-0.29, 0], [0.55, 0], 0.045);
+      const tooth1 = sdBox2([p[0] - 0.3, p[1] - 0.1], [0.05, 0.1]);
+      const tooth2 = sdBox2([p[0] - 0.48, p[1] - 0.08], [0.04, 0.08]);
+      const key = Math.min(head, shaft, tooth1, tooth2);
+      if (key <= Math.min(frame, tray)) return [key, 2];
+      if (tray <= frame) return [tray, 1];
+      return [frame, 0];
+    },
+  },
+
+  rings: {
+    name: '嵌套圆环（二维）',
+    desc: '皮/果肉/骨三层同心圆环，骨环与果肉环之间藏着两个病灶',
+    ids: 5,
+    f(p) {
+      const r = Math.hypot(p[0], p[1]);
+      let d = Math.max(r - 2.0, -(r - 1.94)); // 皮环 2.00–1.94
+      let id = 0;
+      const flesh = Math.max(r - 1.4, -(r - 1.34)); // 果肉环 1.40–1.34
+      if (flesh < d) { d = flesh; id = 1; }
+      const bone = Math.max(r - 0.8, -(r - 0.75)); // 骨环 0.80–0.75
+      if (bone < d) { d = bone; id = 2; }
+      // 两个病灶（实心圆盘，位于骨环 0.80 与果肉环 1.34 之间的空隙）
+      const o1 = Math.hypot(p[0] - 0.85, p[1] - 0.5) - 0.17;
+      const o2 = Math.hypot(p[0] + 0.75, p[1] + 0.6) - 0.14;
+      const organ = Math.min(o1, o2);
+      if (organ < d) { d = organ; id = 3; }
+      const core = r - 0.4; // 实心核心
+      if (core < d) { d = core; id = 4; }
+      return [d, id];
+    },
+  },
+};
+
+/**
+ * 直线切片：沿直线 p(t) = p0 + t·dir 采样结构化 2D SDF，
+ * 提取 d<0 的内部区间，按结构 id 分段（端点在相邻采样间线性插值细化）。
+ * 这是“二维旅人看到线段”的数学本体。
+ * @param {(p:number[])=>[number, number]} f 结构化 2D SDF，返回 [d, id]
+ * @param {number[]} p0 直线上一点（通常取到原点最近点）
+ * @param {number[]} dir 单位方向向量
+ * @param {number} [L] 参数半长（采样 t ∈ [−L, L]）
+ * @param {number} [step] 采样步长
+ * @returns {{t0:number, t1:number, id:number}[]} 升序区间
+ */
+function sliceLine2D(f, p0, dir, L = 3.2, step = 0.004) {
+  const out = [];
+  const n = Math.ceil((2 * L) / step);
+  let prevT = -L;
+  let prevD = Infinity;
+  let cur = null;
+  const cross = (t, dPrev, dNow) =>
+    Math.abs(dPrev - dNow) < 1e-12 ? prevT : prevT + step * (dPrev / (dPrev - dNow));
+  for (let i = 0; i <= n; i++) {
+    const t = Math.min(-L + i * step, L);
+    const [d, id] = f([p0[0] + t * dir[0], p0[1] + t * dir[1]]);
+    if (d < 0) {
+      if (cur && cur.id === id) {
+        cur.t1 = t;
+      } else {
+        if (cur) out.push(cur);
+        cur = { t0: cross(t, prevD, d), t1: t, id };
+      }
+    } else if (cur) {
+      cur.t1 = cross(t, prevD, d);
+      out.push(cur);
+      cur = null;
+    }
+    prevT = t;
+    prevD = d;
+  }
+  if (cur) {
+    cur.t1 = L;
+    out.push(cur);
+  }
+  return out;
+}
+
+/* ===== js/analogy.js ===== */
+/**
+ * analogy.js —— 降维类比视图的共享几何/映射模块
+ * （inside4d 右视图「二维旅人漫游三维」↔ traveler 类比小窗，两页共用）
+ *
+ * 数学（与 tests/run.js 的 ROT_BINDING 单测一致）：
+ *  - 绑定旋转：4D 平面 XW/XZ/ZW → 3D 平面 XY/XZ/YZ（YW 含 y 轴，类比中被丢弃）；
+ *    取负号让倾侧的类比世界背离默认相机（顶边向后仰）。
+ *  - 类比位移 h：四维穿越深度 w 的真实接触区间 ↔ 类比物体 y 接触区间的
+ *    端点线性映射（两侧同时首次/末次接触，中段按比例同步伸缩）。
+ *  - 4D 物体 p=(x,y,z,w=…) → 3D 类比 (x, z, w→y)：box/shells（三维物体）类比成
+ *    平面二维物体 frame/rings（y 丢弃）；ring（四维实体）类比成实心环面；
+ *    klein（四维曲面）类比成莫比乌斯带。
+ *
+ * 挂载与材质由 ctx 注入（build* 的第末参）：
+ *   ctx = { group, showGhost, mats, objects }
+ *     group     —— 几何挂载的 THREE.Group（清空由调用方负责）
+ *     showGhost —— 是否绘制类比物体的“影子”（悬浮在旅人平面外）
+ *     mats      —— 材质集 { plate(color), ghost2D(color), obsLine, donutGhost, sect3dTube, sect3dFill }
+ *     objects   —— analogKey → { secretId, secretName }（提示文案用；三维物体类）
+ */
+
+import * as THREE from 'three';
+
+
+
+
+/* ============ 通用 2D 形状工具（两页共用） ============ */
+
+const v3 = (p) => new THREE.Vector3(p[0], p[1], p[2]);
+const cross3 = (a, b) => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
+
+/** 有符号面积（正 = 逆时针） */
+function signedArea2(poly) {
+  let s = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++)
+    s += poly[j][0] * poly[i][1] - poly[i][0] * poly[j][1];
+  return s / 2;
+}
+
+/** 环线按指定方向重排（ccw=true 逆时针） */
+function orientLoop(pts, ccw) {
+  const a = signedArea2(pts);
+  return (ccw ? a < 0 : a > 0) ? pts.slice().reverse() : pts;
+}
+
+/** 嵌套环线组 → THREE.Shape（外环逆时针、洞顺时针——保证绕向与法向约定一致，
+    否则 DoubleSide 的 gl_FrontFacing 法向翻转会失配导致背光变暗） */
+function shapeFromGroup(g) {
+  const shape = new THREE.Shape(orientLoop(g.outer, true).map(([u, v]) => new THREE.Vector2(u, v)));
+  for (const h of g.holes)
+    shape.holes.push(new THREE.Path(orientLoop(h, false).map(([u, v]) => new THREE.Vector2(u, v))));
+  return shape;
+}
+
+/** 二维矩形 Shape（uv 平面内，用于切片线段与观察线指示条） */
+function rectShape2D(corners) {
+  return new THREE.Shape(corners.map(([u, v]) => new THREE.Vector2(u, v)));
+}
+
+/* ============ 二维类比物体配置与完整区域缓存 ============ */
+
+/** 二维类比物体配置（boundR 为包围圆半径，sliceL 为切片线采样半长） */
+const OBJECTS2D = {
+  frame: { boundR: 1.6, sliceL: 1.8, grid: { n: 160, extent: 1.2 } },
+  rings: { boundR: 2.0, sliceL: 2.9, grid: { n: 200, extent: 2.06 } },
+};
+
+const full2DCache = {};
+
+/** 二维物体完整区域：按结构 id 提等值线 → 嵌套填充（uv 平面几何，惰性缓存） */
+function getFull2D(key2) {
+  if (full2DCache[key2]) return full2DCache[key2];
+  const { n, extent } = OBJECTS2D[key2].grid;
+  const f = DEMO_OBJECTS2D[key2].f;
+  const step = (2 * extent) / (n - 1);
+  const d = new Float32Array(n * n);
+  const idg = new Uint8Array(n * n);
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < n; i++) {
+      const [dd, ii] = f([-extent + i * step, -extent + j * step]);
+      d[j * n + i] = dd;
+      idg[j * n + i] = ii;
+    }
+  const out = [];
+  const ids = new Set();
+  for (let i = 0; i < d.length; i++) if (d[i] < 0) ids.add(idg[i]);
+  const field = new Float32Array(n * n);
+  for (const idI of ids) {
+    for (let i = 0; i < d.length; i++) field[i] = idg[i] === idI ? d[i] : 1e9;
+    const contours = marchingContours(
+      field, n, n,
+      (i, j) => [-extent + i * step, -extent + j * step],
+      (u, v) => [u, v, 0], 0
+    );
+    const loops = contours
+      .filter((c) => c.closed && c.points.length >= 3)
+      .map((c) => c.points.map((p) => [p[0], p[1]]));
+    for (const g of nestLoops(loops))
+      out.push({ geo: new THREE.ShapeGeometry(shapeFromGroup(g), 16), id: idI });
+  }
+  full2DCache[key2] = out;
+  return out;
+}
+
+/* ============ 绑定旋转与接触区间 ============ */
+
+/** 绑定旋转：四维 XW/XZ/ZW → 三维 XY/XZ/YZ（取负，见文件头注）。
+ *  @param rot 度数对象（如 { XW: 40, ZW: 35 }，缺省 0）
+ *  @returns angles3 弧度数组（按 PLANE_LABELS3 顺序） */
+function boundAngles3(rot) {
+  const a3 = { XY: 0, XZ: 0, YZ: 0 };
+  for (const [l4, l3] of Object.entries(ROT_BINDING)) a3[l3] = -(rot[l4] || 0);
+  return PLANE_LABELS3.map((l) => deg2rad(a3[l]));
+}
+
+/**
+ * 类比物体在给定三维姿态下的 y 接触区间（结构同 wExtent：[−maxY, −minY]，
+ * 两端为首次/末次接触）。物体世界 y = [R·p]_y + h，接触 ⇔ [R·p]_y = −h。
+ *  ring→实心环面、klein→莫比乌斯带（参数网格采样）；
+ *  box/shells→二维类比物体顶点（y = a2·(u,v) 线性，极值在顶点）。
+ * @returns {[number, number]} [hA, hB]
+ */
+function analogExtent(key, angles3) {
+  const T0 = makeTransform(angles3, PLANES3, 1, 0);
+  let lo = Infinity;
+  let hi = -Infinity;
+  if (key === 'ring') {
+    const { nu, nv } = DONUT3_GHOST;
+    for (let j = 0; j < nv; j++) {
+      const v = (j * 2 * Math.PI) / (nv - 1);
+      for (let i = 0; i < nu; i++) {
+        const y = T0(TORUS3.point((i * 2 * Math.PI) / (nu - 1), v, DONUT3.R0, DONUT3.r0))[1];
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      }
+    }
+  } else if (key === 'klein') {
+    const { R, sMax } = MOBIUS;
+    const { nv, ns } = MOBIUS_SLICE;
+    for (let j = 0; j < ns; j++) {
+      const s = -sMax + (j * 2 * sMax) / (ns - 1);
+      for (let i = 0; i < nv; i++) {
+        const y = T0(MOBIUS.point((i * 2 * Math.PI) / (nv - 1), s, R))[1];
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      }
+    }
+  } else {
+    const a2 = [T0([1, 0, 0])[1], T0([0, 0, 1])[1]];
+    for (const { geo } of getFull2D(key === 'box' ? 'frame' : key === 'shells' ? 'rings' : key)) {
+      const pos = geo.attributes.position.array;
+      for (let i = 0; i < pos.length; i += 3) {
+        const y = a2[0] * pos[i] + a2[1] * pos[i + 1];
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      }
+    }
+  }
+  return [-hi, -lo];
+}
+
+/**
+ * 类比位移 h：把四维穿越深度 w 的真实接触区间线性映射到类比物体的 y 接触区间
+ * （端点对齐——两侧同时首次/末次接触，中段按比例同步伸缩）。
+ * 任一侧退化（θ≈0 或 YW 旋转无三维对应）时回退 h = offset（沿用旧行为）。
+ * @param wInterval 四维侧真实接触区间 [wA, wB]（调用方给出：inside4d 用 wExtent，
+ *        traveler 用各展品的 objectExtent 旅人相对区间）
+ * @param offset 四维穿越深度（inside4d 的 state.offset / traveler 的 −cNP）
+ */
+function analogH(key, wInterval, angles3, offset) {
+  const [wA, wB] = wInterval;
+  const [hA, hB] = analogExtent(key, angles3);
+  if (wB - wA < 1e-9 || hB - hA < 1e-9) return offset;
+  return hA + ((offset - wA) * (hB - hA)) / (wB - wA);
+}
+
+/* ============ 类比几何构建（挂载/材质经 ctx 注入） ============ */
+
+/** 实心环面（魔戒的三维类比）截面网格与幽灵采样密度 */
+const DONUT3_MARCH = { n: 96, extent: 2.2 };
+const DONUT3_GHOST = { nu: 64, nv: 24 };
+/** 莫比乌斯带（克莱因瓶的三维类比）截面网格与幽灵采样密度 */
+const MOBIUS_SLICE = { nv: 96, ns: 32 };
+const MOBIUS_GHOST = { nv: 96, ns: 20 };
+
+/** 二维类比物体（框中钥匙/嵌套圆环）：完整模式 / 线段切片模式 */
+function buildRight2D(key2, angles3, h, analogKey, ctx) {
+  const def = DEMO_OBJECTS2D[key2];
+  const cfg = OBJECTS2D[key2];
+  const T3 = makeTransform(angles3, PLANES3, 1, h);
+  const a2 = [T3([1, 0, 0])[1] - h, T3([0, 0, 1])[1] - h];
+  const n2 = a2[0] * a2[0] + a2[1] * a2[1];
+
+  // (u,v) → 物体本征平面坐标的线性映射：列 = T3 的线性部分（须扣除平移：T3 对 y 统统加 h）。
+  const cx = T3([1, 0, 0]);
+  cx[1] -= h;
+  const cz = T3([0, 0, 1]);
+  cz[1] -= h;
+  const G = new THREE.Matrix4().makeBasis(v3(cx), v3(cz), v3(cross3(cx, cz)));
+  // 物体平面的完整嵌入：Gh = G 再沿 y 抬高 h，即 T3(u,0,v) = Gh·(u,v,0)。
+  // 幽灵板悬浮在真实物体平面；观察线/切片线段（T3_y = 0）经 Gh 落回旅人平面 y=0。
+  const Gh = G.clone();
+  Gh.setPosition(0, h, 0);
+
+  if (n2 < 1e-12) {
+    if (Math.abs(h) < 1e-9) {
+      for (const { geo, id } of getFull2D(key2)) {
+        const m = new THREE.Mesh(geo, ctx.mats.plate(ID_COLORS_OF(ctx, analogKey, id)));
+        m.applyMatrix4(Gh); // 两世界重合：平铺在旅人平面上（θ=0 时 Gh 即水平铺放）
+        ctx.group.add(m);
+      }
+      // 注：本视图是三维生物俯视二维世界——高一维的眼睛能看穿低一维的“密闭”容器
+      //（框内钥匙一览无余，正如 view4d 里四维眼睛看穿匣子）；二维旅人自己仍被框壁挡住。
+      return `${def.name}｜两世界重合：完整物体（三维俯视可看穿框壁，二维旅人自己看不见钥匙）`;
+    }
+    if (ctx.showGhost)
+      for (const { geo, id } of getFull2D(key2)) {
+        const m = new THREE.Mesh(geo, ctx.mats.ghost2D(ID_COLORS_OF(ctx, analogKey, id)));
+        m.applyMatrix4(Gh); // 悬浮在 y=h 的平行平面（物体被整体移出旅人世界）
+        ctx.group.add(m);
+      }
+    return `${def.name}｜物体被整体移出你的二维世界——平行的平面永不相交`;
+  }
+
+  const p0 = [(-h * a2[0]) / n2, (-h * a2[1]) / n2];
+  if (Math.hypot(p0[0], p0[1]) > cfg.boundR) {
+    if (ctx.showGhost)
+      for (const { geo, id } of getFull2D(key2)) {
+        const m = new THREE.Mesh(geo, ctx.mats.ghost2D(ID_COLORS_OF(ctx, analogKey, id)));
+        m.applyMatrix4(Gh);
+        ctx.group.add(m);
+      }
+    return `${def.name}｜观察线未触及物体`;
+  }
+
+  // 幽灵板：物体在你世界之外的三维影子（随 T3 倾侧、随 h 升降）
+  if (ctx.showGhost)
+    for (const { geo, id } of getFull2D(key2)) {
+      const m = new THREE.Mesh(geo, ctx.mats.ghost2D(ID_COLORS_OF(ctx, analogKey, id)));
+      m.applyMatrix4(Gh);
+      ctx.group.add(m);
+    }
+
+  // 观察线指示条（物体平面 ∩ 你的二维世界）
+  const inv = 1 / Math.sqrt(n2);
+  const dir = [-a2[1] * inv, a2[0] * inv];
+  // 左法向（dir 逆旋 90°）：保证矩形角点序 [q(t0,-1),…] 为逆时针，
+  // 与形状 +z 法向约定一致（否则背光变暗，见 shapeFromGroup 注）
+  const nrm = [-dir[1], dir[0]];
+  {
+    const L = cfg.sliceL;
+    const w = 0.008;
+    const q = (t, s) => [p0[0] + t * dir[0] + s * w * nrm[0], p0[1] + t * dir[1] + s * w * nrm[1]];
+    const geo = new THREE.ShapeGeometry(
+      rectShape2D([q(-L, -1), q(L, -1), q(L, 1), q(-L, 1)]),
+      1
+    );
+    geo.applyMatrix4(Gh);
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.obsLine));
+  }
+
+  // 切片线段：二维旅人“看到”的线段（结构 id 配色）
+  const segs = sliceLine2D(def.f, p0, dir, cfg.sliceL, 0.003);
+  let secretSeen = false;
+  for (const s of segs) {
+    const w = 0.045;
+    const q = (t, sg) => [
+      p0[0] + t * dir[0] + sg * w * nrm[0],
+      p0[1] + t * dir[1] + sg * w * nrm[1],
+    ];
+    const geo = new THREE.ShapeGeometry(
+      rectShape2D([q(s.t0, -1), q(s.t1, -1), q(s.t1, 1), q(s.t0, 1)]),
+      1
+    );
+    geo.applyMatrix4(Gh);
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.plate(ID_COLORS_OF(ctx, analogKey, s.id))));
+    if (ctx.objects[analogKey] && s.id === ctx.objects[analogKey].secretId) secretSeen = true;
+  }
+
+  if (!segs.length) return `${def.name}｜观察线擦边而过——什么也看不见`;
+  let text = `${def.name}｜类比线段 ${segs.length} 段`;
+  if (secretSeen && ctx.objects[analogKey])
+    text += `｜<span class="hint">被藏起的${ctx.objects[analogKey].secretName}线段露出来了！</span>`;
+  return text;
+}
+
+/** ID_COLORS_OF：结构色表经 ctx 注入（两页的表同源同值；见 ID_COLORS） */
+function ID_COLORS_OF(ctx, analogKey, id) {
+  return ctx.idColors[analogKey][id];
+}
+
+/** 实心环面（魔戒的三维类比）：截面区域填充 + 边界管道（沿用实验室下视图管线） */
+function buildRightDonut(angles3, h, ctx) {
+  const { R0, r0 } = DONUT3;
+  const T = makeTransform(angles3, PLANES3, 1, h);
+
+  if (ctx.showGhost) {
+    const { nu, nv } = DONUT3_GHOST;
+    const verts = [];
+    const idx = [];
+    for (let j = 0; j < nv; j++)
+      for (let i = 0; i < nu; i++)
+        verts.push(v3(T(TORUS3.point((i * 2 * Math.PI) / nu, (j * 2 * Math.PI) / nv, R0, r0))));
+    for (let j = 0; j < nv - 1; j++)
+      for (let i = 0; i < nu - 1; i++) {
+        const a = j * nu + i;
+        idx.push(a, a + 1, a + nu + 1, a, a + nu + 1, a + nu);
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts.flatMap((p) => [p.x, p.y, p.z]), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.donutGhost));
+  }
+
+  const { n, extent } = DONUT3_MARCH;
+  const Tinv = makeInverseTransform(angles3, PLANES3, 1, h);
+  const vals = new Float64Array(n * n);
+  const step = (2 * extent) / (n - 1);
+  const xOf = (i) => -extent + i * step;
+  const zOf = (j) => -extent + j * step;
+  const p3 = [0, 0, 0];
+  for (let j = 0; j < n; j++) {
+    p3[2] = zOf(j);
+    for (let i = 0; i < n; i++) {
+      p3[0] = xOf(i);
+      vals[j * n + i] = DONUT3.f(Tinv(p3));
+    }
+  }
+  const contours = marchingContours(vals, n, n, (i, j) => [xOf(i), zOf(j)], (x, z) => [x, 0, z], 0);
+  if (!contours.length) return `实心环面｜截面：物体尚未触及你的二维世界｜y位移 ${h.toFixed(2)}`;
+
+  for (const c of contours) {
+    if (c.points.length < 2) continue;
+    const pts = c.points.map((p) => new THREE.Vector3(p[0], 0.02, p[2]));
+    const curve = new THREE.CatmullRomCurve3(pts, c.closed);
+    const geo = new THREE.TubeGeometry(curve, Math.max(24, pts.length * 2), 0.03, 6, c.closed);
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.sect3dTube));
+  }
+
+  const loops = contours.filter((c) => c.closed && c.points.length >= 3).map((c) => c.points);
+  const groups = nestLoops(loops.map((pts) => pts.map((p) => [p[0], p[2]])));
+  let holes = 0;
+  for (const g of groups) {
+    const geo = new THREE.ShapeGeometry(shapeFromGroup(g), 24);
+    geo.rotateX(Math.PI / 2);
+    const mesh = new THREE.Mesh(geo, ctx.mats.sect3dFill);
+    mesh.position.y = 0.015;
+    ctx.group.add(mesh);
+    holes += g.holes.length;
+  }
+  if (!groups.length) return `实心环面｜截面曲线 ${contours.length} 条｜y位移 ${h.toFixed(2)}`;
+  return `实心环面｜截面区域 ${groups.length} 块（含 ${holes} 个孔）｜y位移 ${h.toFixed(2)}`;
+}
+
+/** 莫比乌斯带（克莱因瓶的三维类比，单侧曲面）：与实心环面同规约——
+ *  旅人平面恒为地面 y=0，物体经完整 T（含 h 平移）显示随 h 升降；
+ *  截面 = y 场等值线（零位移采样、iso=−h），渲染点强制落回地面（y=0.02）。 */
+function buildRightMobius(angles3, h, ctx) {
+  const { R, sMax } = MOBIUS;
+  const T = makeTransform(angles3, PLANES3, 1, h);
+
+  if (ctx.showGhost) {
+    const { nv, ns } = MOBIUS_GHOST;
+    const verts = [];
+    const idx = [];
+    for (let j = 0; j < ns; j++) {
+      const s = -sMax + (j * 2 * sMax) / (ns - 1);
+      for (let i = 0; i < nv; i++) {
+        const q = T(MOBIUS.point((i * 2 * Math.PI) / (nv - 1), s, R));
+        verts.push(q[0], q[1], q[2]);
+      }
+    }
+    for (let j = 0; j < ns - 1; j++)
+      for (let i = 0; i < nv - 1; i++) {
+        const a = j * nv + i;
+        idx.push(a, a + 1, a + nv + 1, a, a + nv + 1, a + nv);
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.donutGhost));
+  }
+
+  const { nv, ns } = MOBIUS_SLICE;
+  const vOf = (i) => (i * 2 * Math.PI) / (nv - 1);
+  const sOf = (j) => -sMax + (j * 2 * sMax) / (ns - 1);
+  const T0 = makeTransform(angles3, PLANES3, 1, 0);
+  const vals = new Float64Array(nv * ns);
+  for (let j = 0; j < ns; j++)
+    for (let i = 0; i < nv; i++)
+      vals[j * nv + i] = T0(MOBIUS.point(vOf(i), sOf(j), R))[1];
+
+  // 位移后 y=0 ⟺ 零位移场取值 −h，vals 无需重算
+  const contours = marchingContours(
+    vals,
+    nv,
+    ns,
+    (i, j) => [vOf(i), sOf(j)],
+    (v, s) => T(MOBIUS.point(v, s, R)),
+    -h
+  );
+
+  for (const c of contours) {
+    if (c.points.length < 2) continue;
+    const pts = c.points.map((p) => new THREE.Vector3(p[0], 0.02, p[2]));
+    const curve = new THREE.CatmullRomCurve3(pts, c.closed);
+    const geo = new THREE.TubeGeometry(curve, Math.max(16, pts.length), 0.03, 6, c.closed);
+    ctx.group.add(new THREE.Mesh(geo, ctx.mats.sect3dTube));
+  }
+
+  const info = contours.length
+    ? `截面曲线 ${contours.length} 条`
+    : '截面：物体尚未触及你的二维世界';
+  return `莫比乌斯带｜单侧曲面——克莱因瓶正是两条莫比乌斯带沿边粘合｜${info}｜类比位移 h ${h.toFixed(2)}`;
+}
+
+/* ===== js/traveler.js ===== */
+/**
+ * traveler.js —— “四维亲历”页（traveler.html）：旅人第一人称穿越四维空间
+ *
+ * 故事设定（与 inside4d 同一光学前提）：三维旅人的眼睛晶状体在 w 方向没有曲率，
+ * 只能成像自己所在三维超平面内的光——所以你看到的永远是四维物体与你世界的
+ * 三维截面。但这次你是第一人称：可以在自己的三维世界里自由走动、环顾四周，
+ * 沿第四维 w 穿越（截面像 CT 一样扫过物体），甚至把整个世界朝第四维“转身”
+ * （四维姿态旋转，截面形态剧变）。
+ *
+ * 坐标系约定：
+ *  - 世界系：物体静止的四维空间；渲染发生在“旅人系”——以旅人为原点、
+ *    以旅人四轴（R 的列）为基。旅人系点 q_t = Rᵀ(q_world − P)。
+ *  - P（四维位置）与 R（4×4 正交姿态矩阵）均为活状态；画面中相机永远在旅人系原点。
+ *  - 走动只改变 P 的面内分量 → 旅人系里物体整体平移（切片组按 −RᵀΔP 偏移，无需重建）；
+ *    沿 w 穿越 / 四维转身 → 切片真正变形，节流重建（≈11Hz）。
+ *
+ * 切片数学（与 inside4d 同构，见 tests/run.js 第 12 节单测）：
+ *  物体摆放 q_world = C + O·q_local；旅人隐藏轴 n = R 的第 3 列；g = Oᵀn。
+ *  物体点 p（local, w=0）的旅人 w 坐标 w_t = n·(C−P) + (g_x,g_y,g_z)·p ≡ d + a·p，
+ *  可见 ⇔ w_t = 0 ⇔ a·p = −d（三维物体：切面 / 平行世界 / 完整物体三分支）；
+ *  魔戒（隐式实体）在旅人系体素采样 q_local = Oᵀ(R·q_t + P − C)；
+ *  克莱因瓶（参数曲面）取 w_t 场的 0 等值线。
+ *  w 轴带（HUD）：各物体沿 n 的接触区间 = n·(C−P) ± h(n)，
+ *  魔戒解析支撑函数 h = R·hypot(g_x,g_y) + r（有单测）。
+ */
+
+
+
+
+
+
+// 类比小窗与 inside4d 右视图共用 js/analogy.js（2D 工具/区间映射/类比几何）；
+// traveler 原本的本地 v3/cross3/signedArea2/orientLoop/shapeFromGroup 已并入该模块。
+
+/* ================= 常量与场景布置 ================= */
+
+/** 克莱因瓶显示缩放（同 inside4d：原尺寸近侧被视锥裁切） */
+const KLEIN_SCALE = 0.85;
+const kleinLocal = (u, v) => {
+  const q = kleinPoint(u, v, KLEIN.R, KLEIN.k);
+  return [q[0] * KLEIN_SCALE, q[1] * KLEIN_SCALE, q[2] * KLEIN_SCALE, q[3] * KLEIN_SCALE];
+};
+
+/** 结构 id → 配色（与 inside4d/view4d 的结构色一致） */
+const ID_COLORS = {
+  box: [0x6b99f2, 0x8c9ec7, 0xffcc4d],
+  shells: [0x40d9bf, 0xf27359, 0xebdfc7, 0xfa4d8c, 0xffd966],
+};
+const ID_NAMES = {
+  box: ['匣壳', '展台', '钥匙'],
+  shells: ['皮肤', '果肉', '骨壳', '病灶', '核心'],
+};
+
+/**
+ * 四维展品公园：世界系摆放（C 位置 + O 四维姿态）——三类关系并存：
+ *  匣（正放三维）：与你共面时整体可见、w 错开即平行世界消失（w 向零厚度）；
+ *  斜置球壳（斜放三维）：正放的你只能看 CT 断层，转身对齐（XW+40°）才能共面看整体；
+ *  魔戒/克莱因瓶（真四维）：沿 w 连续延展，穿越/转身时截面连续变形。
+ */
+const SCENE_OBJECTS = [
+  {
+    key: 'boxA', kind: 'sdf', sdfKey: 'box', name: '匣中钥匙', hudColor: '#6b99f2',
+    C: [-3, -0.3, -6, 0], O: mat4Identity(), secretId: 2, secretName: '钥匙',
+    cfg: { boundR: 1.95, slice: { n: 110, extent: 1.16 }, full: { n: 96, extent: 1.16 } },
+  },
+  {
+    key: 'boxB', kind: 'sdf', sdfKey: 'box', name: '平行之匣', hudColor: '#b48cf2',
+    C: [-3, -0.3, -6, 2.2], O: mat4Identity(), secretId: 2, secretName: '钥匙',
+    cfg: { boundR: 1.95, slice: { n: 110, extent: 1.16 }, full: { n: 96, extent: 1.16 } },
+  },
+  {
+    key: 'shells', kind: 'sdf', sdfKey: 'shells', name: '斜置球壳', hudColor: '#40d9bf',
+    // 四维斜置（XW 40°）：正放的你永远只能看到它的 CT 断层（出生点切面恰好切中一个病灶）；
+    // 想看整体必须把身体转到 XW+40° 与它共面——而那时正放的匣子反而被切开。
+    C: [3.2, 0.6, -7, 0.45], O: rotMat4(0, 3, deg2rad(40)), secretId: 3, secretName: '病灶',
+    cfg: { boundR: 2.05, slice: { n: 150, extent: 2.02 }, full: { n: 120, extent: 2.02 } },
+  },
+  {
+    key: 'ring', kind: 'ring', name: '魔戒', hudColor: '#ff8c3a',
+    C: [0, 0.9, -13, 0], O: rotMat4(0, 3, deg2rad(55)),
+  },
+  {
+    key: 'tess', kind: 'tess', name: '超立方体', hudColor: '#7ee787',
+    // 正放（与你同向）：沿 w 穿越看经典两态——w=0 是 8 个小球（w 向棱的截面），
+    // w≈±0.75 是嵌套立方框（x/y/z 向棱所在的两个胞面层）；自由转身（XW）则连续变形。
+    C: [5, 0.7, -4, 0], O: mat4Identity(),
+  },
+  {
+    key: 'klein', kind: 'klein', name: '克莱因瓶', hudColor: '#e2578f',
+    C: [-4.6, 1.0, -14, 0], O: rotMat4(2, 3, deg2rad(40)),
+  },
+];
+for (const o of SCENE_OBJECTS) o.Ot = mat4Transpose(o.O);
+
+/** 魔戒切片体素网格（旅人系、以物体投影为中心；同 inside4d 密度略降） */
+const RING_GRID = { n: 40, extent: 2.35 };
+const RING_GHOST = { nu: 40, nv: 12, nw: 20 };
+/** 超立方体（棱管）切片体素网格：extent 覆盖 XW 旋转后的投影半宽 s√2+r≈1.2；
+ *  体素 2·1.75/47≈0.074，管径/体素≈1.7 → 截面直径 3+ 体素，surfaceNets 不漏采 */
+const TESS_GRID = { n: 48, extent: 1.75 };
+const TESS_GHOST = { nt: 16 }; // 每条棱的采样点数（32 棱 × 16 = 512 点）
+/** 克莱因瓶截面等值线 / 幽灵采样密度 */
+const KLEIN_SLICE = { nu: 96, nv: 48 };
+const KLEIN_GHOST = { nu: 72, nv: 36 };
+/** 克莱因瓶 w 范围采样（HUD 用，粗网格即可） */
+const KLEIN_EXTENT = { nu: 48, nv: 24 };
+/** 三维物体 HUD 支撑范围的低清代理网格（避免为量范围触发高清体素化） */
+const PROXY_GRID = { n: 48, extent: 2.05 };
+
+/* ================= 旅人状态 ================= */
+
+const travel = {
+  pos: [0, 0, 0, 0], // 四维位置（世界系）
+  R: mat4Identity(), // 姿态：列 = 旅人四轴在世界的像（行主序 16 元素），由 angles 派生
+  angles: { XW: 0, ZW: 0, YW: 0 }, // 四维转身角（度，XW/ZW/YW 平面）
+  yaw: 0, // 相机水平角（旅人系内环顾，rad）
+  pitch: 0, // 相机俯仰角
+  ghost: false,
+  lightTheme: !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches),
+};
+
+const keys = {}; // 键盘 code / 虚拟按钮名 → 按住？
+let joy = { x: 0, y: 0 }; // 移动端摇杆向量（[-1,1]，上 = 前进）
+
+/* 运动参数 */
+const SPEED = 4.2;
+const SPRINT = 9;
+const W_SPEED = 0.9; // 沿第四维穿越速度
+const ROT4_SPEED = 6; // 四维转身角速度（度/秒）——慢速精控：轻点不足 1°
+const ROT4_FINE = 1.5; // 精调角速度（度/秒）：按住 Shift + 转身键
+// 自由旋转（不吸附、不限幅）：与斜置物体的“共面”是测度零事件，手动转只能任意逼近——
+// 精确对齐姿态（XW 40°/55°、ZW 35°/40°）一律由视角预设直接设角（applyViewPreset）。
+
+/** 由转身角重建姿态矩阵（eulerMat4 按 PLANES4 顺序：XY,XZ,XW,YZ,YW,ZW → 仅用 XW/YW/ZW） */
+function rebuildR() {
+  const a = travel.angles;
+  travel.R = eulerMat4([0, 0, deg2rad(a.XW), 0, deg2rad(a.YW), deg2rad(a.ZW)]);
+}
+const LOOK_SENS = 0.0023; // 指针锁定下的鼠标灵敏度
+const DRAG_SENS = 0.0045; // 拖拽环顾灵敏度（未锁定/触摸）
+const MIN_REBUILD_MS = 90; // 切片重建节流
+
+const PITCH_MAX = deg2rad(85);
+const DECK_Y = -1.5; // 旅人甲板（随身参考地板）高度
+const BAND_RANGE = 3.5; // w 轴带显示范围
+
+let sliceDirty = true;
+let lastRebuild = 0;
+let lastRebuildMs = 0;
+let P_baked = [0, 0, 0, 0]; // 上次重建时的 P（面内走动只平移切片组）
+let Rt_baked = mat4Identity(); // 上次重建时的 Rᵀ（用烘焙时的姿态算平移，旋转过渡期不漂移）
+let lastExtents = [];
+let rebuildCount = 0;
+const sliceDescs = {}; // key → 可见物体的信息片段（rebuild 时填充）
+
+function markDirty() {
+  sliceDirty = true;
+}
+
+/* ================= 渲染器与场景 ================= */
+
+const canvas = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b16);
+scene.fog = new THREE.Fog(0x070b16, 20, 55);
+
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 70);
+camera.position.set(0, 0, 0);
+camera.rotation.order = 'YXZ';
+
+scene.add(new THREE.HemisphereLight(0x8899cc, 0x11131f, 1.1));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.7);
+dirLight.position.set(3, 6, 4);
+scene.add(dirLight);
+const headlamp = new THREE.DirectionalLight(0xffffff, 1.2);
+scene.add(headlamp);
+
+const sliceGroup = new THREE.Group(); // 四维物体的切片（随走动整体平移）
+const ghostGroup = new THREE.Group(); // 幽灵（上帝视角辅助，默认关）
+scene.add(sliceGroup);
+scene.add(ghostGroup);
+
+let deck = null; // 随身甲板网格（旅人系原点周围，永远在脚下）
+
+/* ================= 主题 ================= */
+
+const THEMES = {
+  dark: {
+    bg: 0x070b16,
+    gridA: 0x40547e, gridB: 0x1e2a49, gridOp: 0.5,
+    ghostOp: 0.15,
+    slice: 0xff8c3a, sliceEm: 0x4a1c00,
+  },
+  light: {
+    bg: 0xe9eef6,
+    gridA: 0x94a4c4, gridB: 0xb6c3da, gridOp: 0.85,
+    ghostOp: 0.28,
+    slice: 0xe06000, sliceEm: 0x000000,
+  },
+};
+
+function applyTheme() {
+  const t = travel.lightTheme ? THEMES.light : THEMES.dark;
+  document.body.classList.toggle('light', travel.lightTheme);
+  scene.background.set(t.bg);
+  if (scene.fog) scene.fog.color.set(t.bg);
+  if (deck) {
+    scene.remove(deck);
+    deck.geometry.dispose();
+    deck.material.dispose();
+  }
+  deck = new THREE.GridHelper(80, 80, t.gridA, t.gridB);
+  deck.position.y = DECK_Y;
+  deck.material.transparent = true;
+  deck.material.opacity = t.gridOp;
+  scene.add(deck);
+  ghostSDFMat.opacity = t.ghostOp;
+  kleinGhostMat.opacity = t.ghostOp;
+  ringGhostMat.opacity = 0.55;
+  ringSliceMat.color.set(t.slice);
+  ringSliceMat.emissive.set(t.sliceEm);
+  ringSliceMat.emissiveIntensity = 0.35;
+  // 类比小窗同步主题
+  anaScene.background.set(t.bg);
+  if (anaGrid) {
+    anaScene.remove(anaGrid);
+    anaGrid.geometry.dispose();
+    anaGrid.material.dispose();
+  }
+  anaGrid = new THREE.GridHelper(12, 24, t.gridA, t.gridB);
+  anaGrid.position.y = -0.002;
+  anaGrid.material.transparent = true;
+  anaGrid.material.opacity = t.gridOp;
+  anaScene.add(anaGrid);
+  probeBg = [(t.bg >> 16) & 255, (t.bg >> 8) & 255, t.bg & 255];
+}
+
+/* ================= 材质 ================= */
+
+const plateMatCache = new Map();
+function plateMat(color) {
+  if (!plateMatCache.has(color))
+    plateMatCache.set(
+      color,
+      new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.5,
+        metalness: 0.05,
+        emissive: color,
+        emissiveIntensity: 0.22,
+      })
+    );
+  return plateMatCache.get(color);
+}
+
+const tubeMatCache = new Map();
+function tubeMat(color) {
+  if (!tubeMatCache.has(color))
+    tubeMatCache.set(
+      color,
+      new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.1 })
+    );
+  return tubeMatCache.get(color);
+}
+
+const ctFillMatCache = new Map();
+function ctFillMat(color) {
+  if (!ctFillMatCache.has(color))
+    ctFillMatCache.set(
+      color,
+      new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.6,
+        metalness: 0,
+        emissive: color,
+        emissiveIntensity: 0.1,
+        transparent: true,
+        opacity: 0.28,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+      })
+    );
+  return ctFillMatCache.get(color);
+}
+
+/** 完整三维物体（两世界重合时）：第一人称可能走到物体内部——双面渲染 */
+const fullMat = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  roughness: 0.5,
+  metalness: 0.05,
+  flatShading: true,
+  side: THREE.DoubleSide,
+});
+const ghostSDFMat = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.15,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  roughness: 0.65,
+});
+
+const ringSliceMat = new THREE.MeshStandardMaterial({
+  roughness: 0.42,
+  metalness: 0.08,
+  side: THREE.DoubleSide,
+});
+/** 超立方体切片：固定绿色（与魔戒/克莱因共用的主题色区分开） */
+const tessSliceMat = new THREE.MeshStandardMaterial({
+  color: 0x58c96a,
+  emissive: 0x58c96a,
+  emissiveIntensity: 0.3,
+  roughness: 0.42,
+  metalness: 0.08,
+  side: THREE.DoubleSide,
+});
+const tessGhostMat = new THREE.PointsMaterial({
+  vertexColors: true,
+  size: 0.045,
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+});
+const ringGhostMat = new THREE.PointsMaterial({
+  vertexColors: true,
+  size: 0.045,
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+});
+const kleinGhostMat = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.15,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  roughness: 0.65,
+});
+
+let probeBg = [7, 11, 22];
+
+/* ================= 小工具 ================= */
+
+function clearGroup(group) {
+  for (const child of [...group.children]) {
+    group.remove(child);
+    if (child.geometry) child.geometry.dispose();
+  }
+}
+
+/* v3/cross3 共享自 analogy.js */
+const sub4 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]];
+const dot4 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+/** R 的第 m 列（旅人第 m 轴在世界的像） */
+const colOf = (R, m) => [R[m], R[4 + m], R[8 + m], R[12 + m]];
+
+function normalize3(a) {
+  const n = Math.hypot(a[0], a[1], a[2]);
+  return [a[0] / n, a[1] / n, a[2] / n];
+}
+/** 与法向 a 垂直的正交基（e1、e2，均为单位向量） */
+function planeBasis(a) {
+  const h =
+    Math.abs(a[0]) <= Math.abs(a[1]) && Math.abs(a[0]) <= Math.abs(a[2])
+      ? [1, 0, 0]
+      : Math.abs(a[1]) <= Math.abs(a[2])
+        ? [0, 1, 0]
+        : [0, 0, 1];
+  const e1 = normalize3(cross3(h, a));
+  const e2 = normalize3(cross3(a, e1));
+  return [e1, e2];
+}
+
+/* signedArea2/orientLoop/shapeFromGroup/v3/cross3 共享自 analogy.js */
+
+
+/* ================= 完整物体缓存（三维物体） ================= */
+
+const fullGeoCache = {};
+const proxyCache = {};
+const ghostGeoCache = {};
+
+/** 三维物体完整网格：体素化 + surfaceNets，顶点按最近结构 id 着色（惰性缓存） */
+function getFullGeo(sdfKey) {
+  if (fullGeoCache[sdfKey]) return fullGeoCache[sdfKey];
+  const obj = SCENE_OBJECTS.find((o) => o.sdfKey === sdfKey);
+  const { n, extent } = obj.cfg.full;
+  return (fullGeoCache[sdfKey] = voxelize(sdfKey, n, extent, true));
+}
+
+/** 幽灵用低清彩色网格（透明双面全像素混合，高清网格在软件渲染下开销过大） */
+function getGhostGeo(sdfKey) {
+  if (ghostGeoCache[sdfKey]) return ghostGeoCache[sdfKey];
+  const { n, extent } = PROXY_GRID;
+  return (ghostGeoCache[sdfKey] = voxelize(sdfKey, n, extent, true));
+}
+
+/** 低清代理（仅取表面位置数组，HUD 支撑范围采样用） */
+function getProxy(sdfKey) {
+  if (proxyCache[sdfKey]) return proxyCache[sdfKey];
+  const { n, extent } = PROXY_GRID;
+  return (proxyCache[sdfKey] = voxelize(sdfKey, n, extent, false).positions);
+}
+
+function voxelize(sdfKey, n, extent, withColor) {
+  const sdf = DEMO_OBJECTS[sdfKey].sdf;
+  const step = (2 * extent) / (n - 1);
+  const vals = new Float32Array(n * n * n);
+  const p = [0, 0, 0];
+  for (let k = 0; k < n; k++) {
+    p[2] = -extent + k * step;
+    for (let j = 0; j < n; j++) {
+      p[1] = -extent + j * step;
+      const row = (k * n + j) * n;
+      for (let i = 0; i < n; i++) {
+        p[0] = -extent + i * step;
+        vals[row + i] = sdf(p)[0];
+      }
+    }
+  }
+  const mesh = surfaceNets(vals, n, n, n, 0, -extent, step);
+  if (!withColor) return { positions: mesh.positions };
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(mesh.positions, 3));
+  geo.setIndex(mesh.indices);
+  geo.computeVertexNormals();
+  const colors = new Float32Array(mesh.positions.length);
+  const c = new THREE.Color();
+  for (let i = 0; i < mesh.positions.length; i += 3) {
+    const id = sdf([mesh.positions[i], mesh.positions[i + 1], mesh.positions[i + 2]])[1];
+    c.set(ID_COLORS[sdfKey][id]);
+    colors[i] = c.r;
+    colors[i + 1] = c.g;
+    colors[i + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  return geo;
+}
+
+/* ================= 切片重建 ================= */
+
+/**
+ * 逐物体：接触区间（HUD）、切片、幽灵。
+ * ctx 为单次重建的物体上下文：
+ *  g = Oᵀn（隐藏轴在物体本征系的像）、cNP = n·(C−P)（区间中心）、
+ *  M4/b4：local→旅人（q_t = M4·q_local + b4）、Mr/br：旅人→local。
+ */
+function objectExtent(ctx) {
+  const { obj, g, cNP } = ctx;
+  if (obj.kind === 'ring') {
+    const h = RING.R * Math.hypot(g[0], g[1]) + RING.r;
+    return { key: obj.key, name: obj.name, vmin: cNP - h, vmax: cNP + h };
+  }
+  if (obj.kind === 'tess') {
+    const h = TESS_TUBE.support(g, TESS_TUBE.s, TESS_TUBE.r);
+    return { key: obj.key, name: obj.name, vmin: cNP - h, vmax: cNP + h };
+  }
+  if (obj.kind === 'klein') {
+    let lo = Infinity;
+    let hi = -Infinity;
+    const { nu, nv } = KLEIN_EXTENT;
+    for (let j = 0; j < nv; j++) {
+      const v = (j * 2 * Math.PI) / (nv - 1);
+      for (let i = 0; i < nu; i++) {
+        const q = kleinLocal((i * 2 * Math.PI) / (nu - 1), v);
+        const w = cNP + g[0] * q[0] + g[1] * q[1] + g[2] * q[2] + g[3] * q[3];
+        if (w < lo) lo = w;
+        if (w > hi) hi = w;
+      }
+    }
+    return { key: obj.key, name: obj.name, vmin: lo, vmax: hi };
+  }
+  // 三维物体：w_t = cNP + g·(p,0)，极值在边界顶点——低清代理网格采样
+  let lo = Infinity;
+  let hi = -Infinity;
+  const pos = getProxy(obj.sdfKey);
+  for (let i = 0; i < pos.length; i += 3) {
+    const w = cNP + g[0] * pos[i] + g[1] * pos[i + 1] + g[2] * pos[i + 2];
+    if (w < lo) lo = w;
+    if (w > hi) hi = w;
+  }
+  return { key: obj.key, name: obj.name, vmin: lo, vmax: hi };
+}
+
+/** 三维物体（SDF）：完整物体 / CT 断层片 / 平行世界 三分支 */
+function buildSdfSlice(ctx) {
+  const { obj, g, cNP, toT, toL } = ctx;
+  const a = [g[0], g[1], g[2]];
+  const d = cNP;
+  const n2 = a[0] * a[0] + a[1] * a[1] + a[2] * a[2];
+  const dist = Math.hypot(ctx.b4[0], ctx.b4[1], ctx.b4[2]);
+
+  if (n2 < 1e-12) {
+    if (Math.abs(d) < 1e-9) {
+      // 旅人超平面与物体所在超平面重合：看到完整三维物体（钥匙仍被匣壳挡住）
+      const bx = toL([1, 0, 0, 0]);
+      const by = toL([0, 1, 0, 0]);
+      const bz = toL([0, 0, 1, 0]);
+      const M = new THREE.Matrix4().makeBasis(v3(bx), v3(by), v3(bz));
+      M.setPosition(ctx.b4[0], ctx.b4[1], ctx.b4[2]);
+      const mesh = new THREE.Mesh(getFullGeo(obj.sdfKey), fullMat);
+      mesh.applyMatrix4(M);
+      sliceGroup.add(mesh);
+      return `${obj.name}：完整物体（${dist.toFixed(1)} 米外，${obj.secretName}藏在里面）`;
+    }
+    return null; // 平行世界：物体整体在你超平面之外
+  }
+
+  const p0 = [(-d * a[0]) / n2, (-d * a[1]) / n2, (-d * a[2]) / n2];
+  if (Math.hypot(p0[0], p0[1], p0[2]) > obj.cfg.boundR) return null; // 切面未触及
+
+  // 切面（物体坐标）内采样：p = p0 + u·e1 + v·e2
+  const { n, extent } = obj.cfg.slice;
+  const step = (2 * extent) / (n - 1);
+  const [e1, e2] = planeBasis(a);
+  const sdf = DEMO_OBJECTS[obj.sdfKey].sdf;
+  const dd = new Float32Array(n * n);
+  const idg = new Uint8Array(n * n);
+  const p = [0, 0, 0];
+  for (let j = 0; j < n; j++) {
+    const v = -extent + j * step;
+    for (let i = 0; i < n; i++) {
+      const u = -extent + i * step;
+      p[0] = p0[0] + u * e1[0] + v * e2[0];
+      p[1] = p0[1] + u * e1[1] + v * e2[1];
+      p[2] = p0[2] + u * e1[2] + v * e2[2];
+      const [dv, iv] = sdf(p);
+      dd[j * n + i] = dv;
+      idg[j * n + i] = iv;
+    }
+  }
+
+  // (u,v) → 旅人系
+  const c1 = toL([e1[0], e1[1], e1[2], 0]);
+  const c2 = toL([e2[0], e2[1], e2[2], 0]);
+  const e3 = cross3(e1, e2);
+  const c3 = toL([e3[0], e3[1], e3[2], 0]);
+  const c0 = toT([p0[0], p0[1], p0[2], 0]);
+  const M = new THREE.Matrix4().makeBasis(v3(c1), v3(c2), v3(c3));
+  M.setPosition(c0[0], c0[1], c0[2]);
+
+  // 按结构 id 提等值线 → 区域化 → 填充 + 边界管道 + CT 底板（inside4d 同款管线）
+  const ids = new Set();
+  for (let i = 0; i < dd.length; i++) if (dd[i] < 0) ids.add(idg[i]);
+  const field = new Float32Array(n * n);
+  let ctLoop = null;
+  let ctArea = -1;
+  const perId = [];
+  let secretSeen = false;
+  for (const idI of ids) {
+    for (let i = 0; i < dd.length; i++) field[i] = idg[i] === idI ? dd[i] : 1e9;
+    const contours = marchingContours(
+      field,
+      n,
+      n,
+      (i, j) => [-extent + i * step, -extent + j * step],
+      (u, v) => [u, v, 0],
+      0
+    );
+    const loops = contours
+      .filter((c) => c.closed && c.points.length >= 3)
+      .map((c) => c.points.map((q) => [q[0], q[1]]));
+    const groups = nestLoops(loops);
+    for (const g2 of groups) {
+      const area = Math.abs(signedArea2(g2.outer));
+      if (area > ctArea) {
+        ctArea = area;
+        ctLoop = g2.outer;
+      }
+    }
+    perId.push({ idI, groups, contours });
+  }
+  if (ctLoop) {
+    const shape = new THREE.Shape(orientLoop(ctLoop, true).map(([u, v]) => new THREE.Vector2(u, v)));
+    const geo = new THREE.ShapeGeometry(shape, 12);
+    geo.applyMatrix4(M);
+    geo.computeVertexNormals();
+    sliceGroup.add(new THREE.Mesh(geo, ctFillMat(ID_COLORS[obj.sdfKey][0])));
+  }
+  const structParts = [];
+  for (const { idI, groups, contours } of perId) {
+    for (const g2 of groups) {
+      const geo = new THREE.ShapeGeometry(shapeFromGroup(g2), 12);
+      geo.applyMatrix4(M);
+      geo.computeVertexNormals();
+      sliceGroup.add(new THREE.Mesh(geo, plateMat(ID_COLORS[obj.sdfKey][idI])));
+    }
+    for (const c of contours) {
+      if (c.points.length < 2) continue;
+      const pts = c.points.map(([u, v]) => new THREE.Vector3(u, v, 0).applyMatrix4(M));
+      const curve = new THREE.CatmullRomCurve3(pts, c.closed);
+      sliceGroup.add(
+        new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, pts.length), 0.011, 5, c.closed),
+          tubeMat(ID_COLORS[obj.sdfKey][idI]))
+      );
+    }
+    if (groups.length) {
+      structParts.push(`${ID_NAMES[obj.sdfKey][idI]}×${groups.length}`);
+      if (idI === obj.secretId) secretSeen = true;
+    }
+  }
+  if (!structParts.length) return null;
+  let text = `${obj.name}：CT 断层（${structParts.join('、')}，${dist.toFixed(1)} 米外）`;
+  if (secretSeen) text += `｜<span class="hint">被藏起的${obj.secretName}截面露出来了！</span>`;
+  return text;
+}
+
+/** 魔戒：旅人系体素网格（以物体投影为中心）→ surfaceNets 实心切片 */
+function buildRingSlice(ctx) {
+  const { Mr, br, b4 } = ctx;
+  const cx = b4[0];
+  const cy = b4[1];
+  const cz = b4[2];
+  if (Math.hypot(cx, cy, cz) > 45) return null; // 远于雾区，跳过
+  const { n, extent } = RING_GRID;
+  const step = (2 * extent) / (n - 1);
+  const vals = new Float64Array(n * n * n);
+  const { R: R0, r } = RING;
+  // 旅人系体素 → 物体本征系（q_local = Mr·q_t + br，q_t 的 w=0 → 只需 Mr 前三列）
+  const m0 = Mr[0], m1 = Mr[1], m2 = Mr[2];
+  const m4 = Mr[4], m5 = Mr[5], m6 = Mr[6];
+  const m8 = Mr[8], m9 = Mr[9], m10 = Mr[10];
+  const m12 = Mr[12], m13 = Mr[13], m14 = Mr[14];
+  const bx = br[0], by = br[1], bz = br[2], bw = br[3];
+  const q = [0, 0, 0, 0];
+  for (let k = 0; k < n; k++) {
+    const z = cz - extent + k * step;
+    for (let j = 0; j < n; j++) {
+      const y = cy - extent + j * step;
+      const row = (k * n + j) * n;
+      for (let i = 0; i < n; i++) {
+        const x = cx - extent + i * step;
+        q[0] = m0 * x + m1 * y + m2 * z + bx;
+        q[1] = m4 * x + m5 * y + m6 * z + by;
+        q[2] = m8 * x + m9 * y + m10 * z + bz;
+        q[3] = m12 * x + m13 * y + m14 * z + bw;
+        vals[row + i] = Math.hypot(Math.hypot(q[0], q[1]) - R0, q[2], q[3]) - r;
+      }
+    }
+  }
+  const mesh = surfaceNets(vals, n, n, n, 0, -extent, step);
+  if (!mesh.indices.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(mesh.positions, 3));
+  geo.setIndex(mesh.indices);
+  geo.computeVertexNormals();
+  geo.translate(cx, cy, cz); // 体素网格以物体投影为中心，平移回旅人系绝对位置
+  sliceGroup.add(new THREE.Mesh(geo, ringSliceMat));
+  const comps = meshComponents(mesh);
+  const dist = Math.hypot(cx, cy, cz);
+  return comps === 1
+    ? `魔戒：切片为单个实心块（${dist.toFixed(1)} 米外）`
+    : `魔戒：切片分裂为 ${comps} 个实心块（${dist.toFixed(1)} 米外）`;
+}
+
+/** 超立方体（棱管并集）：同魔戒的体素 surfaceNets 管线，隐式场换成 tesseractTubeImplicit */
+function buildTessSlice(ctx) {
+  const { Mr, br, b4, cNP } = ctx;
+  const cx = b4[0];
+  const cy = b4[1];
+  const cz = b4[2];
+  if (Math.hypot(cx, cy, cz) > 45) return null;
+  const { n, extent } = TESS_GRID;
+  const step = (2 * extent) / (n - 1);
+  const vals = new Float64Array(n * n * n);
+  const { s, r } = TESS_TUBE;
+  const m0 = Mr[0], m1 = Mr[1], m2 = Mr[2];
+  const m4 = Mr[4], m5 = Mr[5], m6 = Mr[6];
+  const m8 = Mr[8], m9 = Mr[9], m10 = Mr[10];
+  const m12 = Mr[12], m13 = Mr[13], m14 = Mr[14];
+  const bx = br[0], by = br[1], bz = br[2], bw = br[3];
+  const q = [0, 0, 0, 0];
+  for (let k = 0; k < n; k++) {
+    const z = cz - extent + k * step;
+    for (let j = 0; j < n; j++) {
+      const y = cy - extent + j * step;
+      const row = (k * n + j) * n;
+      for (let i = 0; i < n; i++) {
+        const x = cx - extent + i * step;
+        q[0] = m0 * x + m1 * y + m2 * z + bx;
+        q[1] = m4 * x + m5 * y + m6 * z + by;
+        q[2] = m8 * x + m9 * y + m10 * z + bz;
+        q[3] = m12 * x + m13 * y + m14 * z + bw;
+        vals[row + i] = tesseractTubeImplicit(q, s, r);
+      }
+    }
+  }
+  const mesh = surfaceNets(vals, n, n, n, 0, -extent, step);
+  if (!mesh.indices.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(mesh.positions, 3));
+  geo.setIndex(mesh.indices);
+  geo.computeVertexNormals();
+  geo.translate(cx, cy, cz);
+  sliceGroup.add(new THREE.Mesh(geo, tessSliceMat));
+  const comps = meshComponents(mesh);
+  const dist = Math.hypot(cx, cy, cz);
+  // 正放两态的文案提示（cNP = 物体中心相对你的 w，正放时即“切在哪一层”）
+  const phase = Math.abs(cNP) < s * 0.5
+    ? `8 个小球（w 向棱被拦腰截断）`
+    : Math.abs(Math.abs(cNP) - s) < s * 0.5
+      ? `嵌套立方框（x/y/z 向棱所在的胞面层）`
+      : `${comps} 个实心块`;
+  return `超立方体：${phase}（${dist.toFixed(1)} 米外）`;
+}
+
+/** 克莱因瓶：参数网格 w_t 场 → 0 等值线（旅人系截面曲线） */
+function buildKleinSlice(ctx) {
+  const { g, cNP, toT, b4 } = ctx;
+  if (Math.hypot(b4[0], b4[1], b4[2]) > 45) return null;
+  const { nu, nv } = KLEIN_SLICE;
+  const uOf = (i) => (i * 2 * Math.PI) / (nu - 1);
+  const vOf = (j) => (j * 2 * Math.PI) / (nv - 1);
+  const vals = new Float64Array(nu * nv);
+  for (let j = 0; j < nv; j++)
+    for (let i = 0; i < nu; i++) {
+      const q = kleinLocal(uOf(i), vOf(j));
+      vals[j * nu + i] = cNP + g[0] * q[0] + g[1] * q[1] + g[2] * q[2] + g[3] * q[3];
+    }
+  const contours = marchingContours(
+    vals,
+    nu,
+    nv,
+    (i, j) => [uOf(i), vOf(j)],
+    (u, v) => {
+      const q = toT(kleinLocal(u, v));
+      return [q[0], q[1], q[2]];
+    },
+    0
+  );
+  let nCurves = 0;
+  for (const c of contours) {
+    if (c.points.length < 2) continue;
+    nCurves++;
+    const pts = c.points.map(v3);
+    const curve = new THREE.CatmullRomCurve3(pts, c.closed);
+    sliceGroup.add(
+      new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, pts.length), 0.025, 5, c.closed),
+        ringSliceMat)
+    );
+  }
+  if (!nCurves) return null;
+  const dist = Math.hypot(b4[0], b4[1], b4[2]);
+  return `克莱因瓶：截面曲线 ${nCurves} 条（${dist.toFixed(1)} 米外）`;
+}
+
+/* ================= 幽灵（可选辅助：四维物体在你超平面上的正投影） ================= */
+
+function addGhost(ctx) {
+  const { obj, toT, toL } = ctx;
+  if (obj.kind === 'sdf') {
+    const bx = toL([1, 0, 0, 0]);
+    const by = toL([0, 1, 0, 0]);
+    const bz = toL([0, 0, 1, 0]);
+    const M = new THREE.Matrix4().makeBasis(v3(bx), v3(by), v3(bz));
+    M.setPosition(ctx.b4[0], ctx.b4[1], ctx.b4[2]);
+    const mesh = new THREE.Mesh(getGhostGeo(obj.sdfKey), ghostSDFMat);
+    mesh.applyMatrix4(M);
+    ghostGroup.add(mesh);
+  } else if (obj.kind === 'ring') {
+    const { nu, nv, nw } = RING_GHOST;
+    const { R: R0, r } = RING;
+    const pos = [];
+    const col = [];
+    const cPos = new THREE.Color(0x2fd1c0);
+    const cNeg = new THREE.Color(0xe2578f);
+    const cc = new THREE.Color();
+    for (let j = 0; j <= nv; j++) {
+      const v = (j * Math.PI) / nv;
+      for (let i = 0; i < nu; i++) {
+        const u = (i * 2 * Math.PI) / nu;
+        for (let k = 0; k < nw; k++) {
+          const q = toT(ringPoint(u, v, (k * 2 * Math.PI) / nw, R0, r));
+          pos.push(q[0], q[1], q[2]);
+          const t = Math.min(1, Math.max(0, (q[3] / r + 1) / 2));
+          cc.copy(cNeg).lerp(cPos, t);
+          col.push(cc.r, cc.g, cc.b);
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    ghostGroup.add(new THREE.Points(geo, ringGhostMat));
+  } else if (obj.kind === 'tess') {
+    // 棱心线点云（512 点）：四维铁丝笼在你超平面上的正投影
+    const { nt } = TESS_GHOST;
+    const { s } = TESS_TUBE;
+    const pos = [];
+    const col = [];
+    const cPos = new THREE.Color(0x2fd1c0);
+    const cNeg = new THREE.Color(0xe2578f);
+    const cc = new THREE.Color();
+    for (const [i, j] of TESS_TUBE.edges) {
+      const A = TESS_TUBE.verts[i];
+      const B = TESS_TUBE.verts[j];
+      for (let t = 0; t < nt; t++) {
+        const f = t / (nt - 1);
+        const q = toT([
+          A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f,
+          A[2] + (B[2] - A[2]) * f, A[3] + (B[3] - A[3]) * f,
+        ]);
+        pos.push(q[0], q[1], q[2]);
+        cc.copy(cNeg).lerp(cPos, (q[3] / (s + TESS_TUBE.r) + 1) / 2);
+        col.push(cc.r, cc.g, cc.b);
+      }
+    }
+    const geo2 = new THREE.BufferGeometry();
+    geo2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo2.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    ghostGroup.add(new THREE.Points(geo2, tessGhostMat));
+  } else if (obj.kind === 'klein') {
+    const { nu, nv } = KLEIN_GHOST;
+    const pos = [];
+    const col = [];
+    const idx = [];
+    const cPos = new THREE.Color(0x2fd1c0);
+    const cNeg = new THREE.Color(0xe2578f);
+    const cc = new THREE.Color();
+    for (let j = 0; j < nv; j++) {
+      const v = (j * 2 * Math.PI) / (nv - 1);
+      for (let i = 0; i < nu; i++) {
+        const u = (i * 2 * Math.PI) / (nu - 1);
+        const q = toT(kleinLocal(u, v));
+        pos.push(q[0], q[1], q[2]);
+        cc.copy(cNeg).lerp(cPos, (Math.cos(u) + 1) / 2);
+        col.push(cc.r, cc.g, cc.b);
+      }
+    }
+    for (let j = 0; j < nv - 1; j++)
+      for (let i = 0; i < nu - 1; i++) {
+        const a = j * nu + i;
+        idx.push(a, a + 1, a + nu + 1, a, a + nu + 1, a + nu);
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    ghostGroup.add(new THREE.Mesh(geo, kleinGhostMat));
+  }
+}
+
+/* ================= 重建调度与 HUD ================= */
+
+const infoBar = document.getElementById('info');
+const wband = document.getElementById('wband');
+const rotlabel = document.getElementById('rotlabel');
+const poslabel = document.getElementById('poslabel');
+const viewToast = document.getElementById('viewToast');
+
+function rebuildSlices() {
+  const t0 = performance.now();
+  sliceDirty = false;
+  lastRebuild = t0;
+  P_baked = travel.pos.slice();
+  const Rt = mat4Transpose(travel.R);
+  Rt_baked = Rt;
+  clearGroup(sliceGroup);
+  clearGroup(ghostGroup);
+  for (const k of Object.keys(sliceDescs)) delete sliceDescs[k];
+
+  const n = colOf(travel.R, 3);
+  lastExtents = [];
+  for (const obj of SCENE_OBJECTS) {
+    const g = mat4Apply(obj.Ot, n); // 隐藏轴在物体本征系的像
+    const cNP = dot4(n, sub4(obj.C, travel.pos)); // 接触区间中心
+    const M4 = mat4Mul(Rt, obj.O); // local → 旅人（线性）
+    const b4 = mat4Apply(Rt, sub4(obj.C, travel.pos)); // toT(0)：物体中心在旅人系的位置
+    const Mr = mat4Mul(obj.Ot, travel.R); // 旅人 → local（线性）
+    const br = mat4Apply(obj.Ot, sub4(travel.pos, obj.C));
+    const toT = (q) => {
+      const m = mat4Apply(M4, q);
+      return [m[0] + b4[0], m[1] + b4[1], m[2] + b4[2], m[3] + b4[3]];
+    };
+    const toL = (q) => mat4Apply(M4, q); // 仅线性部分（方向向量用，不带平移）
+    const ctx = { obj, g, cNP, M4, b4, Mr, br, toT, toL };
+    const ext = objectExtent(ctx);
+    lastExtents.push(ext);
+    if (travel.ghost) addGhost(ctx);
+    if (ext.vmin <= 0 && ext.vmax >= 0) {
+      const desc =
+        obj.kind === 'sdf' ? buildSdfSlice(ctx)
+        : obj.kind === 'ring' ? buildRingSlice(ctx)
+        : obj.kind === 'tess' ? buildTessSlice(ctx)
+        : buildKleinSlice(ctx);
+      if (desc) sliceDescs[obj.key] = desc;
+    }
+  }
+  updateWband();
+  updateInfo();
+  rebuildAnalogy();
+  rebuildCount++;
+  lastRebuildMs = performance.now() - t0;
+}
+
+/** 顶栏 w 轴带：各物体接触区间 → 色带；不可见的减淡 */
+function updateWband() {
+  for (const el of [...wband.querySelectorAll('.wseg')]) el.remove();
+  const lo = -BAND_RANGE;
+  const hi = BAND_RANGE;
+  for (const e of lastExtents) {
+    const obj = SCENE_OBJECTS.find((o) => o.key === e.key);
+    const seg = document.createElement('div');
+    seg.className = 'wseg' + (e.vmin <= 0 && e.vmax >= 0 ? '' : ' off');
+    const left = Math.max(0, Math.min(1, (e.vmin - lo) / (hi - lo)));
+    const right = Math.max(0, Math.min(1, (e.vmax - lo) / (hi - lo)));
+    seg.style.left = `${(left * 100).toFixed(1)}%`;
+    seg.style.width = `${Math.max(0.6, (right - left) * 100).toFixed(1)}%`;
+    seg.style.background = obj.hudColor;
+    seg.title = `${e.name}：w ∈ [${e.vmin.toFixed(2)}, ${e.vmax.toFixed(2)}]`;
+    wband.appendChild(seg);
+  }
+  // 姿态读数：非零平面高亮（对齐斜置球壳需 XW+40°，精确对齐走视角预设）
+  rotlabel.innerHTML = ['XW', 'ZW', 'YW']
+    .map((k2) => {
+      const v = travel.angles[k2];
+      const near0 = Math.abs(v) < 0.05;
+      const s = `${k2} ${near0 ? '0' : v.toFixed(1)}°`;
+      return near0 ? s : `<b>${s}</b>`;
+    })
+    .join(' · ');
+}
+
+/** 顶栏实时坐标：x/y/z 面内位置 + w（穿越进度）——w 用高亮色强调 */
+let lastPosText = '';
+function updatePosLabel() {
+  const p = travel.pos;
+  const s = `位置 ${p[0].toFixed(1)}, ${p[1].toFixed(1)}, ${p[2].toFixed(1)} · <b>w ${p[3].toFixed(2)}</b>`;
+  if (s !== lastPosText) {
+    lastPosText = s;
+    poslabel.innerHTML = s;
+  }
+}
+
+/** 信息栏：可见物体描述 + 不可见物体的 w 穿越指引 */
+function updateInfo() {
+  const parts = [];
+  for (const obj of SCENE_OBJECTS) if (sliceDescs[obj.key]) parts.push(sliceDescs[obj.key]);
+  if (!parts.length)
+    parts.push('你的三维世界里空无一物——看看顶栏 w 轴带，沿第四维走走（Q/E）');
+  const guide = [];
+  for (const e of lastExtents) {
+    if (e.vmin <= 0 && e.vmax >= 0) continue;
+    const reach = e.vmin > 0 ? e.vmin : -e.vmax;
+    guide.push({ name: e.name, reach, dir: e.vmin > 0 ? '+' : '−' });
+  }
+  guide.sort((a, b) => a.reach - b.reach);
+  for (const gg of guide.slice(0, 2)) parts.push(`指引：${gg.name} 在 ${gg.dir}w 方向 ${gg.reach.toFixed(2)}`);
+  infoBar.innerHTML = parts.join('<br>');
+}
+
+/* ================= 输入：键盘 / 指针锁定 / 拖拽 / 触摸 ================= */
+
+const lockHint = document.getElementById('lockHint');
+const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+// 移动端：返回链接移进顶栏按钮组做首枚 chip（固定定位放哪都会与排满整行的
+// 按钮或拖拽区相争——流内排布随 hudBtns 换行，永不重叠）
+if (coarse) {
+  const backLink = document.getElementById('backLink');
+  backLink.classList.add('hbtn');
+  backLink.textContent = '← 返回'; // 全名太宽会把按钮组挤断行，缩短保单行（悬停 title 见全名）
+  backLink.title = '返回切片实验室';
+  document.getElementById('hudBtns').prepend(backLink);
+}
+// 移动端：展品描述框收起为贴底单行细条，点击展开全文（CSS 见 traveler.html 媒体查询）；
+// 展开态写 body.infoOpen——CSS 用它隐藏导览字幕条（同区叠压，见媒体查询）
+if (coarse)
+  infoBar.addEventListener('click', () => {
+    const open = infoBar.classList.toggle('open');
+    document.body.classList.toggle('infoOpen', open);
+  });
+
+/* ================= 类比小窗（右下角：把「你在四维」降一维翻译成「二维旅人在三维」） ================= */
+
+const anaWin = document.getElementById('analogyWin');
+const anaLabel = document.getElementById('anaLabel');
+const anaCanvas = document.getElementById('anaCv');
+let analogyOn = !coarse; // 桌面默认开、粗指针默认关（视角面板可切换）
+let anaPanelBtn = null;
+
+const anaRenderer = new THREE.WebGLRenderer({ canvas: anaCanvas, antialias: true });
+anaRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+anaRenderer.setSize(236, 177, false);
+const anaScene = new THREE.Scene();
+anaScene.background = new THREE.Color(0x070b16);
+// 相机取景同 inside4d 右视图（俯视斜上方），看的是二维旅人的整个三维世界
+const anaCamera = new THREE.PerspectiveCamera(50, 236 / 177, 0.1, 100);
+anaCamera.position.set(4.4, 3.4, 5.0);
+anaCamera.lookAt(0, 0.4, 0);
+anaScene.add(new THREE.HemisphereLight(0x8899cc, 0x11131f, 1.0));
+const anaDirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+anaDirLight.position.set(3, 6, 4);
+anaScene.add(anaDirLight);
+
+let anaGrid = null;
+const anaGroup = new THREE.Group(); // 类比物体挂载点（rebuildAnalogy 负责清空）
+anaScene.add(anaGroup);
+/** 二维旅人的整个世界平面（y=0，半透明铺底） */
+const anaPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(16, 16),
+  new THREE.MeshBasicMaterial({
+    color: 0x6b99f2,
+    transparent: true,
+    opacity: 0.06,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  })
+);
+anaPlane.rotation.x = -Math.PI / 2;
+anaScene.add(anaPlane);
+
+/** 二维类比幽灵板（结构色低透明度，同 inside4d） */
+const ghost2DMatCache = new Map();
+function ghost2DMat(color) {
+  if (!ghost2DMatCache.has(color))
+    ghost2DMatCache.set(
+      color,
+      new THREE.MeshStandardMaterial({
+        color,
+        transparent: true,
+        opacity: 0.14,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        roughness: 0.65,
+      })
+    );
+  return ghost2DMatCache.get(color);
+}
+/** 实心环面幽灵 / 截面管道与填充（魔戒类比绿）；观察线指示条（亮白） */
+const donutGhostMat = new THREE.MeshStandardMaterial({
+  color: 0x9fb4a6,
+  transparent: true,
+  opacity: 0.2,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  roughness: 0.6,
+});
+const sect3dTubeMat = new THREE.MeshStandardMaterial({ color: 0x58c96a, roughness: 0.4 });
+const sect3dFillMat = new THREE.MeshStandardMaterial({
+  color: 0x58c96a,
+  side: THREE.DoubleSide,
+  roughness: 0.45,
+  emissive: 0x58c96a,
+  emissiveIntensity: 0.15,
+});
+const obsLineMat = new THREE.MeshBasicMaterial({
+  color: 0xdfe6f1,
+  transparent: true,
+  opacity: 0.75,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+});
+
+/** 展品 → 低维类比（名称与 2D 替身；超立方体没有更低维的类比） */
+const ANALOG_NAME = { box: '框中钥匙', shells: '嵌套圆环', ring: '实心环面', klein: '莫比乌斯带' };
+const ANALOG_2D = { box: 'frame', shells: 'rings' };
+
+/** 类比几何的挂载/材质上下文（结构同 inside4d 右视图；plate 共用主场景工厂） */
+const anaCtx = {
+  group: anaGroup,
+  get showGhost() {
+    return travel.ghost;
+  },
+  mats: {
+    plate: plateMat,
+    ghost2D: ghost2DMat,
+    obsLine: obsLineMat,
+    donutGhost: donutGhostMat,
+    sect3dTube: sect3dTubeMat,
+    sect3dFill: sect3dFillMat,
+  },
+  objects: {
+    box: { secretId: 2, secretName: '钥匙' },
+    shells: { secretId: 3, secretName: '病灶' },
+  },
+  idColors: ID_COLORS,
+};
+
+/** 小窗读出（harness/debug 用） */
+const anaState = { focusKey: null, analogKey: null, h: 0, angles3: [0, 0, 0], text: '' };
+
+/**
+ * 类比小窗重建（随 rebuildSlices 节流同步）：
+ *  焦点 = 信息栏首个有低维类比的可见展品；
+ *  姿态 = 相对旋转 M4 = Rᵀ·O 的 XW/ZW 分量（正放旅人看 XW40 斜置球壳 ≈ 实验室里转物体 XW40）；
+ *  位移 h = 旅人（w=0）在接触区间 [vmin, vmax] 中的位置线性映射到类比区间（analogy.js analogH）；
+ *  正放三维物体 w 向零厚度 → 区间退化：共面=两世界重合（h=0）、错开=整体移出（固定移出量）。
+ */
+function rebuildAnalogy() {
+  clearGroup(anaGroup);
+  // 焦点 = 最近的有低维类比的可见展品（正放匣中钥匙与你恒共面恒可见，
+  // 「首个描述物」会被它永久占据——走近谁，小窗就讲谁）
+  let focus = null;
+  let bestD = Infinity;
+  for (const o of SCENE_OBJECTS) {
+    if (!sliceDescs[o.key]) continue;
+    if (!ANALOG_NAME[o.kind === 'sdf' ? o.sdfKey : o.key]) continue;
+    const d = Math.hypot(
+      o.C[0] - travel.pos[0],
+      o.C[1] - travel.pos[1],
+      o.C[2] - travel.pos[2]
+    );
+    if (d < bestD) {
+      bestD = d;
+      focus = o;
+    }
+  }
+  if (!focus) {
+    anaState.focusKey = null;
+    anaState.analogKey = null;
+    anaState.h = 0;
+    anaState.text = '';
+    anaLabel.textContent = '（超立方体没有低维类比）';
+    anaWin.title = '正放的超立方体沿 w 的截面已是三维立方结构，找不到更低的维度来做类比';
+    return;
+  }
+  const analogKey = focus.kind === 'sdf' ? focus.sdfKey : focus.key;
+  const ext = lastExtents.find((e) => e.key === focus.key) || { vmin: 0, vmax: 0 }; // 防御：extent 与可见性同步重建，正常不会缺
+  const M4 = mat4Mul(Rt_baked, focus.O); // local → 旅人（相对旋转）
+  const rotRel = {
+    XW: (Math.atan2(M4[12], M4[0]) * 180) / Math.PI,
+    ZW: (Math.atan2(M4[14], M4[10]) * 180) / Math.PI,
+  };
+  const angles3 = boundAngles3(rotRel);
+  let h;
+  if (ext.vmax - ext.vmin < 1e-9) {
+    h = Math.abs(ext.vmin) < 1e-9 ? 0 : ext.vmin > 0 ? -3.2 : 3.2;
+  } else {
+    h = analogH(analogKey, [ext.vmin, ext.vmax], angles3, 0);
+  }
+  let text;
+  if (focus.kind === 'ring') text = buildRightDonut(angles3, h, anaCtx);
+  else if (focus.kind === 'klein') text = buildRightMobius(angles3, h, anaCtx);
+  else text = buildRight2D(ANALOG_2D[focus.sdfKey], angles3, h, focus.sdfKey, anaCtx);
+  anaState.focusKey = focus.key;
+  anaState.analogKey = analogKey;
+  anaState.h = h;
+  anaState.angles3 = angles3;
+  anaState.text = text;
+  anaLabel.textContent = `${focus.name} → ${ANALOG_NAME[analogKey]}`;
+  anaWin.title = text;
+}
+
+function setAnalogy(v) {
+  analogyOn = !!v;
+  anaWin.classList.toggle('hidden', !analogyOn);
+  if (anaPanelBtn) anaPanelBtn.classList.toggle('on', analogyOn);
+  if (analogyOn) rebuildAnalogy();
+}
+
+/* ================= 视角预设（数字键 1–8 快速跳转） ================= */
+
+/**
+ * 精选观察位（数字键 0–9）：pos=四维位置（世界系）；angles=四维转身角（度，整数=吸附可达）；
+ * look=世界系注视点（优先）或 yaw/pitch=度。对齐姿态（与斜置物体共面）均取物体倾角同号。
+ * 教学线索：⑥⑨同一地点不同姿态（四维转身改变截面）；②④切开三维物体（超平面切口）；
+ * ③平行世界（w 平移）；⑤⑥⑦对齐看“真身”；⑦真四维曲面任何姿态都只能看到切片；⓪有限 w 存在范围。
+ */
+const VIEW_PRESETS = {
+  Digit1: { name: '出生点', short: '出生点', pos: [0, 0, 0, 0], angles: {}, yaw: 0, pitch: 0 },
+  Digit2: { name: '匣·钥匙断层（ZW 35°）', short: '钥匙断层', pos: [-3, 0, -6, 0], angles: { ZW: 35 }, yaw: 0, pitch: -55 },
+  Digit3: { name: '平行之匣（w+2.2）', short: '平行之匣', pos: [-3, 0, -3.8, 2.2], angles: {}, look: [-3, -0.3, -6, 2.2] },
+  Digit4: { name: '球壳·病灶断层', short: '病灶断层', pos: [4.6, 0, -7.3, 0], angles: {}, look: [2.664, 0, -7.3, 0] },
+  Digit5: { name: '球壳·内部（对齐 XW 40°）', short: '球壳内部', pos: [3.2, 0, -7, 0.45], angles: { XW: 40 }, look: [3.2, 0.6, -7, 0.45] },
+  Digit6: { name: '魔戒·正圆（对齐 XW 55°）', short: '魔戒正圆', pos: [0, 0.9, -10, 0], angles: { XW: 55 }, look: [0, 0.9, -13, 0] },
+  Digit7: { name: '克莱因瓶·原生截面（对齐 ZW 40°）', short: '克莱因截面', pos: [-4.6, 1, -11, 2.52], angles: { ZW: 40 }, look: [-4.6, 1, -14, 0] },
+  Digit8: { name: '公园·俯瞰', short: '公园俯瞰', pos: [0, 8, 4, 0], angles: {}, look: [0, 0, -7, 0] },
+  Digit9: { name: '魔戒·斜切双块（对照⑥）', short: '魔戒斜切', pos: [0, 0.9, -10, 0], angles: {}, look: [0, 0.9, -13, 0] },
+  Digit0: { name: '虚空之间（w 1.9）', short: '虚空之间', pos: [0, 0, 0, 1.9], angles: {}, yaw: 0, pitch: 0 },
+};
+
+/** 把相机朝向世界系目标点（转旅人系后解 yaw/pitch；与 setPose 的 lookAtWorld 同一套数学） */
+function faceTarget(target) {
+  const Rt = mat4Transpose(travel.R);
+  const t = mat4Apply(Rt, sub4(target, travel.pos));
+  const L = Math.hypot(t[0], t[1], t[2]);
+  if (L > 1e-6) {
+    travel.pitch = Math.asin(Math.max(-1, Math.min(1, t[1] / L)));
+    travel.yaw = Math.atan2(-t[0], -t[2]);
+  }
+}
+
+let toastTimer = 0;
+function showToast(text) {
+  viewToast.textContent = text;
+  viewToast.classList.remove('show');
+  void viewToast.offsetWidth; // 重触发 CSS 动画
+  viewToast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => viewToast.classList.remove('show'), 2700);
+}
+
+function applyViewPreset(key) {
+  const v = VIEW_PRESETS[key];
+  if (!v) return;
+  if (tour.active) pauseTour(); // 视角面板点选也是用户操作：暂停导览，否则下一帧被导览覆盖位姿
+  travel.pos = [...v.pos];
+  for (const p of ['XW', 'ZW', 'YW']) travel.angles[p] = v.angles[p] || 0;
+  rebuildR();
+  if (v.look) faceTarget(v.look);
+  else {
+    travel.yaw = deg2rad(v.yaw || 0);
+    travel.pitch = deg2rad(v.pitch || 0);
+  }
+  markDirty();
+  showToast(`${key.slice(-1)} ${v.name}`);
+}
+
+/** 平行世界层：场景里两只同址不同 w 的匣（boxA/boxB），跃迁在其间切换（层值取自场景表） */
+const PARALLEL_W = (() => {
+  const ws = SCENE_OBJECTS.filter((o) => o.sdfKey === 'box').map((o) => o.C[3]);
+  return ws.length === 2 ? ws : [0, 2.2];
+})();
+
+/**
+ * 平行世界跃迁：位置/朝向/四维姿态全部不动，只把 w 瞬移到另一层——
+ * 看着同一地点，匣A（w 0）消失、平行之匣（w 2.2）在原地出现（轮廓逐位相同）。
+ */
+function toggleParallel() {
+  const [wa, wb] = PARALLEL_W;
+  const toB = Math.abs(travel.pos[3] - wa) <= Math.abs(travel.pos[3] - wb);
+  travel.pos[3] = toB ? wb : wa;
+  markDirty();
+  showToast(toB ? `平行世界跃迁 → w ${wb}` : `返回原世界 → w ${wa}`);
+}
+
+/* ================= 自动导览（M 键 / 视角面板「▶ 自动导览」） ================= */
+
+/**
+ * 导览脚本：站点复用 VIEW_PRESETS（preset 字段）或自带 pos/angles/look；
+ * caption 讲解词、holdMs 停留时长；action:'jump' 到站执行平行世界跃迁演示。
+ * 状态机：fly（easeInOutCubic 补间 pos/angles/yaw/pitch）→ hold → 下一站。
+ * 任意移动操作（键/拖拽/摇杆/w 轴带/按钮）自动暂停并交还控制，⏭ 下一站继续；M / 退出按钮结束。
+ */
+const TOUR_STOPS = [
+  { preset: 'Digit1', holdMs: 5200, name: '出生点',
+    caption: '欢迎来到四维空间。你是三维旅人——眼睛只能看清自己三维超平面内的光，所以眼前永远是四维物体的截面。看顶栏 w 轴带：白线是你的世界，彩色带是各展品沿第四维 w 的存在范围。' },
+  { preset: 'Digit2', holdMs: 5000, name: '匣·钥匙断层',
+    caption: '匣中钥匙。刚才的路上你的身体转了 ZW 35°——超平面斜切进匣子，CT 断层里露出金色钥匙的截面。三维物体在 w 方向没有厚度：沿 w 稍移，它就整体消失。' },
+  { preset: 'Digit2', action: 'jump', holdMs: 4600, name: '平行世界跃迁',
+    caption: '跃迁演示：位置、朝向、姿态全不动，只把 w 从 0 瞬移到 2.2——匣中钥匙消失，平行之匣在完全相同的位置出现，连轮廓都一样。随时可按 P 自己跃迁。' },
+  { preset: 'Digit4', holdMs: 4600, name: '球壳·病灶断层',
+    caption: '斜置球壳。它在四维里斜放（XW 40°），正放的你只能看到 CT 断层——洋红色的病灶被切面直接暴露出来。' },
+  { preset: 'Digit5', holdMs: 5000, name: '球壳·内部',
+    caption: '对齐。把身体转到 XW 40° 与球壳共面，超平面严格重合——整个球壳显形。你正置身壳内：皮层、果肉、骨壳与核心星层层环绕。' },
+  { name: '超立方体·八小球', pos: [5, 0.3, -2.7, 0], look: [5, 0.7, -4, 0], holdMs: 4800,
+    caption: '超立方体：16 顶点 32 条棱的四维铁丝笼。此刻 w=0，你的超平面拦腰截断 8 条 w 向的棱——截面是 8 个小球。' },
+  { name: '超立方体·嵌套立方框', pos: [5, 0.3, -2.7, 0.75], look: [5, 0.7, -4, 0], holdMs: 4800,
+    caption: '沿 w 走到 0.75——截面变成嵌套的立方框：内外两层立方体的棱所在的两层胞面。回头看 w 轴带，白线正滑过绿色带。' },
+  { preset: 'Digit9', holdMs: 4600, name: '魔戒·斜切',
+    caption: '魔戒——四维实心环面。此刻你的超平面斜切它，断成两块碎片。' },
+  { preset: 'Digit6', holdMs: 5200, name: '魔戒·正圆',
+    caption: '转身对齐（XW 55°）。同一枚戒指、同一地点，截面变成完整的圆环——四维转身改变的不是你看到哪，而是截面本身。' },
+  { preset: 'Digit7', holdMs: 4800, name: '克莱因瓶',
+    caption: '克莱因瓶——真正的四维曲面（不可定向）。无论什么姿态，你看到的都只是它的截面曲线；它的"整体"只存在于四维。' },
+  { preset: 'Digit0', holdMs: 4600, name: '虚空之间',
+    caption: '虚空之间（w 1.9）：所有展品的存在范围都不含这一层——四维空间绝大部分是空的。w 轴带只剩指引：最近的展品在哪个方向、多远。' },
+  { preset: 'Digit1', holdMs: 4200, name: '归来',
+    caption: '导览结束。按 H 看完整操作说明——沿 w 穿越可以直接拖动顶栏色带，或按 M 再看一遍。现在，自己出发吧。' },
+];
+
+const tour = { active: false, paused: false, index: 0, phase: 'fly', t0: null, from: null, to: null, captionText: '' };
+const TOUR_FLY_MS = 3500;
+
+const tourBar = document.getElementById('tourBar');
+const tourCaption = document.getElementById('tourCaption');
+const tourDots = document.getElementById('tourDots');
+
+/** 用指定姿态解 yaw/pitch（与 faceTarget 同式，但不改 travel——供导览目标位姿求解） */
+function solveLook(angles, pos, target) {
+  const R = eulerMat4([0, 0, deg2rad(angles.XW || 0), 0, deg2rad(angles.YW || 0), deg2rad(angles.ZW || 0)]);
+  const t = mat4Apply(mat4Transpose(R), sub4(target, pos));
+  const L = Math.hypot(t[0], t[1], t[2]);
+  if (L < 1e-6) return null;
+  return {
+    pitch: Math.asin(Math.max(-1, Math.min(1, t[1] / L))),
+    yaw: Math.atan2(-t[0], -t[2]),
+  };
+}
+
+function currentPose() {
+  return { pos: [...travel.pos], angles: { ...travel.angles }, yaw: travel.yaw, pitch: travel.pitch };
+}
+
+/** 站点位姿：preset 引用 VIEW_PRESETS，或站点自带字段（超立方体两站） */
+function poseOfStop(s) {
+  const v = s.preset ? VIEW_PRESETS[s.preset] : s;
+  const pose = {
+    pos: [...v.pos],
+    angles: { XW: (v.angles && v.angles.XW) || 0, ZW: (v.angles && v.angles.ZW) || 0, YW: (v.angles && v.angles.YW) || 0 },
+    yaw: 0,
+    pitch: 0,
+  };
+  if (v.look) {
+    const lk = solveLook(pose.angles, pose.pos, v.look);
+    if (lk) {
+      pose.yaw = lk.yaw;
+      pose.pitch = lk.pitch;
+    }
+  } else {
+    pose.yaw = deg2rad(v.yaw || 0);
+    pose.pitch = deg2rad(v.pitch || 0);
+  }
+  return pose;
+}
+
+/** 位姿补间：pos/angles 线性（转身过程本身是教学），yaw 走最短路径 */
+function tourLerpPose(a, b, k) {
+  const pos = a.pos.map((v, i) => v + (b.pos[i] - v) * k);
+  const ang = {};
+  for (const p of ['XW', 'ZW', 'YW']) ang[p] = a.angles[p] + (b.angles[p] - a.angles[p]) * k;
+  const dyaw = Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw));
+  return { pos, angles: ang, yaw: a.yaw + dyaw * k, pitch: a.pitch + (b.pitch - a.pitch) * k };
+}
+
+function applyTourPose(p) {
+  travel.pos = [...p.pos];
+  travel.angles = { ...p.angles };
+  rebuildR();
+  travel.yaw = p.yaw;
+  travel.pitch = p.pitch;
+  markDirty();
+}
+
+function setTourCaption(s) {
+  tour.captionText = s.caption;
+  tourCaption.innerHTML = `<b>${tour.index + 1}/${TOUR_STOPS.length} · ${s.name}</b>　${s.caption}`;
+  tourDots.innerHTML = TOUR_STOPS.map(
+    (_, i) => `<span class="${i === tour.index ? 'on' : i < tour.index ? 'past' : ''}" title="${TOUR_STOPS[i].name}"></span>`
+  ).join('');
+}
+
+function tourStartLeg() {
+  tour.phase = 'fly';
+  tour.t0 = null; // 首帧 rAF 时间戳生效（事件里没有 t）
+  tour.from = currentPose();
+  tour.to = poseOfStop(TOUR_STOPS[tour.index]);
+  setTourCaption(TOUR_STOPS[tour.index]);
+}
+
+function startTour() {
+  if (tour.active) return;
+  tour.active = true;
+  tour.paused = false;
+  tour.index = 0;
+  tourBar.classList.remove('hidden');
+  document.body.classList.add('touring'); // CSS：桌面隐藏同位的信息栏
+  tourStartLeg();
+  showToast('自动导览开始——可随时自由探索（自动暂停），M 退出');
+}
+
+function stopTour(done) {
+  if (!tour.active) return;
+  tour.active = false;
+  tour.paused = false;
+  tourBar.classList.add('hidden');
+  document.body.classList.remove('touring');
+  showToast(done ? '导览结束' : '已退出导览');
+}
+
+/** 用户操作（移动键/拖拽画面/按住虚拟按钮）时自动暂停：不退出，交还控制权
+ *  供自由探索；点「⏭ 下一站」继续下一站，M/「退出导览」才真正结束 */
+function pauseTour() {
+  if (!tour.active || tour.paused) return;
+  tour.paused = true;
+  tourCaption.innerHTML = `<b>⏸ 第 ${tour.index + 1}/${TOUR_STOPS.length} 站 · 已暂停</b>　自由探索中——看完点「⏭ 下一站」继续，或「退出导览」结束`;
+}
+
+function tourNext() {
+  tour.paused = false;
+  tour.index++;
+  if (tour.index >= TOUR_STOPS.length) {
+    stopTour(true);
+    return;
+  }
+  tourStartLeg();
+}
+
+/** animate 每帧推进（rAF 时间戳 tNow，毫秒） */
+function updateTour(tNow) {
+  if (tour.paused) return; // 暂停：交还控制权（updateMotion 跑），⏭ 恢复
+  const s = TOUR_STOPS[tour.index];
+  if (tour.phase === 'fly') {
+    if (tour.t0 === null) tour.t0 = tNow;
+    const k = Math.min(1, (tNow - tour.t0) / TOUR_FLY_MS);
+    const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    applyTourPose(tourLerpPose(tour.from, tour.to, e));
+    if (k >= 1) {
+      tour.phase = 'hold';
+      tour.t0 = tNow;
+      if (s.action === 'jump') toggleParallel();
+    }
+  } else if (tNow - tour.t0 >= (s.holdMs || 4000)) {
+    tourNext();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  // 导览中任意按键 → 自动暂停（M 自身用于退出）
+  if (tour.active && e.code !== 'KeyM') pauseTour();
+  if (e.code === 'KeyM') {
+    if (tour.active) stopTour();
+    else {
+      if (helpOpen) setHelp(false); // 不让导览在帮助覆盖层背后开跑
+      startTour();
+    }
+    return;
+  }
+  keys[e.code] = true;
+  // 四维转身键：U/J=XW、I/K=ZW、O/L=YW（与帮助文案/移动端按钮同一套键名）
+  const rot4 = ROT4_KEYMAP[e.code];
+  if (rot4) keys[rot4] = true;
+  if (/^Digit[0-9]$/.test(e.code)) applyViewPreset(e.code);
+  if (e.code === 'KeyP') toggleParallel();
+  if (e.code === 'Space' && !helpOpen) e.preventDefault();
+  if (e.code === 'KeyG') toggleGhost();
+  if (e.code === 'KeyT') toggleTheme();
+  if (e.code === 'KeyR') resetTraveler();
+  if (e.code === 'KeyH') setHelp(!helpOpen);
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+  const rot4 = ROT4_KEYMAP[e.code];
+  if (rot4) keys[rot4] = false;
+});
+window.addEventListener('blur', () => {
+  for (const k of Object.keys(keys)) keys[k] = false;
+  joy.x = 0;
+  joy.y = 0;
+});
+
+/* 鼠标：点击锁定指针；锁定/未锁定均支持拖拽环顾 */
+let lookId = null;
+let lookX = 0;
+let lookY = 0;
+let downX = 0;
+let downY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (lookId !== null) return;
+  if (tour.active) pauseTour();
+  lookId = e.pointerId;
+  lookX = downX = e.clientX;
+  lookY = downY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== lookId) return;
+  if (document.pointerLockElement === canvas) return; // 锁定时走 movement 分支
+  const dx = e.clientX - lookX;
+  const dy = e.clientY - lookY;
+  lookX = e.clientX;
+  lookY = e.clientY;
+  travel.yaw -= dx * DRAG_SENS;
+  travel.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, travel.pitch - dy * DRAG_SENS));
+});
+const endLook = (e) => {
+  if (e.pointerId !== lookId) return;
+  // 干净的单击（非拖拽）且非触摸 → 请求指针锁定
+  if (
+    !coarse &&
+    document.pointerLockElement !== canvas &&
+    Math.hypot(e.clientX - downX, e.clientY - downY) < 5
+  ) {
+    canvas.requestPointerLock();
+  }
+  lookId = null;
+};
+canvas.addEventListener('pointerup', endLook);
+canvas.addEventListener('pointercancel', endLook);
+document.addEventListener('pointerlockchange', () => {
+  lockHint.classList.toggle('hidden', document.pointerLockElement === canvas);
+});
+document.addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== canvas) return;
+  travel.yaw -= e.movementX * LOOK_SENS;
+  travel.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, travel.pitch - e.movementY * LOOK_SENS));
+});
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* w 轴带拖拽：白线恒居中、色带随你滑动，故按相对位移换算（拖 1 带宽 = 跨越 ±BAND_RANGE） */
+let wDragId = null;
+let wDragX = 0;
+let wDragScale = 1;
+wband.addEventListener('pointerdown', (e) => {
+  if (wDragId !== null) return;
+  if (tour.active) pauseTour(); // 拖 w 轴带 = 用户操作：暂停导览，否则拖动每帧被导览覆盖（拖不动的假死感）
+  wDragId = e.pointerId;
+  wDragX = e.clientX;
+  wDragScale = (2 * BAND_RANGE) / Math.max(1, wband.getBoundingClientRect().width);
+  wband.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+wband.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== wDragId) return;
+  travel.pos[3] += (e.clientX - wDragX) * wDragScale;
+  wDragX = e.clientX;
+  markDirty();
+});
+const endWDrag = (e) => {
+  if (e.pointerId !== wDragId) return;
+  wDragId = null;
+  try { wband.releasePointerCapture(e.pointerId); } catch (_) {}
+};
+wband.addEventListener('pointerup', endWDrag);
+wband.addEventListener('pointercancel', endWDrag);
+
+/* 触摸：左侧浮动摇杆（走动） */
+const joyZone = document.getElementById('joyZone');
+const joyBase = document.getElementById('joyBase');
+const joyStick = document.getElementById('joyStick');
+let joyId = null;
+let joyCX = 0;
+let joyCY = 0;
+const JOY_R = 46;
+
+joyZone.addEventListener('pointerdown', (e) => {
+  if (joyId !== null) return;
+  if (tour.active) pauseTour(); // 起摇 = 用户操作：暂停导览，否则摇杆位移每帧被导览覆盖
+  joyId = e.pointerId;
+  joyCX = e.clientX;
+  joyCY = e.clientY;
+  joyBase.style.display = 'block';
+  joyBase.style.left = `${joyCX}px`;
+  joyBase.style.top = `${joyCY}px`;
+  joyZone.setPointerCapture(e.pointerId);
+});
+joyZone.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== joyId) return;
+  let dx = e.clientX - joyCX;
+  let dy = e.clientY - joyCY;
+  const m = Math.hypot(dx, dy);
+  if (m > JOY_R) {
+    dx = (dx / m) * JOY_R;
+    dy = (dy / m) * JOY_R;
+  }
+  joy.x = dx / JOY_R;
+  joy.y = dy / JOY_R;
+  joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+});
+const endJoy = (e) => {
+  if (e.pointerId !== joyId) return;
+  joyId = null;
+  joy.x = 0;
+  joy.y = 0;
+  joyBase.style.display = 'none';
+  joyStick.style.transform = 'translate(-50%, -50%)';
+};
+joyZone.addEventListener('pointerup', endJoy);
+joyZone.addEventListener('pointercancel', endJoy);
+
+/* 触摸/桌面按钮：按住即触发（虚拟键位并入 keys） */
+for (const btn of document.querySelectorAll('[data-hold]')) {
+  const name = btn.dataset.hold;
+  btn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (tour.active) pauseTour();
+    keys[name] = true;
+    btn.setPointerCapture(e.pointerId);
+  });
+  const off = () => {
+    keys[name] = false;
+  };
+  btn.addEventListener('pointerup', off);
+  btn.addEventListener('pointercancel', off);
+}
+
+/* ================= HUD 按钮与帮助 ================= */
+
+const btnGhost = document.getElementById('btnGhost');
+const helpOverlay = document.getElementById('helpOverlay');
+let helpOpen = true;
+
+function toggleGhost() {
+  travel.ghost = !travel.ghost;
+  btnGhost.classList.toggle('on', travel.ghost);
+  markDirty();
+}
+function toggleTheme() {
+  travel.lightTheme = !travel.lightTheme;
+  applyTheme();
+}
+function resetTraveler() {
+  if (tour.active) pauseTour(); // 重置按钮点击：暂停导览，否则下一帧被导览覆盖位姿
+  travel.pos = [0, 0, 0, 0];
+  travel.angles = { XW: 0, ZW: 0, YW: 0 };
+  rebuildR();
+  travel.yaw = 0;
+  travel.pitch = 0;
+  markDirty();
+}
+function setHelp(open) {
+  helpOpen = open;
+  helpOverlay.classList.toggle('hidden', !open);
+}
+
+btnGhost.addEventListener('click', toggleGhost);
+document.getElementById('tourNext').addEventListener('click', tourNext);
+document.getElementById('tourExit').addEventListener('click', () => stopTour());
+document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+document.getElementById('btnReset').addEventListener('click', resetTraveler);
+document.getElementById('btnHelp').addEventListener('click', () => {
+  if (tour.active) pauseTour(); // 读帮助时导览不该在背后继续飞
+  setHelp(!helpOpen);
+});
+document.getElementById('btnStart').addEventListener('click', () => setHelp(false));
+helpOverlay.addEventListener('click', (e) => {
+  if (e.target === helpOverlay) setHelp(false);
+});
+document.getElementById('rot4Btn').addEventListener('click', () => {
+  document.getElementById('rot4Panel').classList.toggle('open');
+});
+
+/* 视角面板：顶栏「视角」按钮展开，条目由 VIEW_PRESETS 单源生成（桌面/移动通用）；
+ * 面板顶部固定一条「▶ 自动导览」 */
+const viewPanel = document.getElementById('viewPanel');
+const tourPanelBtn = document.createElement('button');
+tourPanelBtn.type = 'button';
+tourPanelBtn.className = 'vbtn tourstart';
+tourPanelBtn.innerHTML = '<b>▶</b>自动导览';
+tourPanelBtn.addEventListener('click', () => {
+  startTour();
+  viewPanel.classList.remove('open');
+});
+viewPanel.appendChild(tourPanelBtn);
+anaPanelBtn = document.createElement('button');
+anaPanelBtn.type = 'button';
+anaPanelBtn.className = 'vbtn';
+anaPanelBtn.innerHTML = '<b>窗</b>类比小窗';
+anaPanelBtn.title = '右下角小窗：把你的处境降一维翻译成「二维旅人在三维」';
+anaPanelBtn.addEventListener('click', () => {
+  setAnalogy(!analogyOn);
+  viewPanel.classList.remove('open');
+});
+viewPanel.appendChild(anaPanelBtn);
+anaPanelBtn.classList.toggle('on', analogyOn);
+for (const [code, v] of Object.entries(VIEW_PRESETS)) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'vbtn';
+  b.innerHTML = `<b>${code.slice(-1)}</b>${v.short}`;
+  b.addEventListener('click', () => {
+    applyViewPreset(code);
+    viewPanel.classList.remove('open');
+  });
+  viewPanel.appendChild(b);
+}
+document.getElementById('btnViews').addEventListener('click', () => {
+  viewPanel.classList.toggle('open');
+});
+document.getElementById('btnJump').addEventListener('click', () => {
+  if (tour.active) pauseTour(); // 跃迁按钮点击也是用户操作（toggleParallel 本身不加——导览 jump 站复用它）
+  toggleParallel();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && helpOpen) setHelp(false);
+});
+
+/* ================= 每帧运动与渲染 ================= */
+
+const FRAME_KEYS = { XW: [0, 3], ZW: [2, 3], YW: [1, 3] };
+/** 桌面键盘 → 四维转身键名（U/J=XW、I/K=ZW、O/L=YW，正/负向） */
+const ROT4_KEYMAP = {
+  KeyU: 'rotXW+', KeyJ: 'rotXW-',
+  KeyI: 'rotZW+', KeyK: 'rotZW-',
+  KeyO: 'rotYW+', KeyL: 'rotYW-',
+};
+
+function updateMotion(dt) {
+  const k = (name) => !!keys[name];
+  let f = (k('KeyW') ? 1 : 0) - (k('KeyS') ? 1 : 0) - joy.y;
+  let r = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0) + joy.x;
+  const u = (k('Space') || k('up') ? 1 : 0) - (k('KeyC') || k('down') ? 1 : 0);
+  const m = Math.hypot(f, r);
+  if (m > 1) {
+    f /= m;
+    r /= m;
+  }
+  if (f !== 0 || r !== 0 || u !== 0) {
+    // 走动在旅人系内算好方向，再经 R 映射到世界（只动面内分量——切片不变形）
+    const speed = (k('ShiftLeft') || k('ShiftRight') ? SPRINT : SPEED) * dt;
+    const sy = Math.sin(travel.yaw);
+    const cy = Math.cos(travel.yaw);
+    const dx = (-sy * f + cy * r) * speed;
+    const dy = u * speed;
+    const dz = (-cy * f - sy * r) * speed;
+    const c0 = colOf(travel.R, 0);
+    const c1 = colOf(travel.R, 1);
+    const c2 = colOf(travel.R, 2);
+    for (let i = 0; i < 4; i++)
+      travel.pos[i] += c0[i] * dx + c1[i] * dy + c2[i] * dz;
+  }
+  const dw = (k('KeyE') || k('w+') ? 1 : 0) - (k('KeyQ') || k('w-') ? 1 : 0);
+  if (dw) {
+    const c3 = colOf(travel.R, 3);
+    for (let i = 0; i < 4; i++) travel.pos[i] += c3[i] * dw * W_SPEED * dt;
+    markDirty();
+  }
+  let rotated = false;
+  const fine = k('ShiftLeft') || k('ShiftRight');
+  for (const label of Object.keys(FRAME_KEYS)) {
+    const dir = (k(`rot${label}+`) ? 1 : 0) - (k(`rot${label}-`) ? 1 : 0);
+    if (dir) {
+      travel.angles[label] += dir * (fine ? ROT4_FINE : ROT4_SPEED) * dt;
+      rotated = true;
+    }
+  }
+  if (rotated) {
+    rebuildR();
+    markDirty();
+  }
+}
+
+function updateCamera() {
+  camera.rotation.set(travel.pitch, travel.yaw, 0);
+  // 走动后切片组的整体平移：Δq_t = −Rᵀ_baked(P − P_baked)（面内分量的 xyz）
+  if (travel.pos.some((v, i) => v !== P_baked[i])) {
+    const d = mat4Apply(Rt_baked, sub4(travel.pos, P_baked));
+    sliceGroup.position.set(-d[0], -d[1], -d[2]);
+    ghostGroup.position.copy(sliceGroup.position);
+  } else {
+    sliceGroup.position.set(0, 0, 0);
+    ghostGroup.position.set(0, 0, 0);
+  }
+}
+
+let lastT = 0;
+window.__travelerReady = false;
+
+function animate(t) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+  if (tour.active && !tour.paused) updateTour(t);
+  else updateMotion(dt);
+  updateCamera();
+  updatePosLabel();
+  if (sliceDirty && t - lastRebuild > MIN_REBUILD_MS) rebuildSlices();
+  headlamp.position.copy(camera.position);
+  renderer.render(scene, camera);
+  if (analogyOn) anaRenderer.render(anaScene, anaCamera);
+  window.__travelerReady = true;
+}
+
+/* ================= 尺寸自适应 ================= */
+
+function onResize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+/* ================= 无头验证钩子（tests/traveler-harness.html） ================= */
+
+/** 渲染一帧并统计像素类别占比（warm 捕捉橙/金：魔戒与克莱因切片、钥匙；magenta 捕捉病灶） */
+window.__travelerProbe = function () {
+  updateCamera(); // 同步飞行状态到相机（无头下探针与 animate 帧不同步）
+  renderer.render(scene, camera);
+  const gl = renderer.getContext();
+  const w = gl.drawingBufferWidth;
+  const h = gl.drawingBufferHeight;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let nonbg = 0;
+  let warm = 0;
+  let magenta = 0;
+  const total = w * h;
+  const corners = [];
+  for (const c of [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3]]) {
+    const o = (c[1] * w + c[0]) * 4;
+    corners.push(px[o], px[o + 1], px[o + 2]);
+  }
+  const hist = new Map();
+  for (let i = 0; i < px.length; i += 16) {
+    const key = (px[i] >> 4) + ',' + (px[i + 1] >> 4) + ',' + (px[i + 2] >> 4);
+    hist.set(key, (hist.get(key) || 0) + 1);
+  }
+  const top = [...hist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map((e) => e[0] + ':' + e[1]);
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i];
+    const g = px[i + 1];
+    const b = px[i + 2];
+    if (Math.abs(r - probeBg[0]) > 26 || Math.abs(g - probeBg[1]) > 26 || Math.abs(b - probeBg[2]) > 26)
+      nonbg++;
+    if (r > b + 20 && r > 110) warm++;
+    if (r > 180 && b > 80 && g < 120) magenta++;
+  }
+  return { w, h, nonbg: +(nonbg / total).toFixed(4), warm: +(warm / total).toFixed(4), magenta: +(magenta / total).toFixed(4), corners, top, ana: anaProbe() };
+};
+
+/** 类比小窗像素统计（nonbgA 相对小窗背景色；关闭时 null） */
+function anaProbe() {
+  if (!analogyOn) return null;
+  anaRenderer.render(anaScene, anaCamera);
+  const gl = anaRenderer.getContext();
+  const w = gl.drawingBufferWidth;
+  const h = gl.drawingBufferHeight;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let nonbg = 0;
+  for (let i = 0; i < px.length; i += 4)
+    if (
+      Math.abs(px[i] - probeBg[0]) > 26 ||
+      Math.abs(px[i + 1] - probeBg[1]) > 26 ||
+      Math.abs(px[i + 2] - probeBg[2]) > 26
+    )
+      nonbg++;
+  return { w, h, nonbg: +(nonbg / (w * h)).toFixed(4) };
+}
+
+/**
+ * 程序化驾驶（测试/无头用）：设置四维位置与朝向后同步重建。
+ *  lookAtWorld：世界系四维目标点（转成旅人系后解 yaw/pitch）
+ */
+window.__travelerDebug = {
+  travel,
+  THREE,
+  scene,
+  camera,
+  sliceGroup,
+  ghostGroup,
+  get lastExtents() {
+    return lastExtents;
+  },
+  get lastRebuildMs() {
+    return lastRebuildMs;
+  },
+  get rebuildCount() {
+    return rebuildCount;
+  },
+  setPose(o) {
+    if (o.pos) {
+      for (let i = 0; i < 4; i++) travel.pos[i] = o.pos[i];
+    }
+    if (o.lookAtWorld) {
+      faceTarget(o.lookAtWorld);
+    } else {
+      if (Number.isFinite(o.yawDeg)) travel.yaw = deg2rad(o.yawDeg);
+      if (Number.isFinite(o.pitchDeg)) travel.pitch = deg2rad(o.pitchDeg);
+    }
+    rebuildSlices();
+  },
+  frameRot(label, deg) {
+    if (!(label in travel.angles) || !Number.isFinite(deg)) return;
+    travel.angles[label] += deg;
+    rebuildR();
+    rebuildSlices();
+  },
+  stepW(d) {
+    const c3 = colOf(travel.R, 3);
+    for (let i = 0; i < 4; i++) travel.pos[i] += c3[i] * d;
+    rebuildSlices();
+  },
+  setGhost(v) {
+    travel.ghost = !!v;
+    btnGhost.classList.toggle('on', travel.ghost);
+    rebuildSlices();
+  },
+  startTour,
+  stopTour,
+  get tour() {
+    return tour;
+  },
+  tourNext,
+  get analogy() {
+    return { on: analogyOn, ...anaState };
+  },
+  setAnalogy,
+  rebuildNow: rebuildSlices,
+  probe: window.__travelerProbe,
+};
+
+/* ================= URL 预设 ================= */
+
+/** #pos=0,0,0,0&rot4=ZW=35&ghost=1&theme=dark&help=0 */
+function applyUrlPreset() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const pos = h.get('pos');
+  if (pos) {
+    const v = pos.split(',').map(parseFloat);
+    if (v.length === 4 && v.every(Number.isFinite)) travel.pos = v;
+  }
+  const rot4 = h.get('rot4');
+  if (rot4) {
+    for (const part of rot4.split(',')) {
+      const [k2, v] = part.split('=');
+      const deg = parseFloat(v);
+      if (travel.angles[k2] !== undefined && Number.isFinite(deg)) travel.angles[k2] = deg;
+    }
+    rebuildR();
+  }
+  const ghost = h.get('ghost');
+  if (ghost === '1') toggleGhost();
+  const theme = h.get('theme');
+  if (theme === 'light') travel.lightTheme = true;
+  if (theme === 'dark') travel.lightTheme = false;
+  if (h.get('help') === '0') setHelp(false);
+  const ana = h.get('analogy');
+  if (ana === '1' || ana === '0') analogyOn = ana === '1'; // 显隐在启动序列统一落地
+}
+
+/* ================= 启动 ================= */
+
+applyUrlPreset();
+applyTheme();
+rebuildSlices();
+// 类比小窗显隐（applyUrlPreset 时 lastExtents 尚未生成，rebuildSlices 后再落地）
+anaWin.classList.toggle('hidden', !analogyOn);
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>
