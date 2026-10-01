@@ -1,0 +1,2540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>非欧几里得空间探索</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+  #hud {
+    position: fixed; top: 12px; left: 12px; z-index: 10;
+    font: 13px/1.7 Consolas, monospace; color: #cfe8ff;
+    background: rgba(8, 16, 32, 0.55); padding: 10px 14px;
+    border: 1px solid rgba(120, 180, 255, 0.25); border-radius: 8px;
+    user-select: none; pointer-events: none; white-space: pre;
+  }
+  #map {
+    position: fixed; top: 12px; right: 12px; z-index: 10;
+    background: rgba(8, 16, 32, 0.55); pointer-events: auto;
+    cursor: grab; user-select: none; touch-action: none;
+    border: 1px solid rgba(120, 180, 255, 0.25); border-radius: 8px;
+  }
+  #help {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+    font: 13px/1.6 Consolas, monospace; color: #9fc3ef;
+    background: rgba(8, 16, 32, 0.55); padding: 6px 16px;
+    border: 1px solid rgba(120, 180, 255, 0.25); border-radius: 8px;
+    user-select: none; pointer-events: none;
+  }
+  #toast {
+    position: fixed; top: 46%; left: 50%; transform: translate(-50%, -50%); z-index: 20;
+    font: 22px/1.4 Consolas, monospace; color: #eaf4ff;
+    background: rgba(8, 16, 32, 0.72); padding: 12px 30px;
+    border: 1px solid rgba(120, 180, 255, 0.35); border-radius: 10px;
+    opacity: 0; transition: opacity 0.35s ease; user-select: none; pointer-events: none;
+  }
+  #overlay {
+    position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: rgba(40, 0, 0, 0.92); padding: 24px;
+  }
+  #overlay pre {
+    color: #ffb0b0; font: 13px/1.5 Consolas, monospace; white-space: pre-wrap;
+    max-width: 90vw; max-height: 80vh; overflow: auto;
+  }
+  [hidden] { display: none !important; }
+  /* 触屏虚拟摇杆 */
+  #joy, #joyKnob { position: fixed; z-index: 15; pointer-events: none; transform: translate(-50%, -50%); display: none; }
+  #joy { width: 124px; height: 124px; border-radius: 50%; border: 2px solid rgba(150, 200, 255, 0.45); background: rgba(20, 40, 80, 0.22); }
+  #joyKnob { width: 54px; height: 54px; border-radius: 50%; background: rgba(150, 200, 255, 0.5); }
+  #touchui { position: fixed; inset: 0; z-index: 15; pointer-events: none; display: none; }
+  .tbtn {
+    position: absolute; pointer-events: auto; font: 13px/1.1 Consolas, monospace; color: #cfe8ff;
+    background: rgba(8, 16, 32, 0.5); border: 1px solid rgba(120, 180, 255, 0.3); border-radius: 12px;
+    padding: 10px 12px; user-select: none; -webkit-user-select: none; touch-action: none; text-align: center;
+  }
+  .tbtn:active { background: rgba(40, 80, 160, 0.7); }
+  @media (max-width: 640px) {
+    #hud { font-size: 11px; padding: 7px 9px; }
+    #map { top: 8px; right: 8px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<pre id="hud"></pre>
+<canvas id="map" width="220" height="220"></canvas>
+<div id="help">点击画面锁定鼠标 · WASD移动 · 鼠标视角 · Q/E滚转 · Space/Shift升降 · 1-4画质分级 · 0自动分辨率 · M切换空间 · G步行 · V声音 · L标注 · [/]地图缩放 · K双曲地图 · P截图 · R重置 · Esc解锁</div>
+<div id="toast"></div>
+<div id="touchui">
+  <div class="tbtn" id="tUp" style="right:16px;bottom:212px">▲ 升</div>
+  <div class="tbtn" id="tDown" style="right:16px;bottom:150px">▼ 降</div>
+  <div class="tbtn" id="tWalk" style="right:16px;bottom:88px">步行</div>
+  <div class="tbtn" id="tSpace" style="right:96px;bottom:16px">空间</div>
+  <div class="tbtn" id="tSound" style="right:16px;bottom:16px">声音</div>
+</div>
+<div id="joy"></div>
+<div id="joyKnob"></div>
+<pre id="overlay" hidden></pre>
+<script>
+"use strict";
+/* ================================================================
+   非欧几里得空间探索 —— Phase 0：骨架与架构地基
+   架构：CPU(float64) 持有相机矩阵 C，列为 [e1(右), e2(上), e3(前), p(位置)]，
+        通过 uniform mat4 传给 GPU(float32)；uSpace 切换空间后端。
+   ================================================================ */
+
+const SPACE = { EUCLID: 0, SPHERE: 1, HYPER: 2, ROOMS: 3 };
+const SPACE_NAME = ["欧氏（校准）", "球面 S³", "双曲 H³", "直角房间 {4,5}"];
+let spaceMode = SPACE.EUCLID;
+/* 是否触屏设备（粗指针 / 支持触摸）：决定是否显示虚拟摇杆与按钮 */
+const isTouch = (matchMedia && matchMedia("(pointer: coarse)").matches) ||
+  ("ontouchstart" in window) || new URLSearchParams(location.search).has("touch");
+{
+  const q = new URLSearchParams(location.search);
+  if (q.has("space")) spaceMode = parseInt(q.get("space"), 10) || 0;
+}
+
+/* ---------------- 致命错误浮层 ---------------- */
+const overlayEl = document.getElementById("overlay");
+let fatalShown = false;
+function fatal(msg) {
+  if (fatalShown) return;
+  fatalShown = true;
+  overlayEl.hidden = false;
+  overlayEl.textContent = msg;
+  throw new Error(msg);
+}
+addEventListener("error", (e) => {
+  fatal("运行时错误: " + e.message + "\n" + (e.filename || "") + ":" + (e.lineno || 0));
+});
+
+/* ---------------- WebGL2 初始化 ---------------- */
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl2", { antialias: false, depth: false });
+if (!gl) fatal("WebGL2 不可用：请使用较新的 Chrome/Edge/Firefox，或开启硬件加速。");
+
+function compileShader(type, src, label) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    fatal(label + " 编译失败：\n" + gl.getShaderInfoLog(s) + "\n\n源码:\n" + src);
+  }
+  return s;
+}
+
+const VERT_SRC = `#version 300 es
+void main() {
+  vec2 v = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(v * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+/* 片段着色器：uSpace 分派空间后端。
+   欧氏 = Phase 1；球面 = S³ 测地线步进 + {4,3,3} 超立方体蜂巢折叠 DE；
+   双曲 = H³ 测地线步进 + {5,3,4} 十二面体蜂巢 Coxeter 正交单形折叠 DE */
+const FRAG_SRC = `#version 300 es
+precision highp float;
+
+uniform mat4 uCamera;   // 列: [0]=e1(右) [1]=e2(上) [2]=e3(前) [3]=p(位置)
+uniform int  uSpace;    // 0=欧氏 1=球面S3 2=双曲H3
+uniform vec2 uRes;
+uniform float uTime;
+uniform int  uDebug;    // 0=正常 1=命中距离热图(0.15*t,未命中=红) 2=步进数热图 3=仅天空
+uniform vec4 uN[4];     // H³：Coxeter 基本域 4 面镜面的（指向域内的）单位法向量
+uniform vec4 uLight;    // H³：光源位置（已随相机一同折叠进基本域）
+uniform vec4 uR[3];     // 直角房间 {4,5}：H² 三镜面法向量（含 x3=0，故墙面竖直）
+uniform float uDoor;    // 门洞半宽（沿墙的坐标阈值）
+uniform float uRoomH;   // 墙高（x3 坐标上限）
+uniform vec4 uOH;       // H³：⟨胞腔中心 O, n_j⟩（仅 n4 非零 → 墙反射改变胞腔）
+uniform vec4 uOR;       // 房间：⟨面心 F, M_j⟩（仅 M_F 非零 → 跨房间改变颜色）
+uniform float uWallT;   // 房间：墙厚（测地单位）
+uniform float uSill;    // 房间：门槛高度（测地单位）
+uniform vec4 uCell0;    // 胞腔追踪初值 h⁻¹(O)（相机重锚定 h 由 CPU 算出）
+uniform vec4 uU0[4];    // 胞腔追踪初值 h⁻¹(n_k)
+uniform vec2 uJitter;   // 亚像素抖动（静止帧时间超采样抗锯齿）
+uniform int  uMaxSteps; // 最大步进数（性能分级）
+
+out vec4 fragColor;
+
+/* 竖直天空/背景渐变（顶部亮、底部暗），各后端共用 */
+vec3 skyGradient(vec2 uv, vec3 top, vec3 bot) {
+  return mix(bot, top, clamp(uv.y * 0.5 + 0.5, 0.0, 1.0));
+}
+
+#define MAX_DIST 60.0
+
+/* ==================== 欧氏后端（Phase 1 已定量验证，勿动） ==================== */
+
+vec2 scene(vec3 p) {
+  float dFloor = p.y + 1.0;
+  vec3 q = mod(p + vec3(2.0, 2.0, 0.0), 4.0) - 2.0;
+  float dSph = length(q) - 0.9;
+  return dFloor < dSph ? vec2(dFloor, 0.0) : vec2(dSph, 1.0);
+}
+
+vec3 albedo(vec3 p, float matID) {
+  if (matID < 0.5) {
+    float c = mod(floor(p.x) + floor(p.z), 2.0);
+    return mix(vec3(0.16, 0.18, 0.22), vec3(0.72, 0.75, 0.80), c);
+  }
+  return vec3(0.95, 0.35, 0.10);
+}
+
+vec3 normalAt(vec3 p) {
+  vec2 e = vec2(0.0015, 0.0);
+  return normalize(vec3(
+    scene(p + e.xyy).x - scene(p - e.xyy).x,
+    scene(p + e.yxy).x - scene(p - e.yxy).x,
+    scene(p + e.yyx).x - scene(p - e.yyx).x));
+}
+
+float shadowRay(vec3 p, vec3 l) {
+  float t = 0.05;
+  for (int i = 0; i < 24; i++) {
+    float d = scene(p + l * t).x;
+    if (d < 0.001) return 0.0;
+    t += d;
+    if (t > 10.0) break;
+  }
+  return 1.0;
+}
+
+vec3 renderEuclid(vec2 uv) {
+  vec3 ro = uCamera[3].xyz;
+  vec3 e1 = uCamera[0].xyz, e2 = uCamera[1].xyz, e3 = uCamera[2].xyz;
+  vec3 rd = normalize(e3 + uv.x * e1 + uv.y * e2);
+
+  vec3 sunDir = normalize(vec3(0.5, 0.6, -0.4));
+  vec3 skyCol = mix(vec3(0.04, 0.06, 0.11), vec3(0.28, 0.48, 0.78), rd.y * 0.5 + 0.5);
+  float sun = smoothstep(0.99930, 0.99985, dot(rd, sunDir));
+
+  float t = 0.0;
+  float matID = -1.0;
+  int steps = 0;
+  for (int i = 0; i < uMaxSteps; i++) {
+    steps = i;
+    vec2 h = scene(ro + rd * t);
+    if (h.x < 0.0008 * t) { matID = h.y; break; }
+    t += h.x;
+    if (t > MAX_DIST) break;
+  }
+
+  if (uDebug == 1) {
+    return matID < 0.0 ? vec3(1.0, 0.0, 0.0) : vec3(clamp(t * 0.15, 0.0, 1.0));
+  } else if (uDebug == 2) {
+    return vec3(float(steps) / float(uMaxSteps));
+  } else if (uDebug == 3) {
+    return skyCol + vec3(1.0, 0.9, 0.7) * sun;
+  } else if (matID < 0.0) {
+    return skyCol + vec3(1.0, 0.9, 0.7) * sun;
+  }
+  vec3 pos = ro + rd * t;
+  vec3 n = normalAt(pos);
+  vec3 alb = albedo(pos, matID);
+  float dif = clamp(dot(n, sunDir), 0.0, 1.0);
+  float sh = dif > 0.01 ? shadowRay(pos + n * 0.02, sunDir) : 0.0;
+  vec3 lin = vec3(1.30, 1.10, 0.85) * dif * sh
+           + vec3(0.5, 0.5, 0.55) * (0.4 + 0.6 * clamp(n.y, 0.0, 1.0));
+  vec3 col = alb * lin;
+  float fog = 1.0 - exp(-t * t * 0.0012);
+  return mix(col, skyCol, fog);
+}
+
+/* ==================== 球面 S³ 后端 ====================
+   S³ = R⁴ 中单位球面。{4,3,3} 超立方体蜂巢：8 个立方体胞腔，
+   胞腔中心 (±1,0,0,0) 循环，墙面为 |x_i|=|x_j|（前两大绝对值相等）。
+   DE = asin((a1-a2)/√2)，精确测地线推进 p'=c·p+s·v, v'=-s·p+c·v */
+vec3 renderSphere(vec2 uv) {
+  vec3 bg = skyGradient(uv, vec3(0.05, 0.09, 0.19), vec3(0.008, 0.016, 0.035));
+  vec4 p0 = uCamera[3];
+  vec4 e1 = uCamera[0], e2 = uCamera[1], e3 = uCamera[2];
+  vec4 rd = normalize(e3 + uv.x * e1 + uv.y * e2);
+
+  vec4 pp = p0, vv = rd;
+  float t = 0.0;
+  bool hit = false;
+  int steps = 0;
+  for (int i = 0; i < uMaxSteps; i++) {
+    steps = i;
+    vec4 a = abs(pp);
+    float tmp;
+    if (a.x < a.y) { tmp = a.x; a.x = a.y; a.y = tmp; }
+    if (a.z < a.w) { tmp = a.z; a.z = a.w; a.w = tmp; }
+    if (a.x < a.z) { tmp = a.x; a.x = a.z; a.z = tmp; }
+    if (a.y < a.w) { tmp = a.y; a.y = a.w; a.w = tmp; }
+    if (a.y < a.z) { tmp = a.y; a.y = a.z; a.z = tmp; }
+    float d = asin(clamp((a.x - a.y) * 0.70710678, 0.0, 1.0));
+    if (d < 0.0009 * (1.0 + t)) { hit = true; break; }
+    float sd = sin(d), cd = cos(d);
+    vec4 np = cd * pp + sd * vv;
+    vv = -sd * pp + cd * vv;
+    pp = np;
+    t += d;
+    if (t > 6.5) break;
+  }
+
+  if (uDebug == 1) return hit ? vec3(clamp(t * 0.15, 0.0, 1.0)) : vec3(1.0, 0.0, 0.0);
+  if (uDebug == 2) return vec3(float(steps) / float(uMaxSteps));
+  if (uDebug == 3) return bg;
+  if (!hit) return bg;
+
+  vec4 ap = abs(pp);
+  int i1 = 0; float m1 = -1.0;
+  for (int k = 0; k < 4; k++) if (ap[k] > m1) { m1 = ap[k]; i1 = k; }
+  int i2 = 0; float m2 = -1.0;
+  for (int k = 0; k < 4; k++) if (k != i1 && ap[k] > m2) { m2 = ap[k]; i2 = k; }
+  float m3 = -1.0;
+  for (int k = 0; k < 4; k++) if (k != i1 && k != i2 && ap[k] > m3) m3 = ap[k];
+
+  vec4 n = vec4(0.0);
+  n[i1] = sign(pp[i1]);
+  n[i2] = -sign(pp[i2]);
+  n = normalize(n);
+  if (dot(n, vv) > 0.0) n = -n;
+
+  vec4 W = normalize(vec4(-0.45, 0.35, 0.55, 0.62));
+  vec4 L = normalize(W - dot(W, pp) * pp);
+  float dif = max(dot(n, L), 0.0);
+
+  int cell = i1 * 2 + (pp[i1] < 0.0 ? 1 : 0);
+  vec3 PAL[8] = vec3[8](
+    vec3(1.0, 0.90, 0.80), vec3(0.95, 0.90, 1.00), vec3(0.80, 1.00, 0.90), vec3(1.00, 0.85, 0.85),
+    vec3(0.85, 1.00, 0.85), vec3(0.90, 0.95, 1.00), vec3(1.00, 0.95, 0.85), vec3(0.95, 0.85, 1.00));
+  vec3 alb = mix(vec3(0.78, 0.80, 0.85), PAL[cell], 0.72);
+  vec3 col = alb * (vec3(0.90, 0.85, 0.75) * dif + vec3(0.35, 0.36, 0.42));
+
+  float edgeDist = asin(clamp((m2 - m3) * 0.70710678, 0.0, 1.0));
+  col *= 1.0 - 0.6 * (1.0 - smoothstep(0.015, 0.06, edgeDist));
+
+  float fog = 1.0 - exp(-t * t * 0.15);
+  return mix(col, bg, fog);
+}
+
+/* ==================== 双曲 H³ 后端 ====================
+   双曲面模型：⟨x,x⟩_η = x₁²+x₂²+x₃²−x₄² = −1, x₄>0。
+   {5,3,4} 正十二面体蜂巢：Coxeter 正交单形基本域由 4 面镜面 uN[0..3] 围成
+   （法向量指向域内，满足 Coxeter Gram 矩阵）。域 D = {x : ⟨x,uN[j]⟩ ≥ 0 ∀j}。
+   折叠：若 ⟨pp,uN[j]⟩ < 0 则对 pp/vv/ww 作镜面反射 x ← x − 2⟨x,n⟩n，直至入 D。
+   墙面 = uN[3] 平面（胞腔的面），DE = asinh(⟨pp,uN[3]⟩)（保守）。
+   测地线精确推进 p'=cosh·p+sinh·v, v'=sinh·p+cosh·v。 */
+float etaDot(vec4 a, vec4 b) { return dot(a.xyz, b.xyz) - a.w * b.w; }
+
+/* 由胞腔中心（4D 点）得到的房间颜色。先把中心量化到离散格点再哈希：
+   胞腔中心本身是离散点集，量化可抹去折叠追踪带来的 ~1e-5 浮点噪声，
+   使“折叠渲染 ≡ 未折叠渲染”严格一致；量化后的整数差异给出互异的颜色。 */
+vec3 cellColor(vec4 c) {
+  vec4 q = floor(c * 8.0 + 0.5);
+  float h1 = fract(sin(dot(q, vec4(127.1, 311.7, 74.7, 91.3))) * 43758.5453);
+  float h2 = fract(sin(dot(q, vec4(269.5, 183.3, 246.1, 113.5))) * 43758.5453);
+  float h3 = fract(sin(dot(q, vec4(113.5, 271.9, 124.6, 96.7))) * 43758.5453);
+  return 0.32 + 0.62 * vec3(h1, h2, h3);
+}
+
+vec3 renderHyper(vec2 uv) {
+  vec3 bg = skyGradient(uv, vec3(0.06, 0.08, 0.16), vec3(0.012, 0.017, 0.038));
+  vec4 p0 = uCamera[3];
+  vec4 e1 = uCamera[0], e2 = uCamera[1], e3 = uCamera[2];
+  vec4 r = e3 + uv.x * e1 + uv.y * e2;
+  vec4 rd = r * inversesqrt(etaDot(r, r));
+
+  vec4 pp = p0, vv = rd;
+  vec4 ww = uLight;                         // 光源位置（与相机一同折叠后的坐标）
+  /* 追踪逆群元：cellC = h⁻¹(O) 即命中胞腔中心；uu[q] = h⁻¹(n_q)。
+     初值由 CPU 给出（相机折叠元素 h 的逆），使重锚定后颜色仍对应真实胞腔 */
+  vec4 cellC = uCell0;
+  vec4 uu[4];
+  uu[0] = uU0[0]; uu[1] = uU0[1]; uu[2] = uU0[2]; uu[3] = uU0[3];
+  float t = 0.0;
+  bool hit = false;
+  int steps = 0;
+  for (int i = 0; i < uMaxSteps; i++) {
+    steps = i;
+    /* 折叠进基本域：仅由 pp 的违反驱动，pp/vv/ww 用各自的内积反射 */
+    for (int k = 0; k < 8; k++) {
+      bool folded = false;
+      for (int j = 0; j < 4; j++) {
+        vec4 n = uN[j];
+        float s = etaDot(pp, n);
+        if (s < 0.0) {
+          pp -= 2.0 * s * n;
+          vv -= 2.0 * etaDot(vv, n) * n;
+          ww -= 2.0 * etaDot(ww, n) * n;
+          vec4 uj = uu[j];
+          for (int q = 0; q < 4; q++) uu[q] -= 2.0 * etaDot(uN[q], uN[j]) * uj;
+          cellC -= 2.0 * uOH[j] * uj;
+          folded = true;
+        }
+      }
+      if (!folded) break;
+    }
+    float d = asinh(max(etaDot(pp, uN[3]), 0.0));
+    if (d < 0.0009 * (1.0 + t)) { hit = true; break; }
+    float sd = sinh(d), cd = cosh(d);
+    vec4 np = cd * pp + sd * vv;
+    vv = sd * pp + cd * vv;
+    pp = np;
+    t += d;
+    if (t > 8.0) break;
+  }
+
+  if (uDebug == 1) return hit ? vec3(clamp(t * 0.15, 0.0, 1.0)) : vec3(1.0, 0.0, 0.0);
+  if (uDebug == 2) return vec3(float(steps) / float(uMaxSteps));
+  if (uDebug == 3) return bg;
+  if (uDebug == 4) return hit ? cellColor(cellC) : bg;
+  if (!hit) return bg;
+
+  vec4 n = uN[3];
+  if (etaDot(n, vv) > 0.0) n = -n;
+  vec4 L = ww + etaDot(ww, pp) * pp;        // 光向在 pp 切空间内的投影
+  L *= inversesqrt(etaDot(L, L));
+  float dif = max(etaDot(n, L), 0.0);
+
+  vec3 alb = mix(vec3(0.80, 0.79, 0.76), cellColor(cellC), 0.86);
+  vec3 col = alb * (vec3(0.90, 0.85, 0.75) * dif + vec3(0.35, 0.36, 0.42));
+
+  /* 十二面体棱线：n3 平面 ∩ 墙面 = 五边形棱 E–V（n1/n2 过面心，不可用） */
+  float edgeDist = asinh(max(etaDot(pp, uN[2]), 0.0));
+  col *= 1.0 - 0.6 * (1.0 - smoothstep(0.015, 0.06, edgeDist));
+
+  float fog = 1.0 - exp(-t * t * 0.08);
+  return mix(col, bg, fog);
+}
+
+/* ==================== 直角房间 {4,5} 后端 ====================
+   双曲平面 H²（x3=0）上铺 {4,5} 正方形镶嵌：每角 90°、每顶点 5 个房间。
+   三镜面 uR[0..2] = (M_V, M_E, M_F)（均含竖直 x3 方向，故墙竖直）折叠进基本三角形。
+   房间为封闭：地面 x3=0、天花板高 uRoomH、墙厚 uWallT（M_F 平面内侧），
+   每面墙中央（棱中点 E = M_V∩M_F）开门洞（半宽 uDoor），门洞有厚度（可见门套）。
+   墙/门套 SDF：(a,b)=(到墙测地坐标, 沿墙坐标)，墙 = {a≤uWallT, b≥uDoor}。 */
+vec3 renderRooms(vec2 uv) {
+  vec3 bg = skyGradient(uv, vec3(0.06, 0.08, 0.16), vec3(0.012, 0.017, 0.038));
+  vec4 p0 = uCamera[3];
+  vec4 e1 = uCamera[0], e2 = uCamera[1], e3 = uCamera[2];
+  vec4 r = e3 + uv.x * e1 + uv.y * e2;
+  vec4 rd = r * inversesqrt(etaDot(r, r));
+
+  vec4 pp = p0, vv = rd;
+  vec4 cellC = vec4(0.0, 0.0, 0.0, 1.0);   // h⁻¹(F)：房间中心 → 房间颜色
+  vec4 uu[3];
+  uu[0] = uR[0]; uu[1] = uR[1]; uu[2] = uR[2];
+  float t = 0.0;
+  bool hit = false;
+  float hitType = 0.0;      // 0=地面 1=天花板 2=墙/门套
+  int steps = 0;
+  for (int i = 0; i < uMaxSteps; i++) {
+    steps = i;
+    for (int k = 0; k < 8; k++) {
+      bool folded = false;
+      for (int j = 0; j < 3; j++) {
+        vec4 n = uR[j];
+        float s = etaDot(pp, n);
+        if (s < 0.0) {
+          pp -= 2.0 * s * n;
+          vv -= 2.0 * etaDot(vv, n) * n;
+          vec4 uj = uu[j];
+          for (int q = 0; q < 3; q++) uu[q] -= 2.0 * etaDot(uR[q], uR[j]) * uj;
+          cellC -= 2.0 * uOR[j] * uj;
+          folded = true;
+        }
+      }
+      if (!folded) break;
+    }
+    float dFloor = asinh(pp.z);
+    float dCeil = uRoomH - dFloor;
+    float a = max(asinh(etaDot(pp, uR[2])), 0.0);   // 距墙平面（域内 ≥0）
+    float b = asinh(max(etaDot(pp, uR[0]), 0.0));   // 沿墙坐标（E 处 0）
+    /* 墙板（沿 a 厚度 uWallT）减去门洞（b<uDoor 且低于门楣 doorTop）：
+       dWall = max(slab, -hole)，门洞内 -hole>0 故可穿过 */
+    float slab = abs(a - 0.5 * uWallT) - 0.5 * uWallT;
+    float hole = max(b - uDoor, dFloor - 0.72 * uRoomH);
+    float dWall = max(slab, -hole);
+    /* 门槛：门洞底部抬高的方块（藏在墙厚内），使跨门时自然上/下台阶 */
+    float dSill = length(vec3(max(a - uWallT, 0.0), max(b - uDoor, 0.0),
+                              max(dFloor - uSill, 0.0)));
+    float d = min(min(dFloor, dCeil), min(dWall, dSill));
+    if (d < 0.0009 * (1.0 + t)) {
+      hit = true;
+      if (d == dCeil) hitType = 1.0;
+      else if (d == dWall) hitType = 2.0;
+      else if (d == dSill) hitType = 3.0;
+      else hitType = 0.0;
+      break;
+    }
+    float sd = sinh(d), cd = cosh(d);
+    vec4 np = cd * pp + sd * vv;
+    vv = sd * pp + cd * vv;
+    pp = np;
+    t += d;
+    if (t > 12.0) break;
+  }
+
+  if (uDebug == 1) return hit ? vec3(clamp(t * 0.12, 0.0, 1.0)) : vec3(1.0, 0.0, 0.0);
+  if (uDebug == 2) return vec3(float(steps) / float(uMaxSteps));
+  if (uDebug == 3) return bg;
+  if (uDebug == 4) return hit ? cellColor(cellC) : bg;
+  if (!hit) return bg;
+
+  vec3 room = cellColor(cellC);
+  float hz = asinh(pp.z);                                        // 高度
+  float ceilGap = uRoomH - hz;                                   // 距天花板
+  float a2 = max(asinh(etaDot(pp, uR[2])), 0.0);                 // 距墙平面
+  float b2 = asinh(max(etaDot(pp, uR[0]), 0.0));                 // 沿墙坐标
+  float wallGap = a2 - uWallT;                                   // 距墙面
+  float doorTop = 0.72 * uRoomH;                                 // 门楣高度
+  vec3 col;
+  if (hitType < 0.5) {                                           // 地面：近墙/门套变暗（墙角遮蔽）
+    col = room * (0.55 + 0.40 * smoothstep(0.0, 0.30, wallGap));
+  } else if (hitType < 1.5) {                                    // 天花板：中心发光灯盘
+    float dc = length(vec2(a2 - 0.53063, b2));                   // F（房间中心）处
+    float lamp = 1.0 - smoothstep(0.05, 0.20, dc);
+    float ao = 0.70 + 0.30 * smoothstep(0.0, 0.30, wallGap);
+    col = mix(room * 0.42 * ao, vec3(1.0, 0.96, 0.86) * 1.15, lamp);
+  } else if (hitType < 2.5) {                                     // 墙 / 门套 / 踢脚线
+    float ao = (0.40 + 0.60 * smoothstep(0.0, 0.22, hz)) *
+               (0.40 + 0.60 * smoothstep(0.0, 0.22, ceilGap));
+    col = room * (0.30 + 0.50 * ao);
+    col *= 1.0 - 0.30 * (1.0 - smoothstep(0.0, 0.10, hz));       // 踢脚线：近地一圈略暗
+    float frame = max(smoothstep(0.13, 0.03, abs(b2 - uDoor)),    // 门套：沿洞口边缘略亮
+                      smoothstep(0.13, 0.03, abs(hz - doorTop)));
+    col = mix(col, room * 0.85, frame);
+  } else {                                                        // 门槛（略深、近地板色）
+    col = room * (0.50 + 0.25 * smoothstep(uSill, uSill + 0.15, hz));
+  }
+  float fog = 1.0 - exp(-t * t * 0.05);
+  return mix(col, bg, fog);
+}
+
+void main() {
+  vec2 uv = ((gl_FragCoord.xy + uJitter) * 2.0 - uRes) / uRes.y;
+  vec3 col = (uSpace == 0) ? renderEuclid(uv)
+           : (uSpace == 1) ? renderSphere(uv)
+           : (uSpace == 2) ? renderHyper(uv) : renderRooms(uv);
+  fragColor = vec4(uDebug == 0 ? pow(max(col, 0.0), vec3(0.4545)) : col, 1.0);
+}`;
+
+/* 合成着色器：把当前抖动采样与历史累积按 1/(n+1) 做滑动平均 */
+const COMBINE_SRC = `#version 300 es
+precision highp float;
+uniform sampler2D uPrev;
+uniform sampler2D uScene;
+uniform float uAlpha;
+out vec4 fragColor;
+void main() {
+  vec2 uv = gl_FragCoord.xy / vec2(textureSize(uPrev, 0));
+  vec4 prev = texture(uPrev, uv);
+  vec4 cur = texture(uScene, uv);
+  fragColor = mix(prev, cur, uAlpha);
+}`;
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, VERT_SRC, "顶点着色器"));
+gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, FRAG_SRC, "片段着色器"));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  fatal("着色器链接失败：\n" + gl.getProgramInfoLog(prog));
+}
+gl.useProgram(prog);
+
+const U = {
+  camera: gl.getUniformLocation(prog, "uCamera"),
+  space: gl.getUniformLocation(prog, "uSpace"),
+  res: gl.getUniformLocation(prog, "uRes"),
+  time: gl.getUniformLocation(prog, "uTime"),
+  debug: gl.getUniformLocation(prog, "uDebug"),
+  normals: gl.getUniformLocation(prog, "uN[0]"),
+  light: gl.getUniformLocation(prog, "uLight"),
+  rooms: gl.getUniformLocation(prog, "uR[0]"),
+  door: gl.getUniformLocation(prog, "uDoor"),
+  roomH: gl.getUniformLocation(prog, "uRoomH"),
+  wallT: gl.getUniformLocation(prog, "uWallT"),
+  sill: gl.getUniformLocation(prog, "uSill"),
+  oh: gl.getUniformLocation(prog, "uOH"),
+  or: gl.getUniformLocation(prog, "uOR"),
+  cell0: gl.getUniformLocation(prog, "uCell0"),
+  u0: gl.getUniformLocation(prog, "uU0[0]"),
+  jitter: gl.getUniformLocation(prog, "uJitter"),
+  maxSteps: gl.getUniformLocation(prog, "uMaxSteps"),
+};
+
+/* ---------------- 时间超采样抗锯齿 ----------------
+   相机静止时，逐帧用低差异序列做亚像素抖动并累积平均（滑动平均权重 1/(n+1)），
+   收敛到抗锯齿图像；相机一旦移动即重置。?noaa 可关闭以便对比/排查。 */
+const accumEnabled = !new URLSearchParams(location.search).has("noaa");
+/* 性能分级：分辨率 + 最大步进数 + 抗锯齿开关（键 1-4 选择） */
+const TIERS = [
+  { name: "性能", scale: 0.4, steps: 48, aa: false },
+  { name: "均衡", scale: 0.5, steps: 64, aa: true },
+  { name: "高", scale: 0.75, steps: 96, aa: true },
+  { name: "极致", scale: 1.0, steps: 128, aa: true },
+];
+let tier = 1;
+let maxSteps = TIERS[tier].steps;
+let aaOn = accumEnabled && TIERS[tier].aa;
+function applyTier(i) {
+  tier = i;
+  renderScale = TIERS[i].scale;
+  autoRes = false;
+  maxSteps = TIERS[i].steps;
+  aaOn = accumEnabled && TIERS[i].aa;
+  resize();
+  showToast("画质：" + TIERS[i].name + "（" + Math.round(TIERS[i].scale * 100) +
+            "% · " + TIERS[i].steps + "步 · AA" + (TIERS[i].aa ? "开" : "关") + "）");
+}
+const progC = gl.createProgram();
+gl.attachShader(progC, compileShader(gl.VERTEX_SHADER, VERT_SRC, "合成顶点着色器"));
+gl.attachShader(progC, compileShader(gl.FRAGMENT_SHADER, COMBINE_SRC, "合成片段着色器"));
+gl.linkProgram(progC);
+if (!gl.getProgramParameter(progC, gl.LINK_STATUS)) {
+  fatal("合成着色器链接失败：\n" + gl.getProgramInfoLog(progC));
+}
+const UC = {
+  prev: gl.getUniformLocation(progC, "uPrev"),
+  scene: gl.getUniformLocation(progC, "uScene"),
+  alpha: gl.getUniformLocation(progC, "uAlpha"),
+};
+let sceneTex = null, sceneFBO = null;
+const accumTex = [null, null], accumFBO = [null, null];
+let accumN = 0, accumCur = 0;
+function makeTarget() {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, canvas.width, canvas.height, 0,
+                gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return [tex, fbo];
+}
+function sizeTargets() {
+  if (sceneTex) { gl.deleteTexture(sceneTex); gl.deleteFramebuffer(sceneFBO); }
+  for (let i = 0; i < 2; i++) {
+    if (accumTex[i]) { gl.deleteTexture(accumTex[i]); gl.deleteFramebuffer(accumFBO[i]); }
+  }
+  [sceneTex, sceneFBO] = makeTarget();
+  [accumTex[0], accumFBO[0]] = makeTarget();
+  [accumTex[1], accumFBO[1]] = makeTarget();
+}
+function resetAccum() { accumN = 0; }
+function halton(i, b) { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = (i / b) | 0; } return r; }
+
+/* ---------------- H³ 基本域法向量构造 ----------------
+   直接构造 Coxeter 正交单形 {p,q,r} 的 4 面镜面法向量（指向域内）：
+   链 n1—π/p—n2—π/q—n3—π/r—n4，其余夹角 π/2。
+   n1,n2,n3 过胞腔中心 O；n4 为墙面（含面心 F、棱中点 E、顶点 V）。
+   得到 D = {x : ⟨x,n_i⟩ ≥ 0}，顶点 O=n1n2n3, F=n1n2n4, E=n1n3n4, V=n2n3n4。 */
+function buildOrthoschemeNormals(p, q, r) {
+  const cp = Math.cos(Math.PI / p), sp = Math.sin(Math.PI / p);
+  const cq = Math.cos(Math.PI / q), cr = Math.cos(Math.PI / r);
+  const n1 = [1, 0, 0, 0];
+  const n2 = [-cp, sp, 0, 0];
+  const y3 = -cq / sp;
+  const n3 = [0, y3, Math.sqrt(1 - y3 * y3), 0];
+  const e4 = [-0, -0, -1];   /* -normalize(n1×n2) = (0,0,-1) */
+  const coshRho = -cr / (n3[2] * e4[2]);
+  const n4 = [0, 0, coshRho * e4[2], -Math.sqrt(coshRho * coshRho - 1)];
+  return [n1, n2, n3, n4];
+}
+const HYPER_NORMALS = buildOrthoschemeNormals(5, 3, 4);
+{
+  const flat = new Float32Array(16);
+  for (let j = 0; j < 4; j++) flat.set(HYPER_NORMALS[j], 4 * j);
+  gl.uniform4fv(U.normals, flat);
+}
+
+/* ---------------- 直角房间 {4,5} 基本域镜面 ----------------
+   双曲平面 H²（x3=0）上的三角形基域：顶点 F(面心,π/4)、E(棱中点,π/2)、V(顶点,π/5)。
+   镜面 M_V(过 F,E)、M_E(过 F,V)、M_F(过 E,V = 墙)。D = {⟨x,M_i⟩ ≥ 0}。 */
+const ROOM_DOOR_G = 0.09;                 // 门洞半宽（测地）
+const ROOM_WALL_T = 0.12;                 // 墙厚（测地）
+const ROOM_SILL_D = 0.12;                 // 门槛高度（测地）
+const ROOM_CEIL_Z = 1.2;                  // 天花板 z 坐标
+const ROOM_DOOR = Math.sinh(ROOM_DOOR_G); // 门洞 wv 阈值（供自检）
+function buildRoomNormals() {
+  const c4 = Math.SQRT1_2, c5 = Math.cos(Math.PI / 5);
+  const mV = [1, 0, 0, 0];
+  const mE = [-c4, c4, 0, 0];
+  const b = -c5 / c4;
+  const mF = [0, b, 0, -Math.sqrt(b * b - 1)];
+  return [mV, mE, mF];
+}
+const ROOM_NORMALS = buildRoomNormals();
+{
+  const flat = new Float32Array(12);
+  for (let j = 0; j < 3; j++) flat.set(ROOM_NORMALS[j], 4 * j);
+  gl.uniform4fv(U.rooms, flat);
+  gl.uniform1f(U.door, ROOM_DOOR_G);
+  gl.uniform1f(U.roomH, Math.asinh(ROOM_CEIL_Z));
+  gl.uniform1f(U.wallT, ROOM_WALL_T);
+  gl.uniform1f(U.sill, ROOM_SILL_D);
+  /* 胞腔中心追踪用：⟨O,n_j⟩ 与 ⟨F,M_j⟩（仅墙镜面非零） */
+  gl.uniform4f(U.oh, 0, 0, 0, 0.899437);
+  gl.uniform4f(U.or, 0, 0, 0.555893, 0);
+}
+
+/* ---------------- 相机状态 ----------------
+   4×4 列主序 Float64Array：[0..3]=e1, [4..7]=e2, [8..11]=e3, [12..15]=p
+   欧氏模式用 xyz 分量；非欧模式为 4D 切框架（Phase 2/3 启用） */
+const cam = new Float64Array(16);
+/* 各空间初始位姿：S³ 从胞腔中心 (0,0,0,1) 朝 +x1 墙面看 */
+const CAM_INIT = {
+  [SPACE.EUCLID]: [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, -1, 0,  0, 0, 0, 1],
+  [SPACE.SPHERE]: [0, 1, 0, 0,  0, 0, 1, 0,  1, 0, 0, 0,  0, 0, 0, 1],
+  [SPACE.HYPER]:  [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1],
+  /* {4,5}：位于面心上方 h=0.55，e2 为竖直切向，e3 斜朝墙角（避开棱中点门洞） */
+  [SPACE.ROOMS]:  [-0.707107, 0.707107, 0, 0,
+                    0, 0, 1.155102, 0.578152,
+                    0.707107, 0.707107, 0, 0,
+                    0, 0, 0.578152, 1.155102],
+};
+function camReset() {
+  cam.set(CAM_INIT[spaceMode] || CAM_INIT[SPACE.EUCLID]);
+}
+camReset();
+
+/* S³ 框架重正交（欧氏度量的 Gram-Schmidt，列3=p 先行） */
+function orthonormalizeS3() {
+  const sub = (j, k) => {
+    let d = 0;
+    for (let i = 0; i < 4; i++) d += cam[4 * j + i] * cam[4 * k + i];
+    for (let i = 0; i < 4; i++) cam[4 * j + i] -= d * cam[4 * k + i];
+  };
+  const norm = (j) => {
+    let s = 0;
+    for (let i = 0; i < 4; i++) s += cam[4 * j + i] * cam[4 * j + i];
+    s = Math.sqrt(s);
+    if (s > 0) for (let i = 0; i < 4; i++) cam[4 * j + i] /= s;
+  };
+  norm(3);
+  for (let j = 0; j < 3; j++) {
+    sub(j, 3);
+    for (let k = 0; k < j; k++) sub(j, k);
+    norm(j);
+  }
+}
+
+/* 是否使用 Minkowski η 度量（双曲类空间：H³ 与直角房间） */
+function useEta() { return spaceMode === SPACE.HYPER || spaceMode === SPACE.ROOMS; }
+
+/* 度量内积：S³ 为 R⁴ 欧氏内积；H³/直角房间为 Minkowski η 内积 */
+function metricDot(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] +
+    (useEta() ? -a[3] * b[3] : a[3] * b[3]);
+}
+
+/* 沿切向量 vIn 测地推进 dist，框架（列0..2）与可选附加切向量 extra 平行输运。
+   球面：p'=cos·p+sin·v, X'=X+⟨X,v⟩((cos−1)v − sin·p)
+   双曲：p'=cosh·p+sinh·v, X'=X+⟨X,v⟩(sinh·p + (cosh−1)v) */
+function advanceGeodesicVec(vIn, dist, extra) {
+  if (spaceMode === SPACE.EUCLID) {
+    const n = Math.hypot(vIn[0], vIn[1], vIn[2]);
+    if (n < 1e-12) return;
+    for (let i = 0; i < 3; i++) cam[12 + i] += dist * vIn[i] / n;
+    return;
+  }
+  const h = useEta();
+  const v = [vIn[0], vIn[1], vIn[2], vIn[3]];
+  const vn = Math.sqrt(Math.abs(metricDot(v, v)));
+  if (vn < 1e-12) return;
+  for (let i = 0; i < 4; i++) v[i] /= vn;
+  const p0 = [cam[12], cam[13], cam[14], cam[15]];
+  const cd = h ? Math.cosh(dist) : Math.cos(dist);
+  const sd = h ? Math.sinh(dist) : Math.sin(dist);
+  const tr = (i) => h ? (sd * p0[i] + (cd - 1) * v[i]) : ((cd - 1) * v[i] - sd * p0[i]);
+  for (let j = 0; j < 3; j++) {
+    let c = 0;
+    for (let i = 0; i < 4; i++) c += cam[4 * j + i] * v[i] * (h && i === 3 ? -1 : 1);
+    for (let i = 0; i < 4; i++) cam[4 * j + i] += c * tr(i);
+  }
+  for (let i = 0; i < 4; i++) cam[12 + i] = cd * p0[i] + sd * v[i];
+  if (extra) {
+    let c = 0;
+    for (let i = 0; i < 4; i++) c += extra[i] * v[i] * (h && i === 3 ? -1 : 1);
+    for (let i = 0; i < 4; i++) extra[i] += c * tr(i);
+  }
+  if (h) orthonormalizeH3(); else orthonormalizeS3();
+}
+
+/* H³ 框架重正交（η 度量的 Gram-Schmidt：p 为类时 ⟨p,p⟩=−1，e_i 类空 ⟨e,e⟩=1） */
+function orthonormalizeH3() {
+  const ed = (j, k) =>
+    cam[4 * j] * cam[4 * k] + cam[4 * j + 1] * cam[4 * k + 1] +
+    cam[4 * j + 2] * cam[4 * k + 2] - cam[4 * j + 3] * cam[4 * k + 3];
+  let s = Math.sqrt(-ed(3, 3));
+  if (s > 1e-12) for (let i = 0; i < 4; i++) cam[12 + i] /= s;
+  for (let j = 0; j < 3; j++) {
+    let d = ed(j, 3);                       /* ⟨p,p⟩=−1 → e += d·p */
+    for (let i = 0; i < 4; i++) cam[4 * j + i] += d * cam[12 + i];
+    for (let k = 0; k < j; k++) {
+      d = ed(j, k);                         /* 类空 → e -= d·e_k */
+      for (let i = 0; i < 4; i++) cam[4 * j + i] -= d * cam[4 * k + i];
+    }
+    s = Math.sqrt(ed(j, j));
+    if (s > 1e-12) for (let i = 0; i < 4; i++) cam[4 * j + i] /= s;
+  }
+}
+
+/* 在列 j、k 张成的平面内旋转（对欧氏/球面/双曲通用：
+   非欧模式下这是固定 p 的椭圆等距，作用于切框架仍保正交）
+   列j ← cos·j − sin·k；列k ← cos·k + sin·j */
+function rotateCols(j, k, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  for (let i = 0; i < 4; i++) {
+    const a = cam[4 * j + i], b = cam[4 * k + i];
+    cam[4 * j + i] = c * a - s * b;
+    cam[4 * k + i] = c * b + s * a;
+  }
+}
+
+/* 沿 (f·e3 + s·e1 + u·e2) 方向推进 dist */
+function advanceCamera(f, s, u, dist) {
+  const v = [0, 0, 0, 0];
+  for (let i = 0; i < 4; i++)
+    v[i] = f * cam[8 + i] + s * cam[i] + u * cam[4 + i];
+  advanceGeodesicVec(v, dist);
+}
+
+/* ---------------- 步行模式（重力约束） ----------------
+   在空间中沿“地面”（最近蜂巢墙面）行走：眼高保持 walkH，
+   移动方向为视线在水平面（⊥ walkUp）内的投影。walkUp 随移动平行输运，
+   与视角解耦（俯仰不影响重力方向）。 */
+let walkMode = false;
+const walkUp = new Float64Array(4);
+const walkH = 0.45;
+/* 折叠单点进 H³ 基本域（不触碰光源） */
+function foldPoint4(src, dst) {
+  for (let i = 0; i < 4; i++) dst[i] = src[i];
+  for (let iter = 0; iter < 64; iter++) {
+    let folded = false;
+    for (let j = 0; j < 4; j++) {
+      const n = HYPER_NORMALS[j];
+      const s = dst[0] * n[0] + dst[1] * n[1] + dst[2] * n[2] - dst[3] * n[3];
+      if (s < 0) { folded = true; for (let i = 0; i < 4; i++) dst[i] -= 2 * s * n[i]; }
+    }
+    if (!folded) break;
+  }
+}
+
+/* 任意点到最近蜂巢墙面/地面的（保守）距离 */
+function deAt(p) {
+  if (spaceMode === SPACE.EUCLID) return p[1] + 1.0;
+  if (spaceMode === SPACE.ROOMS) return Math.asinh(Math.abs(p[2]));  // 到地面 x3=0
+  if (spaceMode === SPACE.SPHERE) {
+    const a = [Math.abs(p[0]), Math.abs(p[1]), Math.abs(p[2]), Math.abs(p[3])]
+      .sort((x, y) => y - x);
+    return Math.asin(Math.min(1, (a[0] - a[1]) * 0.70710678));
+  }
+  const f = [0, 0, 0, 0];
+  foldPoint4(p, f);
+  const n = HYPER_NORMALS[3];
+  return Math.asinh(Math.max(f[0] * n[0] + f[1] * n[1] + f[2] * n[2] - f[3] * n[3], 0));
+}
+
+/* 从点 p 沿单位切向量 v 测地推进 dist（点移动，不涉及框架） */
+function stepPoint(p, v, dist) {
+  if (spaceMode === SPACE.EUCLID) {
+    return [p[0] + dist * v[0], p[1] + dist * v[1], p[2] + dist * v[2], p[3]];
+  }
+  const h = useEta();
+  const c = h ? Math.cosh(dist) : Math.cos(dist), s = h ? Math.sinh(dist) : Math.sin(dist);
+  return [c * p[0] + s * v[0], c * p[1] + s * v[1],
+          c * p[2] + s * v[2], c * p[3] + s * v[3]];
+}
+
+/* 脚下地面高度：直角房间地面为平面，直接取到 x3=0 的垂直距离；
+   曲面的蜂巢沿 -walkUp 球面追踪到首个墙面（逐步平行输运方向） */
+function heightAlongUp() {
+  if (spaceMode === SPACE.ROOMS) {
+    const h = Math.asinh(Math.abs(cam[14]));
+    /* 位于门洞门槛上方时地面抬高了 ROOM_SILL_D */
+    return roomOverSill([cam[12], cam[13], cam[14], cam[15]])
+      ? Math.max(0, h - ROOM_SILL_D) : h;
+  }
+  let p = [cam[12], cam[13], cam[14], cam[15]];
+  let v = [-walkUp[0], -walkUp[1], -walkUp[2], -walkUp[3]];
+  const h = useEta();
+  let t = 0;
+  for (let i = 0; i < 80; i++) {
+    const d = deAt(p);
+    if (d < 0.001) break;
+    const st = Math.min(d, 0.5);
+    const p0 = p.slice();
+    const c = h ? Math.cosh(st) : Math.cos(st), s = h ? Math.sinh(st) : Math.sin(st);
+    p = [c * p0[0] + s * v[0], c * p0[1] + s * v[1], c * p0[2] + s * v[2], c * p0[3] + s * v[3]];
+    /* 平行输运测地切向：v' = c·v ± s·p0（保持单位速度，供下一步使用） */
+    const sg = h ? 1 : -1;
+    v = [c * v[0] + sg * s * p0[0], c * v[1] + sg * s * p0[1],
+         c * v[2] + sg * s * p0[2], c * v[3] + sg * s * p0[3]];
+    t += st;
+    if (t > 3) break;
+  }
+  return t;
+}
+
+/* 重力步：把相机拉回脚下墙面之上眼高 walkH 处 */
+function gravityStep() {
+  const signed = walkH - heightAlongUp();
+  if (Math.abs(signed) < 1e-6) return;
+  advanceGeodesicVec(walkUp, Math.max(-1.5, Math.min(1.5, signed)), walkUp);
+}
+
+/* ROOMS：把点折叠进基本域后判断是否位于墙体内部（门洞除外）。
+   防止步行穿墙/穿模；门洞处（沿墙坐标 b<门宽、高度低于门楣）放行。 */
+function roomBlocked(pos) {
+  let [x0, x1, x2, x3] = pos;
+  for (let iter = 0; iter < 64; iter++) {
+    let folded = false;
+    for (let j = 0; j < 3; j++) {
+      const n = ROOM_NORMALS[j];
+      const sc = x0 * n[0] + x1 * n[1] + x2 * n[2] - x3 * n[3];
+      if (sc < 0) {
+        folded = true;
+        x0 -= 2 * sc * n[0]; x1 -= 2 * sc * n[1]; x2 -= 2 * sc * n[2]; x3 -= 2 * sc * n[3];
+      }
+    }
+    if (!folded) break;
+  }
+  const eta = (n) => Math.asinh(Math.max(x0 * n[0] + x1 * n[1] + x2 * n[2] - x3 * n[3], 0));
+  const a = eta(ROOM_NORMALS[2]);                 // 距墙平面
+  const b = eta(ROOM_NORMALS[0]);                 // 沿墙坐标
+  const hz = Math.asinh(x2);                      // 高度
+  const inDoor = b < ROOM_DOOR_G && hz < 0.72 * Math.asinh(ROOM_CEIL_Z);
+  return a < ROOM_WALL_T + 0.05 && !inDoor;
+}
+
+/* ROOMS：相机是否位于门洞（墙厚内、门宽内）之上 → 地面为门槛高度 */
+function roomOverSill(pos) {
+  let [x0, x1, x2, x3] = pos;
+  for (let iter = 0; iter < 64; iter++) {
+    let folded = false;
+    for (let j = 0; j < 3; j++) {
+      const n = ROOM_NORMALS[j];
+      const sc = x0 * n[0] + x1 * n[1] + x2 * n[2] - x3 * n[3];
+      if (sc < 0) {
+        folded = true;
+        x0 -= 2 * sc * n[0]; x1 -= 2 * sc * n[1]; x2 -= 2 * sc * n[2]; x3 -= 2 * sc * n[3];
+      }
+    }
+    if (!folded) break;
+  }
+  const eta = (n) => Math.asinh(Math.max(x0 * n[0] + x1 * n[1] + x2 * n[2] - x3 * n[3], 0));
+  return eta(ROOM_NORMALS[2]) < ROOM_WALL_T + 0.02 && eta(ROOM_NORMALS[0]) < ROOM_DOOR_G;
+}
+
+/* ROOMS：硬性竖直约束——不允许穿出地板或天花板 */
+function clampRoomVertical() {
+  const zmin = 0.10, zmax = ROOM_CEIL_Z - 0.10;
+  if (cam[14] >= zmin && cam[14] <= zmax) return;
+  cam[14] = cam[14] < zmin ? zmin : zmax;
+  cam[15] = Math.sqrt(cam[12] * cam[12] + cam[13] * cam[13] + cam[14] * cam[14] + 1);
+  orthonormalizeH3();
+}
+
+/* 步行移动：WASD 沿水平面移动；ROOMS 中撞墙则回退（保留门洞可通行） */
+const walkCamSave = new Float64Array(16), walkUpSave = new Float64Array(4);
+function walkMove(f, s, dist) {
+  walkCamSave.set(cam);
+  walkUpSave.set(walkUp);
+  const U = [walkUp[0], walkUp[1], walkUp[2], walkUp[3]];
+  const proj = (a) => {
+    const d = metricDot(a, U);
+    const r = [a[0] - d * U[0], a[1] - d * U[1], a[2] - d * U[2], a[3] - d * U[3]];
+    const n = Math.sqrt(Math.abs(metricDot(r, r)));
+    return n < 1e-9 ? [0, 0, 0, 0] : r.map((x) => x / n);
+  };
+  const hf = proj([cam[8], cam[9], cam[10], cam[11]]);
+  const hr = proj([cam[0], cam[1], cam[2], cam[3]]);
+  const v = [0, 0, 0, 0];
+  for (let i = 0; i < 4; i++) v[i] = f * hf[i] + s * hr[i];
+  const pos = () => [cam[12], cam[13], cam[14], cam[15]];
+  advanceGeodesicVec(v, dist, walkUp);
+  if (spaceMode === SPACE.ROOMS && roomBlocked(pos())) {
+    /* 撞墙：尝试自动抬腿（沿 walkUp 逐级抬升后再前进），能迈过就通行；
+       迈不过（如整面墙）则回退。 */
+    let ok = false;
+    for (let lift = 0.06; lift <= 0.301; lift += 0.06) {
+      cam.set(walkCamSave);
+      walkUp.set(walkUpSave);
+      advanceGeodesicVec(walkUp, lift, walkUp);
+      advanceGeodesicVec(v, dist, walkUp);
+      if (!roomBlocked(pos())) { ok = true; break; }
+    }
+    if (!ok) { cam.set(walkCamSave); walkUp.set(walkUpSave); }
+  }
+}
+function enterWalkMode() {
+  walkMode = true;
+  const n = Math.sqrt(Math.abs(metricDot(
+    [cam[4], cam[5], cam[6], cam[7]], [cam[4], cam[5], cam[6], cam[7]])));
+  for (let i = 0; i < 4; i++) walkUp[i] = cam[4 + i] / n;
+}
+/* ?walk 启动即进入步行模式（便于演示/截图） */
+if (new URLSearchParams(location.search).has("walk")) enterWalkMode();
+
+/* ---------------- 脚步声（WebAudio 合成，无外部资源） ---------------- */
+let soundOn = !new URLSearchParams(location.search).has("nosound");
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+/* 各材质的合成参数：bp=带通中心, q=Q, osc=低频咚起止, ng/og=增益, ring=金属余响, soft=噪声衰减指数 */
+const FOOT_CFG = [
+  { bp: 850, q: 0.9, osc0: 115, osc1: 52, ng: 0.18, og: 0.16, ring: 0, dur: 0.14, decay: 3 },
+  { bp: 1750, q: 1.5, osc0: 200, osc1: 110, ng: 0.14, og: 0.10, ring: 0, dur: 0.09, decay: 3 },
+  { bp: 520, q: 0.5, osc0: 82, osc1: 40, ng: 0.11, og: 0.05, ring: 0, dur: 0.20, decay: 2 },   // 雪地：闷、柔
+  { bp: 2600, q: 3.0, osc0: 140, osc1: 75, ng: 0.10, og: 0.08, ring: 1500, dur: 0.10, decay: 3 }, // 金属：清脆带余响
+];
+/* mat: 见 footMaterial。speed: 步速 → 音调/时长（节奏随步速联动）。 */
+/* 环境音：每空间一个低频底噪（两个正弦经低通），音量很低，随 V 开关 */
+let ambientNodes = null;
+function startAmbient() {
+  const ctx = ensureAudio();
+  if (!ctx || ambientNodes) return;
+  const g = ctx.createGain(); g.gain.value = 0; g.connect(ctx.destination);
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 320; f.connect(g);
+  const o1 = ctx.createOscillator(); o1.type = "sine";
+  const o2 = ctx.createOscillator(); o2.type = "sine";
+  o1.connect(f); o2.connect(f); o1.start(); o2.start();
+  ambientNodes = { g, o1, o2 };
+  updateAmbient();
+}
+function updateAmbient() {
+  if (!ambientNodes || !audioCtx) return;
+  const base = [70, 120, 48, 60][spaceMode] || 60;   // 每空间基频
+  ambientNodes.o1.frequency.value = base;
+  ambientNodes.o2.frequency.value = base * 1.5;
+  ambientNodes.g.gain.setTargetAtTime(soundOn ? 0.025 : 0.0, audioCtx.currentTime, 1.2);
+}
+
+function playFootstep(mat, speed) {
+  if (!soundOn) return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const cfg = FOOT_CFG[mat] || FOOT_CFG[0];
+  const sp = Math.min(1.7, Math.max(0.7, (speed || 1.2) / 1.2));   // 步速因子
+  const t = ctx.currentTime, dur = cfg.dur / sp;
+  /* 带通噪声：脚步的“沙/嗒”声 */
+  const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, cfg.decay);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = (cfg.bp + Math.random() * 300) * sp;
+  bp.Q.value = cfg.q;
+  const ng = ctx.createGain(); ng.gain.value = cfg.ng;
+  src.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
+  src.start(t);
+  /* 低频“咚” */
+  const osc = ctx.createOscillator(); osc.type = "sine";
+  osc.frequency.setValueAtTime(cfg.osc0 * sp, t);
+  osc.frequency.exponentialRampToValueAtTime(cfg.osc1 * sp, t + dur);
+  const og = ctx.createGain();
+  og.gain.setValueAtTime(cfg.og, t);
+  og.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.connect(og); og.connect(ctx.destination);
+  osc.start(t); osc.stop(t + dur);
+  /* 金属余响 */
+  if (cfg.ring > 0) {
+    const ring = ctx.createOscillator(); ring.type = "triangle";
+    ring.frequency.value = cfg.ring * sp;
+    const rg = ctx.createGain();
+    rg.gain.setValueAtTime(0.05, t);
+    rg.gain.exponentialRampToValueAtTime(0.0005, t + 0.5 / sp);
+    ring.connect(rg); rg.connect(ctx.destination);
+    ring.start(t); ring.stop(t + 0.6 / sp);
+  }
+}
+/* 脚下材质：0=木质/房间 1=棱线·门槛(金属脆响) 2=雪地 3=金属。
+   基础材质按空间区分（H³ 雪地、S³ 金属、{4,5}/欧氏木地板），靠近棱线/门槛时改为 1。 */
+const FOOT_MAT_NAME = ["木质", "棱线", "雪地", "金属"];
+function footMaterial() {
+  if (spaceMode === SPACE.ROOMS) {
+    return roomOverSill([cam[12], cam[13], cam[14], cam[15]]) ? 1 : 0;
+  }
+  if (spaceMode === SPACE.HYPER) {
+    const f = [0, 0, 0, 0];
+    foldPoint4([cam[12], cam[13], cam[14], cam[15]], f);
+    const e = Math.asinh(Math.max(eta4(f, HYPER_NORMALS[2]), 0));   // 到五边形棱（n3）的距离
+    return e < 0.18 ? 1 : 2;
+  }
+  if (spaceMode === SPACE.SPHERE) {
+    const a = [Math.abs(cam[12]), Math.abs(cam[13]), Math.abs(cam[14]), Math.abs(cam[15])]
+      .sort((x, y) => y - x);
+    const e = Math.asin(Math.min(1, Math.max(0, (a[1] - a[2]) * 0.70710678)));  // 到立方体棱的距离
+    return e < 0.18 ? 1 : 3;
+  }
+  return 0;
+}
+const STEP_DIST = 0.8;          // 每步对应的测地距离（步频 = 步速 / 步距）
+const RUN_MUL = 1.8;            // Shift 跑步速度倍率
+let stepAccum = 0;
+let lastWalkSpeed = 0;
+/* 步行累计位移达到一步距离即发声；moved 为实际位移（随步速变化 → 节奏随之联动） */
+function maybeFootstep(moved, speed) {
+  if (!walkMode || !soundOn) { return; }
+  lastWalkSpeed = speed || 0;
+  stepAccum += moved;
+  if (stepAccum >= STEP_DIST) { stepAccum -= STEP_DIST; playFootstep(footMaterial(), lastWalkSpeed); }
+}
+/* 两点测地距离（用于迈步计程） */
+function geodesicDist(a, b) {
+  if (spaceMode === SPACE.EUCLID) return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const h = useEta();
+  const eta = h
+    ? a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - a[3] * b[3]
+    : a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+  /* 双曲：⟨a,b⟩_η = −cosh(d)；球面：⟨a,b⟩ = cos(d) */
+  return h ? Math.acosh(Math.min(Math.max(-eta, 1), 1e18))
+           : Math.acos(Math.min(Math.max(eta, -1), 1));
+}
+
+/* ---------------- 提示浮字 ---------------- */
+const toastEl = document.getElementById("toast");
+let toastTimer = 0;
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.style.opacity = "1";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastEl.style.opacity = "0"; }, 1200);
+}
+
+/* ---------------- 输入 ---------------- */
+let autoRes = false;
+const keys = new Set();
+addEventListener("keydown", (e) => {
+  if (e.code === "Space") e.preventDefault();
+  keys.add(e.code);
+  const tierKeys = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 };
+  if (tierKeys[e.code] !== undefined) applyTier(tierKeys[e.code]);
+  if (e.code === "Digit0") {
+    autoRes = !autoRes;
+    showToast("自动分辨率：" + (autoRes ? "开" : "关"));
+  }
+  if (e.code === "KeyM" && !e.repeat) {
+    spaceMode = (spaceMode + 1) % 4;
+    camReset();
+    trail.length = 0;
+    if (walkMode) enterWalkMode();
+    updateAmbient();
+    showToast("空间：" + SPACE_NAME[spaceMode]);
+  }
+  if (e.code === "KeyR" && !e.repeat) {
+    camReset();
+    trail.length = 0;
+    if (walkMode) enterWalkMode();
+    showToast("已重置 · " + SPACE_NAME[spaceMode]);
+  }
+  if (e.code === "KeyG" && !e.repeat) {
+    if (walkMode) walkMode = false;
+    else enterWalkMode();
+    trail.length = 0;
+    showToast(walkMode ? "步行模式（重力）" : "飞行模式");
+  }
+  if (e.code === "KeyK" && !e.repeat && spaceMode === SPACE.HYPER) {
+    hyperMapMode = hyperMapMode ? 0 : 1;
+    trail.length = 0;
+    showToast(hyperMapMode ? "克莱因圆盘（测地线为直线）" : "庞加莱圆盘（保角）");
+  }
+  if (e.code === "BracketRight") { adjustMapZoom(1.25); showToast("地图缩放：" + Math.round(mapZoom * 100) + "%"); }
+  else if (e.code === "BracketLeft") { adjustMapZoom(0.8); showToast("地图缩放：" + Math.round(mapZoom * 100) + "%"); }
+  if (e.code === "KeyL" && !e.repeat) {
+    cellLabelOn = !cellLabelOn;
+    showToast("胞腔编号：" + (cellLabelOn ? "开" : "关"));
+  }
+  if (e.code === "KeyV" && !e.repeat) {
+    soundOn = !soundOn;
+    if (soundOn) { ensureAudio(); startAmbient(); }
+    updateAmbient();
+    showToast("声音：" + (soundOn ? "开" : "关"));
+  }
+  if (e.code === "KeyP" && !e.repeat) {
+    draw(performance.now() / 1000);           // 先同步绘制，确保像素可读
+    const a = document.createElement("a");
+    a.download = "non-euclidean-" + spaceMode + "-" + Date.now() + ".png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+    showToast("已保存截图");
+  }
+});
+addEventListener("keyup", (e) => keys.delete(e.code));
+
+canvas.addEventListener("click", () => { canvas.requestPointerLock(); ensureAudio(); startAmbient(); });
+let mouseDX = 0, mouseDY = 0;
+/* 触屏输入：摇杆移动向量 (touchF 前/后, touchS 右/左) 与升降 touchU */
+let touchF = 0, touchS = 0, touchU = 0;
+addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement === canvas) {
+    mouseDX += e.movementX;
+    mouseDY += e.movementY;
+  }
+});
+
+/* ---------------- 触屏操控：左半屏虚拟摇杆移动 + 右半屏拖拽转视角 ---------------- */
+const joyEl = document.getElementById("joy");
+const joyKnob = document.getElementById("joyKnob");
+const touchuiEl = document.getElementById("touchui");
+const JOY_R = 60;                        // 摇杆最大半径（像素）
+let joyId = null, joyBase = [0, 0];
+const touchLook = {};                    // 转视角触点 id → [x,y]
+function touchSetKnob(dx, dy) {
+  joyKnob.style.left = (joyBase[0] + dx) + "px";
+  joyKnob.style.top = (joyBase[1] + dy) + "px";
+}
+/* 由触点位置求摇杆单位向量：f=前进(上推为正), s=右移 */
+function touchJoystick(cx, cy) {
+  let dx = cx - joyBase[0], dy = cy - joyBase[1];
+  const d = Math.hypot(dx, dy);
+  if (d > JOY_R) { dx *= JOY_R / d; dy *= JOY_R / d; }
+  touchSetKnob(dx, dy);
+  return { f: -dy / JOY_R, s: dx / JOY_R };
+}
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth * 0.5 && joyId === null) {
+      joyId = t.identifier; joyBase = [t.clientX, t.clientY];
+      joyEl.style.display = "block"; joyKnob.style.display = "block";
+      joyEl.style.left = joyBase[0] + "px"; joyEl.style.top = joyBase[1] + "px";
+      touchSetKnob(0, 0);
+    } else {
+      touchLook[t.identifier] = [t.clientX, t.clientY];
+    }
+  }
+}, { passive: false });
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) {
+      const v = touchJoystick(t.clientX, t.clientY);
+      touchF = v.f; touchS = v.s;
+    } else if (touchLook[t.identifier]) {
+      const p = touchLook[t.identifier];
+      mouseDX += (t.clientX - p[0]) * 1.8;   // 复用鼠标视角累积
+      mouseDY += (t.clientY - p[1]) * 1.8;
+      touchLook[t.identifier] = [t.clientX, t.clientY];
+    }
+  }
+}, { passive: false });
+function endTouch(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) {
+      joyId = null; touchF = 0; touchS = 0;
+      joyEl.style.display = "none"; joyKnob.style.display = "none";
+    }
+    delete touchLook[t.identifier];
+  }
+}
+canvas.addEventListener("touchend", endTouch, { passive: false });
+canvas.addEventListener("touchcancel", endTouch, { passive: false });
+
+/* 触屏按钮：升降（按住）、步行/空间/声音（点按） */
+if (isTouch) {
+  touchuiEl.style.display = "block";
+  document.getElementById("help").style.display = "none";
+}
+function holdBtn(id, down, up) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("touchstart", (e) => { e.preventDefault(); down(); }, { passive: false });
+  el.addEventListener("touchend", (e) => { e.preventDefault(); up(); }, { passive: false });
+  el.addEventListener("touchcancel", () => up());
+}
+function tapBtn(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("touchstart", (e) => { e.preventDefault(); fn(); }, { passive: false });
+}
+holdBtn("tUp", () => { touchU = 1; }, () => { touchU = 0; });
+holdBtn("tDown", () => { touchU = -1; }, () => { touchU = 0; });
+tapBtn("tWalk", () => {
+  if (walkMode) walkMode = false; else enterWalkMode();
+  trail.length = 0; showToast(walkMode ? "步行模式（重力）" : "飞行模式");
+});
+tapBtn("tSpace", () => {
+  spaceMode = (spaceMode + 1) % 4; camReset(); trail.length = 0;
+  if (walkMode) enterWalkMode();
+  updateAmbient(); showToast("空间：" + SPACE_NAME[spaceMode]);
+});
+tapBtn("tSound", () => {
+  soundOn = !soundOn;
+  if (soundOn) { ensureAudio(); startAmbient(); }
+  updateAmbient(); showToast("声音：" + (soundOn ? "开" : "关"));
+});
+
+const SENS = 0.0022;
+const camSpeed = () =>
+  (spaceMode === SPACE.EUCLID ? 4.0 : spaceMode === SPACE.SPHERE ? 0.8 : 1.2);
+
+function updateCamera(dt) {
+  if (mouseDX !== 0) { rotateCols(0, 2, SENS * mouseDX); mouseDX = 0; }
+  if (mouseDY !== 0) { rotateCols(1, 2, -SENS * mouseDY); mouseDY = 0; }
+  const f = Math.max(-1, Math.min(1,
+    (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0) + touchF));
+  const s = Math.max(-1, Math.min(1,
+    (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0) + touchS));
+  if (walkMode) {
+    const run = keys.has("ShiftLeft") || keys.has("ShiftRight");   // Shift = 跑
+    const before = [cam[12], cam[13], cam[14], cam[15]];
+    if (f || s) walkMove(f, s, camSpeed() * (run ? RUN_MUL : 1.0) * dt);
+    gravityStep();
+    if (spaceMode === SPACE.ROOMS) clampRoomVertical();
+    const moved = geodesicDist(before, [cam[12], cam[13], cam[14], cam[15]]);
+    maybeFootstep(moved, dt > 1e-6 ? moved / dt : 0);
+    return;
+  }
+  if (keys.has("KeyQ")) rotateCols(0, 1, 1.5 * dt);
+  if (keys.has("KeyE")) rotateCols(0, 1, -1.5 * dt);
+  const u = Math.max(-1, Math.min(1, (keys.has("Space") ? 1 : 0) -
+            ((keys.has("ShiftLeft") || keys.has("ShiftRight")) ? 1 : 0) + touchU));
+  if (f || s || u) advanceCamera(f, s, u, camSpeed() * dt);
+  /* ROOMS：飞行也禁止穿出地板/天花板（封闭房间） */
+  if (spaceMode === SPACE.ROOMS) clampRoomVertical();
+}
+
+/* ---------------- 画布尺寸与分辨率缩放 ---------------- */
+let renderScale = 0.5;
+function resize() {
+  /* 触屏设备按 (上限 1.5×) devicePixelRatio 提高渲染分辨率，避免发糊 */
+  const dpr = isTouch ? Math.min(devicePixelRatio || 1, 1.5) : 1;
+  canvas.width = Math.max(2, Math.floor(innerWidth * renderScale * dpr));
+  canvas.height = Math.max(2, Math.floor(innerHeight * renderScale * dpr));
+  sizeTargets();
+  resetAccum();
+}
+addEventListener("resize", resize);
+resize();
+
+/* ---------------- H³ 折叠（CPU，float64） ----------------
+   cam 为真实（未折叠）相机状态，供 HUD/地图使用；
+   camFolded 为反射折叠进基本域后的副本，上传给 GPU（float32），
+   保证 GPU 坐标量级小、精度高。群不变性使两者渲染等价。 */
+const camFolded = new Float64Array(16);
+/* 光源是场景中的固定点，需随相机用同一组反射一起折叠，
+   否则折叠后的视角会相对光源旋转/平移，渲染将不一致 */
+const HYPER_LIGHT = [0.25, 0.35, 0.55, 1.30];
+const lightFolded = new Float64Array(4);
+/* 胞腔颜色追踪初值：h⁻¹(O) 与 h⁻¹(n_k)（h 为相机折叠元素）。
+   重锚定后 GPU 从这些初值继续追踪，颜色仍对应真实胞腔。 */
+const seedC = new Float64Array(4);
+const seedU = new Float64Array(16);
+const seedUf32 = new Float32Array(16);
+function seedIdentity() {
+  seedC.set([0, 0, 0, 1]);
+  for (let j = 0; j < 4; j++) seedU.set(HYPER_NORMALS[j], 4 * j);
+}
+seedIdentity();
+function seedUpload() {
+  seedUf32.set(seedU);
+  gl.uniform4f(U.cell0, seedC[0], seedC[1], seedC[2], seedC[3]);
+  gl.uniform4fv(U.u0, seedUf32);
+}
+function foldHyper(src, dst) {
+  dst.set(src);
+  lightFolded.set(HYPER_LIGHT);
+  seedIdentity();
+  for (let iter = 0; iter < 64; iter++) {
+    let folded = false;
+    for (let j = 0; j < 4; j++) {
+      const n = HYPER_NORMALS[j];
+      const sp = dst[12] * n[0] + dst[13] * n[1] + dst[14] * n[2] - dst[15] * n[3];
+      if (sp < 0) {
+        folded = true;
+        for (let c = 0; c < 4; c++) {
+          const o = 4 * c;
+          const sc = dst[o] * n[0] + dst[o + 1] * n[1] + dst[o + 2] * n[2] - dst[o + 3] * n[3];
+          for (let i = 0; i < 4; i++) dst[o + i] -= 2 * sc * n[i];
+        }
+        const sl = lightFolded[0] * n[0] + lightFolded[1] * n[1] +
+                   lightFolded[2] * n[2] - lightFolded[3] * n[3];
+        for (let i = 0; i < 4; i++) lightFolded[i] -= 2 * sl * n[i];
+        /* h⁻¹ 追踪：uu[q] -= 2⟨n_q,n_j⟩·uu[j]；cellC -= 2⟨O,n_j⟩·uu[j] */
+        const uj = [seedU[4 * j], seedU[4 * j + 1], seedU[4 * j + 2], seedU[4 * j + 3]];
+        for (let q = 0; q < 4; q++) {
+          const nq = HYPER_NORMALS[q];
+          const g = nq[0] * n[0] + nq[1] * n[1] + nq[2] * n[2] - nq[3] * n[3];
+          for (let i = 0; i < 4; i++) seedU[4 * q + i] -= 2 * g * uj[i];
+        }
+        const oj = -HYPER_NORMALS[j][3];   // ⟨O,n_j⟩, O=(0,0,0,1)
+        for (let i = 0; i < 4; i++) seedC[i] -= 2 * oj * uj[i];
+      }
+    }
+    if (!folded) return;
+  }
+}
+function updateCamFolded() {
+  if (spaceMode === SPACE.HYPER) foldHyper(cam, camFolded);
+  else { camFolded.set(cam); lightFolded.set(HYPER_LIGHT); seedIdentity(); }
+}
+
+/* ---------------- 渲染 ---------------- */
+const camF32 = new Float32Array(16);
+let camDirty = true;
+function sceneUniforms(t, jx, jy) {
+  gl.useProgram(prog);
+  for (let i = 0; i < 16; i++) camF32[i] = camFolded[i];
+  gl.uniformMatrix4fv(U.camera, false, camF32);
+  gl.uniform1i(U.space, spaceMode);
+  gl.uniform2f(U.res, canvas.width, canvas.height);
+  gl.uniform1f(U.time, t);
+  gl.uniform2f(U.jitter, jx, jy);
+  gl.uniform1i(U.maxSteps, maxSteps);
+  gl.uniform4f(U.light, lightFolded[0], lightFolded[1], lightFolded[2], lightFolded[3]);
+}
+function drawSceneDirect(t) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  sceneUniforms(t, 0, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+function draw(t, noFold) {
+  if (!noFold) updateCamFolded();
+  else seedIdentity();
+  seedUpload();
+  if (!aaOn || isSelfTest || camDirty || accumN >= 64) {
+    resetAccum();
+    drawSceneDirect(t);
+    return;
+  }
+  /* 1. 场景（亚像素抖动）→ sceneTex */
+  const jx = halton(accumN + 1, 2) - 0.5;
+  const jy = halton(accumN + 1, 3) - 0.5;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  sceneUniforms(t, jx, jy);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  /* 2. 累积 mix(prev, scene, 1/(n+1)) → accum[write] */
+  const write = 1 - accumCur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, accumFBO[write]);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(progC);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, accumTex[accumCur]);
+  gl.uniform1i(UC.prev, 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+  gl.uniform1i(UC.scene, 1);
+  gl.uniform1f(UC.alpha, accumN === 0 ? 1.0 : 1.0 / (accumN + 1));
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  /* 3. 显示：accum[write] → 默认帧缓冲 */
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, accumFBO[write]);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+  gl.blitFramebuffer(0, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height,
+                     gl.COLOR_BUFFER_BIT, gl.NEAREST);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  accumCur = write;
+  accumN++;
+}
+
+/* ---------------- HUD ---------------- */
+const hudEl = document.getElementById("hud");
+let fpsSmooth = 60, hudTimer = 0;
+/* 自动画质：低于 32fps 依次降「分辨率→步进数→关AA」，高于 55fps 反向升
+   （滞回避免抖动）。步进数与抗锯齿随之联动。 */
+function autoQuality(fps) {
+  if (fps < 32) {
+    if (renderScale > 0.35) { renderScale = Math.max(0.35, renderScale - 0.05); resize(); }
+    else if (maxSteps > 40) maxSteps = Math.max(40, maxSteps - 8);
+    else if (aaOn) aaOn = false;
+  } else if (fps > 55) {
+    if (!aaOn && accumEnabled) aaOn = true;
+    else if (maxSteps < 128) maxSteps = Math.min(128, maxSteps + 8);
+    else if (renderScale < 1.0) { renderScale = Math.min(1.0, renderScale + 0.05); resize(); }
+  }
+}
+function updateHUD(now, dt) {
+  fpsSmooth += (1 / Math.max(dt, 1e-4) - fpsSmooth) * 0.06;
+  if (now - hudTimer < 250) return;
+  hudTimer = now;
+  if (autoRes) autoQuality(fpsSmooth);
+  hudEl.textContent =
+    "空间: " + SPACE_NAME[spaceMode] + (walkMode ? " · 步行" : " · 飞行") + "\n" +
+    "FPS: " + fpsSmooth.toFixed(0) + "  画质: " +
+    (autoRes ? "自动" : TIERS[tier].name) + "(" + maxSteps + "步·AA" + (aaOn ? "开" : "关") + ")" +
+    "  分辨率: " + Math.round(renderScale * 100) + "%" + (autoRes ? "(自动)" : "") +
+    " (" + canvas.width + "×" + canvas.height + ")\n" +
+    "位置: " + (spaceMode !== SPACE.EUCLID
+      ? "(" + cam[12].toFixed(2) + ", " + cam[13].toFixed(2) + ", " + cam[14].toFixed(2) +
+        "; " + cam[15].toFixed(2) + ")"
+      : "(" + cam[12].toFixed(2) + ", " + cam[13].toFixed(2) + ", " + cam[14].toFixed(2) + ")");
+}
+
+/* ---------------- 地图（右上角 2D Canvas） ----------------
+   S³：立体投影；H³：庞加莱圆盘（见 mapProject / mapHeading） */
+const mapCanvas = document.getElementById("map");
+const mctx = mapCanvas.getContext("2d");
+if (innerWidth < 700) { mapCanvas.width = mapCanvas.height = 150; }   // 窄屏缩小地图
+const trail = [];
+
+/* H³ 地图模型：0=庞加莱圆盘（保角），1=克莱因圆盘（测地线为直线段）。
+   克莱因坐标由庞加莱坐标 k = 2p/(1+|p|²) 得到。 */
+let hyperMapMode = 0;
+let cellLabelOn = true;      // H³ 胞腔编号标注开关（L 键）
+/* 地图缩放倍数（[ / ] 调节；作用于绘制半径，圆形/骨架/轨迹一同缩放） */
+let mapZoom = 1.0;
+{
+  const z = parseFloat(new URLSearchParams(location.search).get("zoom"));
+  if (z > 0) mapZoom = Math.min(4.0, Math.max(0.4, z));
+}
+/* 以画布上某点 (mx,my) 为中心缩放：保持该点下的地图内容不动 */
+function adjustMapZoomAt(f, mx, my) {
+  const w = mapCanvas.width, h = mapCanvas.height;
+  const nz = Math.min(4.0, Math.max(0.4, mapZoom * f));
+  const k = nz / mapZoom;               // 实际缩放比（含钳制）
+  mapPan[0] = (mx - w / 2) * (1 - k) + k * mapPan[0];
+  mapPan[1] = (my - h / 2) * (1 - k) + k * mapPan[1];
+  mapZoom = nz;
+}
+/* 以画布中心缩放（键盘用） */
+function adjustMapZoom(f) {
+  adjustMapZoomAt(f, mapCanvas.width / 2, mapCanvas.height / 2);
+}
+/* 地图拖拽平移 / 滚轮缩放 / 双击复位 */
+let mapPan = [0, 0];
+let mapDragging = false, mapLast = [0, 0];
+mapCanvas.addEventListener("mousedown", (e) => {
+  mapDragging = true; mapLast = [e.clientX, e.clientY];
+  mapCanvas.style.cursor = "grabbing"; e.preventDefault();
+});
+addEventListener("mousemove", (e) => {
+  if (!mapDragging) return;
+  mapPan[0] += e.clientX - mapLast[0];
+  mapPan[1] += e.clientY - mapLast[1];
+  mapLast = [e.clientX, e.clientY];
+});
+addEventListener("mouseup", () => {
+  if (mapDragging) { mapDragging = false; mapCanvas.style.cursor = "grab"; }
+});
+mapCanvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  adjustMapZoomAt(e.deltaY < 0 ? 1.12 : 0.89, e.offsetX, e.offsetY);   // 以指针为中心缩放
+}, { passive: false });
+mapCanvas.addEventListener("dblclick", () => {
+  mapPan = [0, 0]; mapZoom = 1.0; showToast("地图已复位");
+});
+
+/* 触屏手势：单指拖拽平移，双指捏合以两指中点为心缩放，双击/双击屏幕复位 */
+let touchState = null;
+function mapGestureStart(pts) {
+  if (pts.length === 1) touchState = { mode: "pan", x: pts[0].clientX, y: pts[0].clientY };
+  else if (pts.length >= 2) {
+    touchState = { mode: "pinch",
+      d: Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY) };
+  }
+}
+function mapGestureMove(pts) {
+  if (!touchState) return;
+  const rect = mapCanvas.getBoundingClientRect();
+  if (touchState.mode === "pan" && pts.length === 1) {
+    mapPan[0] += pts[0].clientX - touchState.x;
+    mapPan[1] += pts[0].clientY - touchState.y;
+    touchState.x = pts[0].clientX; touchState.y = pts[0].clientY;
+  } else if (touchState.mode === "pinch" && pts.length >= 2) {
+    const d = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+    const f = touchState.d > 1e-6 ? d / touchState.d : 1;
+    touchState.d = d;
+    const mx = ((pts[0].clientX + pts[1].clientX) / 2 - rect.left) * (mapCanvas.width / (rect.width || 1));
+    const my = ((pts[0].clientY + pts[1].clientY) / 2 - rect.top) * (mapCanvas.height / (rect.height || 1));
+    adjustMapZoomAt(f, mx, my);
+  }
+}
+function mapGestureEnd(pts) {
+  if (pts.length === 0) touchState = null;
+  else if (pts.length === 1) touchState = { mode: "pan", x: pts[0].clientX, y: pts[0].clientY };
+}
+const touchPts = (e) => Array.from(e.touches).map((t) => ({ clientX: t.clientX, clientY: t.clientY }));
+let lastTap = 0;
+mapCanvas.addEventListener("touchstart", (e) => { e.preventDefault(); mapGestureStart(touchPts(e)); }, { passive: false });
+mapCanvas.addEventListener("touchmove", (e) => { e.preventDefault(); mapGestureMove(touchPts(e)); }, { passive: false });
+mapCanvas.addEventListener("touchend", (e) => {
+  e.preventDefault(); mapGestureEnd(touchPts(e));
+  if (e.touches.length === 0) {
+    const now = performance.now();
+    if (now - lastTap < 320) { mapPan = [0, 0]; mapZoom = 1.0; showToast("地图已复位"); }
+    lastTap = now;
+  }
+}, { passive: false });
+
+/* 把 4D 点投影到 2D 地图坐标（画布 y 向下，取负的竖轴分量）。
+   S³：立体投影 u=(x1,x2)/(1+w)；H³：u=(x,z)/(1+w) 或克莱因变换 */
+function projectPoint(v) {
+  if (spaceMode === SPACE.EUCLID) return null;
+  const k = 1 + v[3];
+  if (k < 1e-9) return null;
+  /* v 已是相机坐标系：S³ 取 (右,上)，H³/{4,5} 取 (右,前)（前向朝地图上方） */
+  let u = (spaceMode === SPACE.SPHERE) ? [v[0] / k, -v[1] / k] : [v[0] / k, -v[2] / k];
+  if (spaceMode === SPACE.HYPER && hyperMapMode === 1) {
+    const f = 2 / (1 + u[0] * u[0] + u[1] * u[1]);
+    u = [u[0] * f, u[1] * f];
+  }
+  return u;
+}
+/* 双曲相机坐标系（η 度量）：x'=(⟨e1,x⟩,⟨e2,x⟩,⟨e3,x⟩,−⟨p,x⟩)。
+   它保持 η 内积、把相机基点 p 送到 (0,0,0,1)、切框架送到标准基，
+   于是 H³/{4,5} 地图以相机为中心并随视角旋转。 */
+function hyperToCam(v) {
+  const c = cam;
+  return [
+    eta4([c[0], c[1], c[2], c[3]], v),
+    eta4([c[4], c[5], c[6], c[7]], v),
+    eta4([c[8], c[9], c[10], c[11]], v),
+    -eta4([c[12], c[13], c[14], c[15]], v),
+  ];
+}
+/* 世界点 → 地图坐标（先变换到相机坐标系，使地图随相机重定心） */
+function mapProjectOf(v) {
+  if (spaceMode === SPACE.SPHERE) return projectPoint(s3ToCam(v));
+  if (spaceMode === SPACE.HYPER || spaceMode === SPACE.ROOMS) return projectPoint(hyperToCam(v));
+  return projectPoint(v);
+}
+function mapProject() { return mapProjectOf([cam[12], cam[13], cam[14], cam[15]]); }
+
+/* 朝向：沿 e3 微推进后的投影差分，归一化为单位方向 */
+function mapHeading(u) {
+  if (!u) return null;
+  const eps = 0.02;
+  let pe;
+  if (spaceMode === SPACE.SPHERE) {
+    const ce = Math.cos(eps), se = Math.sin(eps);
+    pe = [ce * cam[12] + se * cam[8], ce * cam[13] + se * cam[9],
+          ce * cam[14] + se * cam[10], ce * cam[15] + se * cam[11]];
+  } else {
+    const ch = Math.cosh(eps), sh = Math.sinh(eps);
+    pe = [ch * cam[12] + sh * cam[8], ch * cam[13] + sh * cam[9],
+          ch * cam[14] + sh * cam[10], ch * cam[15] + sh * cam[11]];
+  }
+  const ue = mapProjectOf(pe);
+  if (!ue) return null;
+  const hx = ue[0] - u[0], hy = ue[1] - u[1];
+  const hn = Math.hypot(hx, hy);
+  if (hn < 1e-9) return null;
+  return [hx / hn, hy / hn];
+}
+
+/* ---------------- 直角房间 {4,5} 展开图（庞加莱圆盘上的镶嵌） ---------------- */
+let roomTilingPolys = null;
+function reflectPt(p, n) {
+  const d = p[0] * n[0] + p[1] * n[1] + p[2] * n[2] - p[3] * n[3];
+  return [p[0] - 2 * d * n[0], p[1] - 2 * d * n[1], p[2] - 2 * d * n[2], p[3] - 2 * d * n[3]];
+}
+function geoLerp(a, b, t) {   /* H² 测地插值（双曲面模型） */
+  const cd = -(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - a[3] * b[3]);
+  const d = Math.acosh(Math.min(Math.max(cd, 1), 1e18));
+  const sd = Math.sinh(d);
+  if (sd < 1e-9) return a;
+  const u = Math.sinh((1 - t) * d) / sd, w = Math.sinh(t * d) / sd;
+  return [u * a[0] + w * b[0], u * a[1] + w * b[1], u * a[2] + w * b[2], u * a[3] + w * b[3]];
+}
+function buildRoomTiling() {
+  /* 绘制房间（正方形）轮廓：墙棱 E–V 在反射群下的轨道 */
+  const E = [0, 0.555893, 0, 1.144123];
+  const V = [0.668740, 0.668740, 0, 1.376382];
+  const ekey = (a, b) =>
+    [a, b].map((v) => v.map((x) => x.toFixed(2)).join(",")).sort().join("|");
+  const seen = new Set([ekey(E, V)]);
+  let edges = [[E, V]];
+  const all = [edges[0]];
+  for (let depth = 0; depth < 6 && all.length < 900; depth++) {
+    const next = [];
+    for (const [a, b] of edges) {
+      for (let j = 0; j < 3; j++) {
+        const na = reflectPt(a, ROOM_NORMALS[j]), nb = reflectPt(b, ROOM_NORMALS[j]);
+        const k = ekey(na, nb);
+        if (!seen.has(k)) { seen.add(k); next.push([na, nb]); all.push([na, nb]); }
+      }
+    }
+    edges = next;
+  }
+  /* 返回世界 4D 折线（每段棱采样 6 点），绘制时再变换到相机坐标系投影 */
+  const polys = [];
+  for (const [a, b] of all) {
+    const poly = [a];
+    for (let i = 1; i <= 6; i++) poly.push(geoLerp(a, b, i / 6));
+    polys.push(poly);
+  }
+  return polys;
+}
+
+/* ---------------- H³ 蜂巢骨架（圆盘上的 {5,3,4} 棱） ----------------
+   基本域四面体 O-F-E-V 中，墙 n4=0 上的棱 E–V 正是正十二面体的棱；
+   在 4 面镜面反射群下取轨道即得蜂巢 1-骨架，再投影到圆盘（庞加莱/克莱因）。 */
+function eta4(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - a[3] * b[3];
+}
+function solve3(A, b) {
+  const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                   - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                   + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const D = det(A);
+  if (Math.abs(D) < 1e-14) return null;
+  const col = (c) => A.map((row, r) => row.map((v, j) => (j === c ? b[r] : v)));
+  return [det(col(0)) / D, det(col(1)) / D, det(col(2)) / D];
+}
+/* 与 3 个镜面正交的基本域顶点（η 度量，⟨x,x⟩=−1，w>0） */
+function hyperVertex(ia, ib, ic) {
+  const n = HYPER_NORMALS, cons = [ia, ib, ic];
+  const free = [0, 1, 2, 3].find((i) => !cons.includes(i));
+  const js = [0, 1, 2, 3].filter((j) => j !== free);
+  const A = cons.map((ci) => js.map((j) => eta4(n[ci], n[j])));
+  const b = cons.map((ci) => -eta4(n[ci], n[free]));
+  const t = solve3(A, b);
+  if (!t) return null;
+  const tt = [0, 0, 0, 0]; tt[free] = 1;
+  js.forEach((j, c) => { tt[j] = t[c]; });
+  const x = [0, 0, 0, 0];
+  for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) x[i] += tt[k] * n[k][i];
+  const s = Math.sqrt(-1 / eta4(x, x));
+  for (let i = 0; i < 4; i++) x[i] *= s;
+  if (x[3] < 0) for (let i = 0; i < 4; i++) x[i] = -x[i];
+  return x;
+}
+/* H³ 胞腔编号：基本域胞腔中心 O 在反射群下的轨道；
+   按 BFS 发现顺序给每个胞腔一个稳定编号（世界坐标），绘制时随相机投影。 */
+let hyperCellLabels = null;
+function buildHyperCellLabels() {
+  const O = hyperVertex(0, 1, 2);          // 正交于 n1,n2,n3 → 胞腔中心
+  const ekey = (p) => p.map((x) => x.toFixed(2)).join(",");
+  const seen = new Set([ekey(O)]);
+  let layer = [O];
+  const all = [O];
+  for (let depth = 0; depth < 4 && all.length < 150; depth++) {
+    const next = [];
+    for (const c of layer) {
+      for (let j = 0; j < 4; j++) {
+        const r = reflectPt(c, HYPER_NORMALS[j]);
+        const k = ekey(r);
+        if (!seen.has(k)) { seen.add(k); next.push(r); all.push(r); }
+      }
+    }
+    layer = next;
+  }
+  return all.map((c, i) => ({ c, i }));
+}
+
+let hyperTilingPolys = null;
+function buildHyperTiling() {
+  const E = hyperVertex(0, 2, 3);   // 正交于 n1,n3,n4
+  const V = hyperVertex(1, 2, 3);   // 正交于 n2,n3,n4
+  const ekey = (a, b) =>
+    [a, b].map((v) => v.map((x) => x.toFixed(3)).join(",")).sort().join("|");
+  const seen = new Set([ekey(E, V)]);
+  let edges = [[E, V]];
+  const all = [[E, V]];
+  for (let depth = 0; depth < 8 && all.length < 900; depth++) {
+    const next = [];
+    for (const [a, b] of edges) {
+      for (let j = 0; j < 4; j++) {
+        const na = reflectPt(a, HYPER_NORMALS[j]), nb = reflectPt(b, HYPER_NORMALS[j]);
+        const k = ekey(na, nb);
+        if (!seen.has(k)) { seen.add(k); next.push([na, nb]); all.push([na, nb]); }
+      }
+    }
+    edges = next;
+  }
+  const polys = [];
+  for (const [a, b] of all) {
+    const poly = [a];
+    for (let i = 1; i <= 5; i++) poly.push(geoLerp(a, b, i / 5));
+    polys.push(poly);
+  }
+  return polys;
+}
+
+/* ---------------- S³ 蜂巢骨架（圆盘上的 {4,3,3} 超立方体棱） ----------------
+   {4,3,3} 蜂巢即四维超立方体的边界：16 个顶点 (±½,±½,±½,±½)，
+   32 条棱连接「恰有一个坐标符号不同」的相邻顶点。每条棱是 S³ 上的测地弧，
+   立体投影到圆盘后连线，给出胞腔结构。 */
+let sphereTilingPolys = null;
+function buildSphereTiling() {
+  const V = [];
+  for (let m = 0; m < 16; m++) {
+    const v = [];
+    for (let i = 0; i < 4; i++) v.push(((m >> i) & 1) ? 0.5 : -0.5);
+    V.push(v);
+  }
+  const polys = [];
+  for (let a = 0; a < 16; a++) {
+    for (let b = a + 1; b < 16; b++) {
+      let diff = 0;
+      for (let i = 0; i < 4; i++) if (((a >> i) & 1) !== ((b >> i) & 1)) diff++;
+      if (diff !== 1) continue;
+      const A = V[a], B = V[b];
+      const d = Math.acos(Math.max(-1, Math.min(1,
+        A[0] * B[0] + A[1] * B[1] + A[2] * B[2] + A[3] * B[3])));
+      const sd = Math.sin(d);
+      const poly = [A];
+      for (let i = 1; i <= 8; i++) {
+        const t = i / 8;
+        let P;
+        if (sd < 1e-9) P = A;
+        else {
+          const u = Math.sin((1 - t) * d) / sd, w = Math.sin(t * d) / sd;
+          P = [u * A[0] + w * B[0], u * A[1] + w * B[1],
+               u * A[2] + w * B[2], u * A[3] + w * B[3]];
+        }
+        poly.push(P);
+      }
+      polys.push(poly);
+    }
+  }
+  return polys;
+}
+
+/* 把世界坐标点变换到相机坐标系 x'=(e1·x, e2·x, e3·x, p·x)。
+   相机基点 p→(0,0,0,1)、朝向 e_i→标准基；于是 S³ 地图始终以相机所在
+   胞腔为中心并随视角旋转（“随相机旋转保持居中”）。 */
+function s3ToCam(v) {
+  const c = cam;
+  return [
+    c[0] * v[0] + c[1] * v[1] + c[2] * v[2] + c[3] * v[3],
+    c[4] * v[0] + c[5] * v[1] + c[6] * v[2] + c[7] * v[3],
+    c[8] * v[0] + c[9] * v[1] + c[10] * v[2] + c[11] * v[3],
+    c[12] * v[0] + c[13] * v[1] + c[14] * v[2] + c[15] * v[3],
+  ];
+}
+/* 把世界 4D 折线骨架变换到相机坐标系并投影后用 2D 画布描边。
+   opts.bands：按线段中点到中心（相机）的半径分带淡化（越远越淡）。
+   opts.viewFade：按线段方向与视线（相机坐标系下地图“上方”＝正前方）的
+   夹角高亮——越接近正前方越亮。逐段 alpha 量化到 6 档后分档描边。 */
+function strokeTiling(polys, cx, cy, R, opts) {
+  opts = opts || {};
+  const bands = opts.bands || [{ r0: 0, r1: 2, a: 1 }];
+  const bandA = (r) => { for (const b of bands) if (r >= b.r0 && r < b.r1) return b.a; return 0; };
+  const proj = [];
+  for (const poly of polys) {
+    const pp = [];
+    for (const P of poly) {
+      const u = mapProjectOf(P);
+      pp.push(u ? [u[0], u[1], Math.hypot(u[0], u[1])] : null);
+    }
+    proj.push(pp);
+  }
+  const LEVELS = 6;
+  const buckets = [];
+  for (let i = 0; i < LEVELS; i++) buckets.push([]);
+  for (const pp of proj) {
+    let prev = null;
+    for (const q of pp) {
+      if (!q) { prev = null; continue; }
+      if (prev && prev[2] <= 1.05 && q[2] <= 1.05) {
+        const midR = (prev[2] + q[2]) * 0.5;
+        let a = bandA(midR);
+        if (opts.viewFade) {
+          const align = midR > 1e-6 ? -(prev[1] + q[1]) * 0.5 / midR : 0;
+          a = Math.min(1, a * (0.5 + 1.1 * Math.max(0, align)));
+        }
+        if (a > 0.001) {
+          const lvl = Math.min(LEVELS - 1, Math.floor(a * LEVELS));
+          buckets[lvl].push([cx + prev[0] * R, cy + prev[1] * R, cx + q[0] * R, cy + q[1] * R]);
+        }
+      }
+      prev = q;
+    }
+  }
+  for (let lvl = 0; lvl < LEVELS; lvl++) {
+    if (!buckets[lvl].length) continue;
+    mctx.globalAlpha = (lvl + 0.5) / LEVELS;
+    mctx.beginPath();
+    for (const s of buckets[lvl]) { mctx.moveTo(s[0], s[1]); mctx.lineTo(s[2], s[3]); }
+    mctx.stroke();
+  }
+  mctx.globalAlpha = 1;
+}
+/* H³ 骨架按离相机半径分带淡化 */
+const MAP_FADE_BANDS = [
+  { r0: 0.00, r1: 0.30, a: 0.55 },
+  { r0: 0.30, r1: 0.55, a: 0.40 },
+  { r0: 0.55, r1: 0.75, a: 0.26 },
+  { r0: 0.75, r1: 1.00, a: 0.14 },
+  { r0: 1.00, r1: 2.00, a: 0.07 },
+];
+
+function recordTrail() {
+  if (spaceMode === SPACE.EUCLID) return;
+  const p4 = [cam[12], cam[13], cam[14], cam[15]];   // 存世界 4D 点，绘制时再投影
+  const lastP = trail[trail.length - 1];
+  let far = !lastP;
+  if (lastP) {
+    let d2 = 0;
+    for (let i = 0; i < 4; i++) d2 += (p4[i] - lastP[i]) * (p4[i] - lastP[i]);
+    far = d2 > 0.012 * 0.012;
+  }
+  if (far) { trail.push(p4); if (trail.length > 800) trail.shift(); }
+}
+
+function drawMinimap() {
+  const w = mapCanvas.width, h = mapCanvas.height;
+  const cx = w / 2 + mapPan[0], cy = h / 2 + mapPan[1];
+  const R = (Math.min(w, h) / 2 - 12) * mapZoom;
+  mctx.clearRect(0, 0, w, h);
+  mctx.fillStyle = "rgba(200,220,255,0.85)";
+  mctx.font = "11px Consolas, monospace";
+  mctx.fillText(
+    spaceMode === SPACE.SPHERE ? "S³ 立体投影"
+      : spaceMode === SPACE.HYPER ? (hyperMapMode === 0 ? "庞加莱圆盘" : "克莱因圆盘")
+      : spaceMode === SPACE.ROOMS ? "展开图 {4,5}"
+      : "地图（占位）", 10, 16);
+  /* 内圈标记双曲距离 d=1：庞加莱 r=tanh(1/2)，克莱因 r=tanh(1) */
+  const inner = (spaceMode === SPACE.HYPER && hyperMapMode === 1)
+    ? Math.tanh(1) : Math.tanh(0.5);
+  mctx.strokeStyle = "rgba(140,190,255,0.25)";
+  mctx.beginPath(); mctx.arc(cx, cy, R * inner, 0, Math.PI * 2); mctx.stroke();
+  mctx.strokeStyle = "rgba(140,190,255,0.7)";
+  mctx.beginPath(); mctx.arc(cx, cy, R, 0, Math.PI * 2); mctx.stroke();
+  mctx.beginPath(); mctx.moveTo(cx - 6, cy); mctx.lineTo(cx + 6, cy);
+  mctx.moveTo(cx, cy - 6); mctx.lineTo(cx, cy + 6); mctx.stroke();
+
+  if (spaceMode === SPACE.EUCLID) {
+    mctx.fillStyle = "#ff5555";
+    mctx.beginPath(); mctx.arc(cx, cy, 4, 0, Math.PI * 2); mctx.fill();
+    return;
+  }
+  /* 蜂巢骨架：每帧变换到相机坐标系后重绘（地图随相机重定心/旋转） */
+  if (spaceMode === SPACE.SPHERE) {
+    if (!sphereTilingPolys) sphereTilingPolys = buildSphereTiling();
+    mctx.strokeStyle = "rgba(130,180,240,0.45)";
+    mctx.lineWidth = 1;
+    strokeTiling(sphereTilingPolys, cx, cy, R);
+  } else if (spaceMode === SPACE.HYPER) {
+    if (!hyperTilingPolys) hyperTilingPolys = buildHyperTiling();
+    mctx.strokeStyle = "rgba(150,200,255,1.0)";   // 透明度由分带 + 视线高亮控制
+    mctx.lineWidth = 1;
+    strokeTiling(hyperTilingPolys, cx, cy, R, { bands: MAP_FADE_BANDS, viewFade: true });
+    /* 胞腔编号（只标注近处，避免拥挤） */
+    if (cellLabelOn) {
+      if (!hyperCellLabels) hyperCellLabels = buildHyperCellLabels();
+      mctx.fillStyle = "rgba(205,225,255,0.92)";
+      mctx.font = "9px Consolas, monospace";
+      mctx.textAlign = "center";
+      mctx.textBaseline = "middle";
+      for (const lab of hyperCellLabels) {
+        const lu = mapProjectOf(lab.c);
+        if (!lu || Math.hypot(lu[0], lu[1]) > 0.72) continue;
+        mctx.fillText(String(lab.i), cx + lu[0] * R, cy + lu[1] * R);
+      }
+      mctx.textAlign = "start";
+      mctx.textBaseline = "alphabetic";
+    }
+  } else if (spaceMode === SPACE.ROOMS) {
+    if (!roomTilingPolys) roomTilingPolys = buildRoomTiling();
+    mctx.strokeStyle = "rgba(130,180,240,0.4)";
+    mctx.lineWidth = 1;
+    strokeTiling(roomTilingPolys, cx, cy, R);
+  }
+  if (trail.length > 1) {
+    mctx.strokeStyle = "rgba(255,120,120,0.55)";
+    mctx.lineWidth = 1.5;
+    mctx.beginPath();
+    let started = false;
+    for (let i = 0; i < trail.length; i++) {
+      const uu = mapProjectOf(trail[i]);
+      if (!uu) continue;
+      const tx = cx + uu[0] * R, ty = cy + uu[1] * R;
+      if (!started) { mctx.moveTo(tx, ty); started = true; } else mctx.lineTo(tx, ty);
+    }
+    mctx.stroke();
+    mctx.lineWidth = 1;
+  }
+  const u = mapProject();
+  if (!u) return;
+  let ux = u[0], uy = u[1];
+  const r = Math.hypot(ux, uy);
+  if (r > 0.995) { ux *= 0.995 / r; uy *= 0.995 / r; }
+  const hdir = mapHeading(u) || [0, 0];
+  let hx = hdir[0], hy = hdir[1];
+  const dotX = cx + ux * R, dotY = cy + uy * R;
+  mctx.strokeStyle = "#ffd0d0";
+  mctx.beginPath(); mctx.moveTo(dotX, dotY);
+  mctx.lineTo(dotX + hx * 12, dotY + hy * 12); mctx.stroke();
+  mctx.fillStyle = "#ff5555";
+  mctx.beginPath(); mctx.arc(dotX, dotY, 4, 0, Math.PI * 2); mctx.fill();
+}
+
+/* ---------------- 自检模式（自动化验收）---------------- */
+const isSelfTest = new URLSearchParams(location.search).has("selftest");
+let stFrames = 0;
+
+function runSelfTest() {
+  const checks = [];
+  const add = (name, ok, info) => checks.push({ name, ok, info: info || "" });
+
+  add("无致命错误", !fatalShown);
+  add("HUD已更新", hudEl.textContent.indexOf("FPS") >= 0);
+
+  const px = (x, y) => {
+    const b = new Uint8Array(4);
+    gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, b);
+    return [b[0], b[1], b[2]];
+  };
+
+  const col = (j) => [cam[4 * j], cam[4 * j + 1], cam[4 * j + 2], cam[4 * j + 3]];
+  const dot4 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+  const colDiff = (a, b) =>
+    Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+
+  /* ---- Phase 4：交互接线（与空间无关） ---- */
+  add("提示浮字元素存在", !!document.getElementById("toast"));
+  advanceCamera(1, 0, 0, 0.5);
+  dispatchEvent(new KeyboardEvent("keydown", { code: "KeyR" }));
+  dispatchEvent(new KeyboardEvent("keyup", { code: "KeyR" }));
+  const init = CAM_INIT[spaceMode];
+  let rOk = true;
+  for (let i = 0; i < 16; i++) if (Math.abs(cam[i] - init[i]) > 1e-9) rOk = false;
+  add("R键重置相机", rOk);
+  const a0 = autoRes;
+  dispatchEvent(new KeyboardEvent("keydown", { code: "Digit0" }));
+  dispatchEvent(new KeyboardEvent("keyup", { code: "Digit0" }));
+  const a1 = autoRes;
+  dispatchEvent(new KeyboardEvent("keydown", { code: "Digit0" }));
+  dispatchEvent(new KeyboardEvent("keyup", { code: "Digit0" }));
+  add("0键切换自动分辨率", a1 !== a0 && autoRes === a0);
+
+  /* ---- Phase 5：步行模式（重力约束） ---- */
+  dispatchEvent(new KeyboardEvent("keydown", { code: "KeyG" }));
+  dispatchEvent(new KeyboardEvent("keyup", { code: "KeyG" }));
+  add("G进入步行模式", walkMode);
+  for (let i = 0; i < 80; i++) gravityStep();
+  const hd = heightAlongUp();
+  add("重力稳定于眼高", Math.abs(hd - walkH) < 0.05,
+      "d=" + hd.toFixed(3) + " 目标" + walkH);
+  const pb = [cam[12], cam[13], cam[14], cam[15]];
+  for (let i = 0; i < 20; i++) { walkMove(1, 0, 0.08); gravityStep(); }
+  const moved4 = Math.hypot(cam[12] - pb[0], cam[13] - pb[1], cam[14] - pb[2], cam[15] - pb[3]);
+  add("步行产生位移", moved4 > 0.2, "Δ=" + moved4.toFixed(3));
+  const hd2 = heightAlongUp();
+  add("步行中保持眼高", Math.abs(hd2 - walkH) < 0.05, "d=" + hd2.toFixed(3));
+  dispatchEvent(new KeyboardEvent("keydown", { code: "KeyG" }));
+  dispatchEvent(new KeyboardEvent("keyup", { code: "KeyG" }));
+  add("G退出步行模式", !walkMode);
+  camReset();
+
+  if (spaceMode === SPACE.EUCLID) {
+    const orthoOk = () => {
+      const e1 = col(0), e2 = col(1), e3 = col(2);
+      return Math.abs(dot4(e1, e1) - 1) < 1e-9 && Math.abs(dot4(e2, e2) - 1) < 1e-9 &&
+             Math.abs(dot4(e3, e3) - 1) < 1e-9 &&
+             Math.abs(dot4(e1, e2)) < 1e-9 && Math.abs(dot4(e1, e3)) < 1e-9 &&
+             Math.abs(dot4(e2, e3)) < 1e-9;
+    };
+    add("相机框架正交(初始)", orthoOk());
+    const p0 = [cam[12], cam[13], cam[14]];
+    rotateCols(0, 2, 0.7); rotateCols(1, 2, -0.3); rotateCols(0, 1, 0.5);
+    advanceCamera(1, 0, 0, 1.5);
+    const moved = Math.hypot(cam[12] - p0[0], cam[13] - p0[1], cam[14] - p0[2]);
+    add("相机框架正交(旋转后)", orthoOk());
+    add("欧氏移动距离正确", Math.abs(moved - 1.5) < 1e-9, "moved=" + moved);
+
+    /* 几何：相机(0,0,0)朝-z；球心(0,0,-2) r=0.9 → 中心命中距1.1；地面 y=-1。
+       无限点阵下不存在保证为天空的像素，天空用 uDebug=3 纯天空模式验证 */
+    camReset();
+    gl.uniform1i(U.debug, 3);
+    draw(performance.now() / 1000);
+    const s = px(canvas.width >> 1, Math.floor(canvas.height * 0.9));
+    const s2 = px(canvas.width >> 1, Math.floor(canvas.height * 0.1));
+    add("天空偏蓝(uDebug=3)", s[2] > s[0] + 20, JSON.stringify(s));
+    add("天空渐变(上亮下暗)", s[0] + s[1] + s[2] > s2[0] + s2[1] + s2[2] + 60,
+        "top=" + s + " bottom=" + s2);
+
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const c = px(canvas.width >> 1, canvas.height >> 1);
+    add("中心命中球体(橙)", c[0] > 90 && c[0] > c[2] + 40, JSON.stringify(c));
+    const f = px(canvas.width >> 1, Math.floor(canvas.height * 0.15));
+    add("底部命中地面(灰)", Math.abs(f[0] - f[1]) < 30 && Math.abs(f[1] - f[2]) < 30, JSON.stringify(f));
+
+    gl.uniform1i(U.debug, 1);
+    draw(performance.now() / 1000);
+    const gray = (v) => v[0] === v[1] && v[1] === v[2];
+    const dv = px(canvas.width >> 1, canvas.height >> 1);
+    add("球面命中距离≈1.1", gray(dv) && dv[0] >= 30 && dv[0] <= 58,
+        "v=" + dv[0] + " 期望区间[30,58] 即 t∈[0.9,1.3]");
+    const fv = px(canvas.width >> 1, Math.floor(canvas.height * 0.15));
+    add("地面命中距离≈1.7", gray(fv) && fv[0] >= 52 && fv[0] <= 88,
+        "v=" + fv[0] + " 期望区间[52,88] 即 t∈[1.5,2.1]");
+    gl.uniform1i(U.debug, 0);
+
+  } else if (spaceMode === SPACE.SPHERE) {
+    /* S³：{4,3,3} 超立方体蜂巢。相机在胞腔中心 (0,0,0,1) 朝 +x1：
+       中心射线命中墙面 t=π/4≈0.785；uv=(1,1) 方向≈顶点 (½,½,½,½) t=π/3≈1.047；
+       uv=(1,0) 方向命中棱 {x1=x2=x4} → 棱线变暗 */
+    const orthoS3 = () => {
+      const e1 = col(0), e2 = col(1), e3 = col(2), p = col(3);
+      return Math.abs(dot4(p, p) - 1) < 1e-9 &&
+             Math.abs(dot4(e1, e1) - 1) < 1e-9 && Math.abs(dot4(e2, e2) - 1) < 1e-9 &&
+             Math.abs(dot4(e3, e3) - 1) < 1e-9 &&
+             Math.abs(dot4(e1, e2)) < 1e-9 && Math.abs(dot4(e1, e3)) < 1e-9 &&
+             Math.abs(dot4(e2, e3)) < 1e-9 &&
+             Math.abs(dot4(e1, p)) < 1e-9 && Math.abs(dot4(e2, p)) < 1e-9 &&
+             Math.abs(dot4(e3, p)) < 1e-9;
+    };
+    add("S³框架正交(初始)", orthoS3());
+    const pInit = col(3);
+    advanceCamera(1, 0, 0, 2 * Math.PI);
+    const pAfter = col(3);
+    const err = Math.hypot(pAfter[0] - pInit[0], pAfter[1] - pInit[1],
+                           pAfter[2] - pInit[2], pAfter[3] - pInit[3]);
+    add("测地线回原点(2π)", err < 1e-9, "err=" + err.toExponential(2));
+    add("S³框架正交(推进2π后)", orthoS3());
+    camReset();
+
+    /* 地图骨架：四维超立方体 32 条棱（相机坐标系下） */
+    const st = buildSphereTiling();
+    add("S³地图骨架(超立方体32棱)", st.length === 32, "edges=" + st.length);
+    camReset();
+    const centerP = mapProject();
+    add("S³地图以相机为中心", Math.hypot(centerP[0], centerP[1]) < 1e-9,
+        "u=" + centerP[0].toFixed(4) + "," + centerP[1].toFixed(4));
+
+    draw(performance.now() / 1000);
+    const c = px(canvas.width >> 1, canvas.height >> 1);
+    add("中心亮墙面(白)", c[0] > 150 &&
+        Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) < 70, JSON.stringify(c));
+    const xe = Math.min(Math.round((canvas.width + canvas.height) / 2), canvas.width - 1);
+    gl.uniform1i(U.debug, 1);
+    draw(performance.now() / 1000);
+    const gray = (v) => v[0] === v[1] && v[1] === v[2];
+    const dv = px(canvas.width >> 1, canvas.height >> 1);
+    add("墙面命中距≈π/4", gray(dv) && dv[0] >= 24 && dv[0] <= 38,
+        "v=" + dv[0] + " 期望[24,38] 理论π/4→30");
+    const vt = px(xe, canvas.height - 1);
+    add("顶点方向命中距≈π/3", gray(vt) && vt[0] >= 33 && vt[0] <= 48,
+        "v=" + vt[0] + " 期望[33,48] 理论π/3→40");
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const ep = px(xe, canvas.height >> 1);
+    add("棱线像素显著变暗",
+        Math.max(ep[0], ep[1], ep[2]) < 0.6 * Math.max(c[0], c[1], c[2]),
+        "edge=" + ep + " face=" + c);
+  } else if (spaceMode === SPACE.HYPER) {
+    /* H³：{5,3,4} 正十二面体蜂巢。相机在胞腔中心 O=(0,0,0,1) 朝 +z：
+       中心射线命中墙面（面心 F）t=ρ≈0.8087。 */
+    const ed = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - a[3] * b[3];
+    const G = [
+      [1, -Math.cos(Math.PI / 5), 0, 0],
+      [-Math.cos(Math.PI / 5), 1, -Math.cos(Math.PI / 3), 0],
+      [0, -Math.cos(Math.PI / 3), 1, -Math.cos(Math.PI / 4)],
+      [0, 0, -Math.cos(Math.PI / 4), 1]];
+    let gErr = 0;
+    for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++)
+      gErr = Math.max(gErr, Math.abs(ed(HYPER_NORMALS[a], HYPER_NORMALS[b]) - G[a][b]));
+    add("H³ Gram矩阵=Coxeter矩阵", gErr < 1e-12, "err=" + gErr.toExponential(2));
+
+    /* 地图骨架的基本域顶点 E,V：在双曲面上且正交于对应三镜面 */
+    const Eh = hyperVertex(0, 2, 3), Vh = hyperVertex(1, 2, 3);
+    add("H³骨架顶点E,V有效", !!Eh && !!Vh &&
+        Math.abs(ed(Eh, Eh) + 1) < 1e-9 && Math.abs(ed(Eh, HYPER_NORMALS[0])) < 1e-9 &&
+        Math.abs(ed(Eh, HYPER_NORMALS[2])) < 1e-9 && Math.abs(ed(Vh, HYPER_NORMALS[1])) < 1e-9 &&
+        Math.abs(ed(Vh, HYPER_NORMALS[3])) < 1e-9,
+        Eh ? ("E=" + Eh.map((x) => x.toFixed(3)).join(",")) : "null");
+    const ht = buildHyperTiling();
+    add("H³地图骨架非空", ht.length > 100, "edges=" + ht.length);
+
+    const orthoH = () => {
+      const e1 = col(0), e2 = col(1), e3 = col(2), p = col(3);
+      return Math.abs(ed(p, p) + 1) < 1e-9 &&
+             Math.abs(ed(e1, e1) - 1) < 1e-9 && Math.abs(ed(e2, e2) - 1) < 1e-9 &&
+             Math.abs(ed(e3, e3) - 1) < 1e-9 &&
+             Math.abs(ed(e1, e2)) < 1e-9 && Math.abs(ed(e1, e3)) < 1e-9 &&
+             Math.abs(ed(e2, e3)) < 1e-9 &&
+             Math.abs(ed(e1, p)) < 1e-9 && Math.abs(ed(e2, p)) < 1e-9 &&
+             Math.abs(ed(e3, p)) < 1e-9;
+    };
+    add("H³框架正交(初始)", orthoH());
+    advanceCamera(1, 0, 0, 1.0);
+    const dGeo = Math.acosh(-ed(col(3), [0, 0, 0, 1]));
+    add("测地线推进距离=1", Math.abs(dGeo - 1.0) < 1e-9, "d=" + dGeo);
+    add("H³框架正交(推进后)", orthoH());
+
+    camReset();
+    advanceCamera(0.9, 0.25, 0.1, 3.0);   /* 非轴向推进，折叠后落于一般位置 */
+    const folded = new Float64Array(16);
+    foldHyper(cam, folded);
+    let inside = true;
+    for (let j = 0; j < 4; j++) {
+      const n = HYPER_NORMALS[j];
+      if (folded[12] * n[0] + folded[13] * n[1] + folded[14] * n[2] -
+          folded[15] * n[3] < -1e-9) inside = false;
+    }
+    add("fold折叠进基本域", inside);
+    const nf = folded[12] * folded[12] + folded[13] * folded[13] +
+               folded[14] * folded[14] - folded[15] * folded[15];
+    add("fold保持η范数(−1)", Math.abs(nf + 1) < 1e-9, "η=" + nf);
+    let changed = false;
+    for (let i = 12; i < 16; i++) if (Math.abs(folded[i] - cam[i]) > 1e-9) changed = true;
+    add("fold坐标已改变", changed);
+
+    /* 渲染不变性：折叠相机 vs 未折叠相机（GPU 自行折叠）应渲染一致 */
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const pts = [[canvas.width >> 1, canvas.height >> 1],
+                 [Math.floor(canvas.width * 0.3), Math.floor(canvas.height * 0.6)],
+                 [Math.floor(canvas.width * 0.7), Math.floor(canvas.height * 0.4)]];
+    const ref = pts.map((pt) => px(pt[0], pt[1]));
+    camFolded.set(cam);
+    lightFolded.set(HYPER_LIGHT);           /* 未折叠相机须配未折叠光源 */
+    draw(performance.now() / 1000, true);
+    let invOk = true;
+    const invInfo = [];
+    for (let i = 0; i < 3; i++) {
+      const q = px(pts[i][0], pts[i][1]);
+      invInfo.push(ref[i] + "→" + q);
+      for (let k = 0; k < 3; k++) if (Math.abs(q[k] - ref[i][k]) > 3) invOk = false;
+    }
+    add("渲染不变性(折叠≡未折叠)", invOk, invInfo.join(" "));
+
+    camReset();
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const c = px(canvas.width >> 1, canvas.height >> 1);
+    add("中心命中墙面(亮)", c[0] + c[1] + c[2] > 350, JSON.stringify(c));
+    gl.uniform1i(U.debug, 1);
+    draw(performance.now() / 1000);
+    const gray = (v) => v[0] === v[1] && v[1] === v[2];
+    const dv = px(canvas.width >> 1, canvas.height >> 1);
+    add("墙面命中距≈ρ=0.809", gray(dv) && dv[0] >= 25 && dv[0] <= 37,
+        "v=" + dv[0] + " 期望[25,37] 理论0.8087→31");
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const ey = Math.min(Math.round(canvas.height * 0.809), canvas.height - 1);
+    const ep = px(canvas.width >> 1, ey);
+    add("棱线像素显著变暗",
+        Math.max(ep[0], ep[1], ep[2]) < 0.72 * Math.max(c[0], c[1], c[2]),
+        "edge=" + ep + " face=" + c);
+
+    /* 地图随相机重定心：相机恒在圆盘中心；相机坐标系变换保 η 度量 */
+    hyperMapMode = 0;
+    camReset();
+    const pO = mapProject();
+    add("H³地图以相机居中(初始)", Math.abs(pO[0]) < 1e-9 && Math.abs(pO[1]) < 1e-9);
+    advanceCamera(0.9, 0.3, 0, 1.3);
+    const pP = mapProject();
+    add("H³地图随相机重定心", Math.hypot(pP[0], pP[1]) < 1e-9,
+        "u=" + pP[0].toFixed(6) + "," + pP[1].toFixed(6));
+    const wa = [0.3, 0.2, 0.1, 1.0], wb = [-0.1, 0.4, 0.2, 1.2];
+    const isoErr = Math.abs(ed(hyperToCam(wa), hyperToCam(wb)) - ed(wa, wb));
+    add("H³相机变换保度量", isoErr < 1e-9, "err=" + isoErr.toExponential(2));
+    hyperMapMode = 1;
+    const kM = mapProject();
+    add("H³克莱因模式居中", Math.hypot(kM[0], kM[1]) < 1e-9);
+    hyperMapMode = 0;
+    camReset();
+
+    /* 逐胞腔着色：相邻胞腔颜色不同（debug4 直接输出胞腔色） */
+    gl.uniform1i(U.debug, 4);
+    draw(performance.now() / 1000);
+    const cc0 = px(canvas.width >> 1, canvas.height >> 1);
+    advanceCamera(1, 0, 0, 2.0);
+    draw(performance.now() / 1000);
+    const cc1 = px(canvas.width >> 1, canvas.height >> 1);
+    add("H³逐胞腔颜色不同", colDiff(cc0, cc1) > 30, cc0 + " vs " + cc1);
+    gl.uniform1i(U.debug, 0);
+    camReset();
+  } else if (spaceMode === SPACE.ROOMS) {
+    /* {4,5} 直角房间：镜面夹角、折叠、面心到墙距、渲染 */
+    const ed = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - a[3] * b[3];
+    const ang = [[0, 1, Math.PI / 4], [1, 2, Math.PI / 5], [0, 2, Math.PI / 2]];
+    let aErr = 0;
+    for (const [i, j, th] of ang)
+      aErr = Math.max(aErr, Math.abs(ed(ROOM_NORMALS[i], ROOM_NORMALS[j]) + Math.cos(th)));
+    add("房间镜面夹角(π/4,π/5,π/2)", aErr < 1e-12, "err=" + aErr.toExponential(2));
+
+    /* 面心到墙的距离 = asinh(⟨F, M_F⟩) */
+    const dWallF = Math.asinh(ed([0, 0, 0, 1], ROOM_NORMALS[2]));
+    add("面心到墙距≈0.531", Math.abs(dWallF - 0.53063) < 1e-3, "d=" + dWallF.toFixed(5));
+
+    /* 折叠：任取域外点反射后应满足三个 ⟨x,M_i⟩ ≥ 0 */
+    let q = [0.9, -0.8, 0.3, 1.6];
+    for (let iter = 0; iter < 64; iter++) {
+      let folded = false;
+      for (let j = 0; j < 3; j++) {
+        const n = ROOM_NORMALS[j], s = ed(q, n);
+        if (s < 0) { folded = true; for (let i = 0; i < 4; i++) q[i] -= 2 * s * n[i]; }
+      }
+      if (!folded) break;
+    }
+    let inside = true;
+    for (let j = 0; j < 3; j++) if (ed(q, ROOM_NORMALS[j]) < -1e-9) inside = false;
+    add("折叠进基本域", inside);
+
+    /* 门洞：棱中点 E 在墙与 M_V 的交线上，应判为门洞（无墙） */
+    const E = [0, 0.555893, 0, 1.144123];
+    const doorOpen = ed(E, ROOM_NORMALS[0]) < ROOM_DOOR && ed(E, ROOM_NORMALS[2]) < ROOM_DOOR;
+    add("棱中点处为门洞", doorOpen);
+
+    /* 渲染：中心为墙（偏蓝亮），底部为地面（暖灰） */
+    camReset();
+    gl.uniform1i(U.debug, 0);
+    draw(performance.now() / 1000);
+    const c = px(canvas.width >> 1, canvas.height >> 1);
+    add("中心命中墙面(受光)", c[0] + c[1] + c[2] > 150, JSON.stringify(c));
+    const f = px(canvas.width >> 1, 1);
+    add("向下命中地面(受光)", f[0] + f[1] + f[2] > 100, JSON.stringify(f));
+
+    /* 逐房间着色：相邻房间颜色不同 */
+    gl.uniform1i(U.debug, 4);
+    camReset();
+    draw(performance.now() / 1000);
+    const rc0 = px(canvas.width >> 1, canvas.height >> 1);
+    advanceCamera(1, 0, 0, 1.6);
+    draw(performance.now() / 1000);
+    const rc1 = px(canvas.width >> 1, canvas.height >> 1);
+    add("房间颜色随房间改变", colDiff(rc0, rc1) > 30, rc0 + " vs " + rc1);
+    gl.uniform1i(U.debug, 0);
+    camReset();
+
+    /* 封闭性：抬头应命中天花板 */
+    rotateCols(1, 2, 1.2);
+    gl.uniform1i(U.debug, 1);
+    draw(performance.now() / 1000);
+    const ceil = px(canvas.width >> 1, canvas.height >> 1);
+    const isGray = (v) => v[0] === v[1] && v[1] === v[2];
+    add("抬头命中天花板", isGray(ceil) && ceil[0] >= 6 && ceil[0] <= 30,
+        "v=" + ceil[0] + " 期望[6,30] 理论t≈0.53→16");
+    gl.uniform1i(U.debug, 0);
+    camReset();
+
+    /* 碰撞：飞行向下不会穿出地板；步行撞墙不穿模 */
+    camReset();
+    for (let i = 0; i < 60; i++) advanceCamera(0, 0, -1, 0.1);   // 持续下降
+    clampRoomVertical();
+    add("飞行不穿出地板", cam[14] >= 0.09, "z=" + cam[14].toFixed(3));
+    for (let i = 0; i < 60; i++) advanceCamera(0, 0, 1, 0.1);    // 持续上升
+    clampRoomVertical();
+    add("飞行不穿出天花板", cam[14] <= ROOM_CEIL_Z - 0.09, "z=" + cam[14].toFixed(3));
+
+    camReset();
+    dispatchEvent(new KeyboardEvent("keydown", { code: "KeyG" }));
+    dispatchEvent(new KeyboardEvent("keyup", { code: "KeyG" }));
+    let minA = 1e9, minZ = 1e9;
+    for (let i = 0; i < 120; i++) {
+      walkMove(1, 0, 0.1);                                       // 朝墙方向持续走
+      gravityStep();
+      clampRoomVertical();
+      const pp = [cam[12], cam[13], cam[14], cam[15]];
+      for (let it = 0; it < 64; it++) {
+        let folded = false;
+        for (let j = 0; j < 3; j++) {
+          const n = ROOM_NORMALS[j];
+          const sc = pp[0] * n[0] + pp[1] * n[1] + pp[2] * n[2] - pp[3] * n[3];
+          if (sc < 0) { folded = true; for (let k = 0; k < 4; k++) pp[k] -= 2 * sc * n[k]; }
+        }
+        if (!folded) break;
+      }
+      const nn = ROOM_NORMALS[2];
+      minA = Math.min(minA, Math.asinh(
+        Math.max(pp[0] * nn[0] + pp[1] * nn[1] + pp[2] * nn[2] - pp[3] * nn[3], 0)));
+      minZ = Math.min(minZ, cam[14]);
+    }
+    add("步行不穿墙(未进入墙厚)", minA > ROOM_WALL_T, "minA=" + minA.toFixed(3));
+    add("步行始终在地板之上", minZ > 0.05, "minZ=" + minZ.toFixed(3));
+
+    /* 自动上台阶：门洞处地面抬高 ROOM_SILL_D，重力把相机抬到更高处 */
+    const Sp = [0, 0.555893, 0.5, 0];
+    Sp[3] = Math.sqrt(Sp[1] * Sp[1] + Sp[2] * Sp[2] + 1);
+    for (let i = 0; i < 4; i++) cam[12 + i] = Sp[i];
+    orthonormalizeH3();
+    add("门洞门槛判定", roomOverSill(Sp) && !roomOverSill([0, 0, 0.5, Math.sqrt(1.25)]));
+    for (let i = 0; i < 120; i++) gravityStep();
+    add("门洞处自动上台阶(眼高稳定)", Math.abs(heightAlongUp() - walkH) < 0.05,
+        "h=" + heightAlongUp().toFixed(3));
+    add("门槛使相机抬高", cam[14] > 0.55, "z=" + cam[14].toFixed(3));
+    dispatchEvent(new KeyboardEvent("keydown", { code: "KeyG" }));
+    dispatchEvent(new KeyboardEvent("keyup", { code: "KeyG" }));
+    camReset();
+  }
+
+  /* 性能分级（放在像素测试之后，避免改变画布尺寸影响读数） */
+  const t0 = tier, m0 = maxSteps, sc0 = renderScale;
+  applyTier(2);
+  add("画质分级(高级:96步/75%)", tier === 2 && maxSteps === 96 && Math.abs(renderScale - 0.75) < 1e-9,
+      "tier=" + tier + " steps=" + maxSteps + " scale=" + renderScale);
+  applyTier(t0);
+  add("画质分级可还原", tier === t0 && maxSteps === m0 && Math.abs(renderScale - sc0) < 1e-9);
+
+  /* 自动画质：低帧先降分辨率→步进数→关AA；高帧反向 */
+  const as0 = maxSteps, aa0 = aaOn, ar0 = renderScale;
+  renderScale = 0.35; maxSteps = 128; aaOn = true;
+  autoQuality(10);
+  add("自动画质低帧降步进", maxSteps < 128, "steps=" + maxSteps);
+  for (let i = 0; i < 40; i++) autoQuality(10);
+  add("自动画质低帧关AA", !aaOn);
+  maxSteps = 40; aaOn = false; renderScale = 0.35;
+  for (let i = 0; i < 80; i++) autoQuality(80);
+  add("自动画质高帧升步进/AA", aaOn && maxSteps > 40,
+      "steps=" + maxSteps + " aa=" + aaOn);
+  renderScale = ar0; maxSteps = as0; aaOn = aa0; resize();
+
+  /* 脚步声：合成不报错、迈步计程按步距触发 */
+  const snd0 = soundOn;
+  soundOn = true;
+  let audioOk = true;
+  try { playFootstep(); } catch (e) { audioOk = false; }
+  add("脚步声合成不报错", audioOk);
+  stepAccum = 0;
+  const wm = walkMode; walkMode = true;
+  maybeFootstep(0.5);
+  const acc1 = stepAccum;
+  maybeFootstep(0.5);
+  add("迈步计程触发", Math.abs(acc1 - 0.5) < 1e-9 && stepAccum < 0.5, "acc=" + stepAccum.toFixed(3));
+  walkMode = wm; soundOn = snd0; stepAccum = 0;
+
+  /* 脚下材质（房间 vs 棱线/门槛） */
+  const wm2 = walkMode; walkMode = true;
+  camReset();
+  const mval = footMaterial();
+  add("脚下材质判定有效", mval === 0 || mval === 1, "mat=" + mval);
+  if (spaceMode === SPACE.ROOMS) {
+    const Sp2 = [0, 0.555893, 0.5, 0];
+    Sp2[3] = Math.sqrt(Sp2[1] * Sp2[1] + Sp2[2] * Sp2[2] + 1);
+    for (let i = 0; i < 4; i++) cam[12 + i] = Sp2[i];
+    add("门槛处材质=棱线", footMaterial() === 1);
+  }
+  walkMode = wm2; camReset();
+
+  /* 步速联动：Shift 跑步加速（步频 = 步速 / 步距，随速度变化） */
+  const settle = () => { for (let i = 0; i < 80; i++) gravityStep(); };
+  const p4 = () => [cam[12], cam[13], cam[14], cam[15]];
+  camReset(); enterWalkMode(); settle();
+  keys.clear(); keys.add("KeyW");
+  const wp0 = p4(); updateCamera(0.05);
+  const dWalk = geodesicDist(wp0, p4());
+  camReset(); enterWalkMode(); settle();
+  keys.add("ShiftLeft");
+  const wp1 = p4(); updateCamera(0.05);
+  const dRun = geodesicDist(wp1, p4());
+  keys.clear(); walkMode = false; camReset();
+  add("Shift跑步加速(步频随速)", dRun > dWalk * 1.3 && dWalk > 0,
+      "walk=" + dWalk.toFixed(3) + " run=" + dRun.toFixed(3));
+
+  /* 小地图缩放：放大/缩小与上下限 */
+  const mz0 = mapZoom;
+  adjustMapZoom(1.25);
+  add("地图缩放可放大", mapZoom > mz0, "zoom=" + mapZoom.toFixed(3));
+  for (let i = 0; i < 40; i++) adjustMapZoom(1.25);
+  add("地图缩放上限=4", Math.abs(mapZoom - 4.0) < 1e-9, "zoom=" + mapZoom.toFixed(3));
+  for (let i = 0; i < 60; i++) adjustMapZoom(0.8);
+  add("地图缩放下限=0.4", Math.abs(mapZoom - 0.4) < 1e-9, "zoom=" + mapZoom.toFixed(3));
+  mapZoom = mz0;
+
+  /* 地图拖拽平移与双击复位 */
+  const pz0 = mapPan.slice(), pzm = mapZoom;
+  mapCanvas.dispatchEvent(new MouseEvent("mousedown", { clientX: 100, clientY: 100, bubbles: true }));
+  dispatchEvent(new MouseEvent("mousemove", { clientX: 130, clientY: 90, bubbles: true }));
+  dispatchEvent(new MouseEvent("mouseup", {}));
+  add("地图拖拽平移", Math.abs(mapPan[0] - 30) < 1e-9 && Math.abs(mapPan[1] + 10) < 1e-9,
+      "pan=" + mapPan[0] + "," + mapPan[1]);
+  mapZoom = 2;
+  mapCanvas.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  add("地图双击复位", mapPan[0] === 0 && mapPan[1] === 0 && mapZoom === 1);
+
+  /* 以指针为中心缩放：指针下的内容点应保持不动 */
+  mapZoom = 1; mapPan = [0, 0];
+  const mw = mapCanvas.width, mh = mapCanvas.height;
+  const mx = 40, my = 60, baseR = Math.min(mw, mh) / 2 - 12;
+  const ux0 = (mx - mw / 2 - mapPan[0]) / baseR;
+  const uy0 = (my - mh / 2 - mapPan[1]) / baseR;
+  adjustMapZoomAt(2, mx, my);
+  const R1 = baseR * mapZoom;
+  const sx = mw / 2 + mapPan[0] + ux0 * R1;
+  const sy = mh / 2 + mapPan[1] + uy0 * R1;
+  add("地图以指针为中心缩放", Math.abs(sx - mx) < 1e-6 && Math.abs(sy - my) < 1e-6,
+      "s=" + sx.toFixed(3) + "," + sy.toFixed(3));
+  mapPan = pz0; mapZoom = pzm;
+
+  /* 触屏手势：单指平移、双指捏合缩放 */
+  const tp0 = mapPan.slice();
+  mapGestureStart([{ clientX: 100, clientY: 100 }]);
+  mapGestureMove([{ clientX: 120, clientY: 110 }]);
+  mapGestureEnd([]);
+  add("触屏单指平移", mapPan[0] - tp0[0] === 20 && mapPan[1] - tp0[1] === 10,
+      "pan=" + (mapPan[0] - tp0[0]) + "," + (mapPan[1] - tp0[1]));
+  mapZoom = 1; mapPan = [0, 0];
+  mapGestureStart([{ clientX: 60, clientY: 100 }, { clientX: 160, clientY: 100 }]);
+  mapGestureMove([{ clientX: 40, clientY: 100 }, { clientX: 180, clientY: 100 }]);
+  add("触屏双指捏合缩放", Math.abs(mapZoom - 1.4) < 1e-9, "zoom=" + mapZoom.toFixed(3));
+  mapGestureEnd([]); mapPan = tp0; mapZoom = 1;
+
+  /* H³ 胞腔编号（稳定） */
+  const clb = buildHyperCellLabels(), clb2 = buildHyperCellLabels();
+  add("H³胞腔编号(稳定)", clb.length > 5 && clb[0].i === 0 && clb.length === clb2.length &&
+      clb[clb.length - 1].c.join(",") === clb2[clb2.length - 1].c.join(","), "n=" + clb.length);
+
+  /* 脚下材质编号有效（0..3） */
+  const fmv = footMaterial();
+  add("脚下材质编号有效", fmv >= 0 && fmv <= 3 && FOOT_CFG.length === 4, "mat=" + fmv);
+
+  /* 环境音启动不报错 */
+  let ambOk = true;
+  const amb0 = soundOn;
+  try { soundOn = true; startAmbient(); updateAmbient(); } catch (e) { ambOk = false; }
+  add("环境音启动不报错", ambOk);
+  soundOn = amb0; updateAmbient();
+
+  /* 移动端适配：控件存在、摇杆向量与钳制、驱动移动 */
+  add("触屏控件已创建", !!document.getElementById("joy") && !!document.getElementById("joyKnob") &&
+      !!document.getElementById("touchui") && typeof isTouch === "boolean", "touch=" + isTouch);
+  joyBase = [100, 100];
+  const jv1 = touchJoystick(100, 40), jv2 = touchJoystick(160, 100), jv3 = touchJoystick(240, 100);
+  add("摇杆前推=前进", Math.abs(jv1.f - 1) < 1e-9 && Math.abs(jv1.s) < 1e-9, "f=" + jv1.f.toFixed(3));
+  add("摇杆右推=右移/超程钳制", Math.abs(jv2.s - 1) < 1e-9 && Math.abs(jv3.s - 1) < 1e-9);
+  joyEl.style.display = "none"; joyKnob.style.display = "none";
+  camReset(); walkMode = false;
+  const mcp0 = [cam[12], cam[13], cam[14], cam[15]];
+  keys.clear(); touchF = 1;
+  updateCamera(0.05);
+  touchF = 0;
+  add("摇杆驱动相机移动", geodesicDist(mcp0, [cam[12], cam[13], cam[14], cam[15]]) > 0.001);
+  camReset();
+
+  const div = document.createElement("div");
+  div.id = "selftest";
+  div.textContent = JSON.stringify({ pass: checks.every((c) => c.ok), checks });
+  document.body.appendChild(div);
+}
+
+/* ---------------- 主循环 ---------------- */
+let last = performance.now();
+let lastSig = NaN;
+/* 相机指纹：用于判断相机是否静止（静止才做时间超采样） */
+function camSignature() {
+  let s = 0;
+  for (let i = 0; i < 16; i++) s += cam[i] * (i + 1.37);
+  return s;
+}
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+  updateCamera(dt);
+  const sig = camSignature();
+  camDirty = !(Math.abs(sig - lastSig) < 1e-7);
+  lastSig = sig;
+  recordTrail();
+  draw(now / 1000);
+  updateHUD(now, dt);
+  drawMinimap();
+}
+
+if (isSelfTest) {
+  hudTimer = -1e9;
+  const stLoop = () => {
+    frame(performance.now());
+    if (++stFrames === 15) { runSelfTest(); return; }
+    setTimeout(stLoop, 16);
+  };
+  setTimeout(stLoop, 16);
+} else {
+  const rafLoop = (now) => { frame(now); requestAnimationFrame(rafLoop); };
+  requestAnimationFrame(rafLoop);
+}
+</script>
+</body>
+</html>
