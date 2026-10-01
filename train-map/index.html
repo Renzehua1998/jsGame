@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>个人火车行程热力地图</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="vendor/echarts.min.js"></script>
+  <script src="vendor/papaparse.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">
+        <h1>火车行程热力地图</h1>
+        <p class="sub">纯前端 · 离线可用 · 本地存储</p>
+      </div>
+
+      <form id="trip-form" class="panel" autocomplete="off">
+        <div class="field">
+          <label for="f-date">日期 <span class="req">*</span></label>
+          <input type="date" id="f-date" required />
+        </div>
+        <div class="field">
+          <label for="f-train">车次（选填）</label>
+          <input type="text" id="f-train" placeholder="如 G1234" />
+        </div>
+        <div class="field">
+          <label for="f-start">起点 <span class="req">*</span></label>
+          <input type="text" id="f-start" list="station-list" placeholder="站名，如 北京南" required />
+        </div>
+        <div class="field">
+          <label for="f-end">终点 <span class="req">*</span></label>
+          <input type="text" id="f-end" list="station-list" placeholder="站名，如 上海虹桥" required />
+        </div>
+        <div class="field">
+          <label for="f-duration">时长（选填）</label>
+          <input type="text" id="f-duration" placeholder="如 4h30m" />
+        </div>
+        <div class="field">
+          <label for="f-via">途径车站（选填，按顺序，逗号分隔）</label>
+          <input type="text" id="f-via" placeholder="如 济南西，南京南" />
+        </div>
+        <div class="edit-bar" id="edit-bar" hidden>
+          正在编辑：<span id="edit-label"></span>
+          <button type="button" class="link" id="btn-cancel-edit">取消</button>
+        </div>
+        <button type="submit" id="f-submit">添加行程</button>
+        <div class="form-msg" id="form-msg"></div>
+      </form>
+
+      <div class="list-head">
+        <span>行程记录（<span id="trip-count">0</span>）</span>
+        <span class="list-actions">
+          <button type="button" class="link" id="btn-import">导入CSV</button>
+          <button type="button" class="link" id="btn-export">导出CSV</button>
+          <button type="button" class="link danger" id="btn-clear">清空</button>
+        </span>
+      </div>
+      <ul id="trip-list" class="trip-list"></ul>
+      <input type="file" id="csv-file" accept=".csv,text/csv" hidden />
+
+      <div class="foot">
+        <span id="stats">—</span>
+      </div>
+    </aside>
+
+    <main id="map-wrap">
+      <div id="map"></div>
+      <div id="status">正在加载地图数据…</div>
+      <div id="legend" class="legend" hidden>
+        <div class="legend-title">行程频次</div>
+        <div class="legend-bar" id="legend-bar"></div>
+        <div class="legend-scale"><span id="legend-min">0</span><span id="legend-max">—</span></div>
+      </div>
+    </main>
+  </div>
+
+  <datalist id="station-list"></datalist>
+
+  <script src="data/train-data.js"></script>
+  <script src="js/routing.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/heatmap.js"></script>
+  <script src="js/csv.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
