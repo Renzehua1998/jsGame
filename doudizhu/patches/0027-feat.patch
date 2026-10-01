@@ -1,0 +1,146 @@
+From 20aeff3a733de2a566a146cead56e37587cf1677 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:44:02 +0800
+Subject: [PATCH 27/36] =?UTF-8?q?feat:=20=E5=A4=B4=E5=83=8F=E4=B8=8A?=
+ =?UTF-8?q?=E4=BC=A0/=E8=87=AA=E5=AE=9A=E4=B9=89=E6=98=B5=E7=A7=B0=20-=20?=
+ =?UTF-8?q?=E4=BF=9D=E5=AD=98=E5=9C=A8=E4=B8=BB=E6=9C=BA?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- step0加昵称输入框(maxlength=8)和头像上传(file input)
+- 头像限制100KB, FileReader转base64 dataURL
+- 客户端连接时发送profile消息(昵称+头像)给主机
+- 主机保存customAvatars/customNicks数组, 通过broadcastState同步
+- renderAvatar优先显示自定义头像(圆形裁剪), 无自定义用素材
+- getDisplayName统一处理昵称显示(自定义>玩家X)
+- 客户端/观战者通过applyState恢复avatars和names
+---
+ index.html | 10 ++++++++++
+ js/game.js | 45 ++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/index.html b/index.html
+index ad6caaf..92991a0 100644
+--- a/index.html
++++ b/index.html
+@@ -17,6 +17,16 @@
+ <!-- 选择角色 -->
+ <div id="step0" class="panel step active">
+   <p style="text-align:center;margin-bottom:14px;color:#ccc;">选择你的性别与角色开始游戏。初始每人 100 分，按胜负累计。</p>
++  <p class="label" style="text-align:center;">你的昵称：</p>
++  <div style="text-align:center;margin-bottom:10px;">
++    <input type="text" id="nickInput" maxlength="8" placeholder="玩家" style="background:var(--textarea-bg);color:#fff;border:1px solid var(--panel-border);border-radius:6px;padding:6px 12px;font-size:14px;text-align:center;">
++  </div>
++  <p class="label" style="text-align:center;">自定义头像（可选，留空用默认素材）：</p>
++  <div style="text-align:center;margin-bottom:14px;">
++    <input type="file" id="avatarInput" accept="image/*" style="display:none;" onchange="onAvatarPick(this)">
++    <button class="secondary" style="font-size:13px;padding:6px 14px;" onclick="document.getElementById('avatarInput').click()">📷 上传头像</button>
++    <img id="avatarPreview" style="display:none;width:54px;height:54px;border-radius:50%;border:2px solid var(--accent);vertical-align:middle;margin-left:8px;" />
++  </div>
+   <p class="label" style="text-align:center;">选择性别（决定农民角色形象与语音）：</p>
+   <div style="text-align:center;margin-bottom:14px;">
+     <button id="genderMale" class="secondary" onclick="setGender('man')">👨 男（农民1）</button>
+diff --git a/js/game.js b/js/game.js
+index ae9110c..0cb5169 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -47,14 +47,41 @@ let autoPlay = false;  // 托管标记
+ let prevPhase = null;
+ let prevPlayed = {0:null,1:null,2:null};
+ 
++/* ---- 自定义头像与昵称 ---- */
++let myNick = '';
++let myAvatar = null;  // base64 dataURL
++let customAvatars = [null,null,null];  // 三玩家自定义头像
++let customNicks = ['','',''];          // 三玩家自定义昵称
++function onAvatarPick(input){
++  const file = input.files[0]; if(!file) return;
++  if(file.size > 102400){ alert('头像文件过大(>100KB)，请压缩后重试'); input.value=''; return; }
++  const reader = new FileReader();
++  reader.onload = e=>{ myAvatar = e.target.result; const pv=document.getElementById('avatarPreview'); if(pv){ pv.src=myAvatar; pv.style.display='inline-block'; } };
++  reader.readAsDataURL(file);
++}
++function getDisplayName(idx){
++  if(customNicks[idx]) return customNicks[idx];
++  if(idx===myIdx) return myNick || '我';
++  return '玩家'+(idx+1);
++}
++
+ function enterGame(){
+   showStep('gameArea');
++  // 读取昵称
++  const nickEl=document.getElementById('nickInput'); if(nickEl && nickEl.value.trim()) myNick=nickEl.value.trim();
+   document.getElementById('gameStatus').textContent='🟢 '+(role==='spectator'?'观战模式':'三人已连接，准备发牌');
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display=role==='spectator'?'none':'block';
+   const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display=role==='spectator'?'none':'block';
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+   if(typeof startBgm==='function') startBgm();
+-  if(role==='host') genders[0]=myGender; else if(role!=='spectator') genders[myIdx]=myGender;
++  if(role==='host'){
++    genders[0]=myGender; customAvatars[0]=myAvatar; customNicks[0]=myNick;
++    view.names[0]=getDisplayName(0);
++  } else if(role!=='spectator'){
++    genders[myIdx]=myGender;
++    // 客户端把自己的昵称和头像发给主机
++    netSend(0, {t:'profile', nick:myNick, avatar:myAvatar});
++  }
+   view.genders = genders.slice();
+   if(typeof isMobile!=='undefined' && isMobile) setTimeout(fitScale, 50);
+   if(role==='host') hostStartGame();
+@@ -190,7 +217,8 @@ function broadcastState(){
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+-    genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards
++    genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards,
++    avatars:customAvatars
+   };
+   netBroadcast({t:'state', v:pub});
+   // 观战者收到额外信息：所有人手牌
+@@ -593,6 +621,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='ping'){ netSend(sender,{t:'o',time:m.time}); }
+     else if(m.t==='o'){ }
+     else if(m.t==='gender'){ genders[sender]=m.g||'man'; view.genders=genders.slice(); log('玩家'+(sender+1)+' 性别: '+(m.g==='woman'?'女':'男')); }
++    else if(m.t==='profile'){ customAvatars[sender]=m.avatar||null; customNicks[sender]=m.nick||''; view.names[sender]=getDisplayName(sender); log('玩家'+(sender+1)+' 昵称: '+view.names[sender]); broadcastState(); }
+     else if(m.t==='chat'){ // 客户端发来的聊天，主机本地播放并转发给另一客户端
+       onChatMsg(m.from, m.phrase, m.gender);
+       const other = sender===1?2:1;
+@@ -628,6 +657,8 @@ function applyState(v){
+   view.played = v.played || {0:null,1:null,2:null};
+   view.bidLog = v.bidLog || [];
+   if(v.genders){ genders = v.genders.slice(); view.genders = genders; }
++  if(v.avatars){ customAvatars = v.avatars.slice(); }
++  if(v.names){ view.names = v.names.slice(); }
+   // 观战者：用 specHands 恢复所有人的手牌显示
+   if(role==='spectator' && v.specHands){
+     view.specHands = v.specHands;
+@@ -878,7 +909,7 @@ function render(){
+     const pos = seatPos(i);
+     const seat = document.getElementById('seat'+cap(pos));
+     if(!seat) continue;
+-    seat.querySelector('.name').textContent = (i===myIdx && role!=='spectator'?'我':'玩家'+(i+1));
++    seat.querySelector('.name').textContent = getDisplayName(i);
+     const cntEl = seat.querySelector('.count');
+     cntEl.textContent = view.hands[i]!==undefined ? '🂠 '+view.hands[i] : '';
+     renderAvatar(pos, i);
+@@ -934,6 +965,14 @@ function renderAvatar(pos, idx){
+   if(!el) return;
+   el.innerHTML='';
+   el.style.background='none';
++  // 自定义头像优先
++  if(customAvatars[idx]){
++    el.style.width='54px'; el.style.height='54px'; el.style.borderRadius='50%';
++    el.style.backgroundImage='url("'+customAvatars[idx]+'")';
++    el.style.backgroundRepeat='no-repeat'; el.style.backgroundSize='cover';
++    el.style.backgroundPosition='center';
++    return;
++  }
+   const name = avatarNameFor(idx);
+   if(!name){ el.style.backgroundColor='#2a3a26'; return; }
+   const r = SPR[name];
+-- 
+2.45.1.windows.1
+
+
+

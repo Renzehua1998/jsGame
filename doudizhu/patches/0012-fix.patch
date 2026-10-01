@@ -1,0 +1,201 @@
+From e9daf701d21c1d2afc89665069458d55c2087e20 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 19:59:59 +0800
+Subject: [PATCH 12/36] =?UTF-8?q?fix:=20=E5=88=A0=E9=99=A4=E6=97=A0?=
+ =?UTF-8?q?=E5=8A=9F=E8=83=BD=E8=A7=92=E6=A0=87=E6=A0=8F=E4=B8=8E=E8=A7=92?=
+ =?UTF-8?q?=E8=89=B2=E7=AB=8B=E7=BB=98=EF=BC=8C=E4=BF=AE=E6=AD=A3=E5=BA=A7?=
+ =?UTF-8?q?=E4=BD=8D=E5=AE=9A=E4=BD=8D?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 删除角标图标栏 iconBar (icon_volume/settings/chat/help/undo 无 onclick 按不动)
+  与右下角聊天/设置功能按钮重复, 移除避免混淆
+- 删除角色立绘 char-figure (大图遮挡座位导致头像布局乱)
+- 删除 renderIconBar/renderCharFigure 函数及调用
+- 座位定位修正: .seat 改 relative(单次声明), p-me/p-left/p-right 明确 position:absolute
+- DOM 内皇冠移到头像之前, 内部顺序: 皇冠>头像>名字>徽章>手牌数
+- me 出牌区与闹钟 bottom 调 300px 与座位错开
+---
+ css/style.css | 19 ++++---------------
+ index.html    | 14 ++++----------
+ js/game.js    | 33 +--------------------------------
+ 3 files changed, 9 insertions(+), 57 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index 8edb921..2a09856 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -67,7 +67,7 @@ textarea {
+   content:""; position:absolute; inset:6px; border-radius:160px;
+   border:2px dashed rgba(255,255,255,.06); pointer-events:none;
+ }
+-.seat { position:absolute; display:flex; flex-direction:column; align-items:center; gap:4px; }
++.seat { position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; }
+ .seat .name { font-size:13px; color:#ffd54a; text-shadow:0 1px 2px #000; }
+ .seat .avatar {
+   width:54px; height:54px; border-radius:50%;
+@@ -78,9 +78,9 @@ textarea {
+ .seat .count { font-size:12px; color:#cfe8c0; background:rgba(0,0,0,.4); padding:1px 8px; border-radius:10px; }
+ .seat .crown { font-size:16px; margin-top:-2px; filter:drop-shadow(0 0 3px #ffd54a); }
+ /* 倒三角排布：我在正下方手牌上方，左右对手在上方两侧 */
+-.seat.p-me   { left:50%; bottom:210px; transform:translateX(-50%); z-index:10; }
+-.seat.p-right{ right:20px; top:60px; }
+-.seat.p-left { left:20px; top:60px; }
++.seat.p-me   { position:absolute; left:50%; bottom:210px; transform:translateX(-50%); z-index:10; }
++.seat.p-right{ position:absolute; right:20px; top:60px; }
++.seat.p-left { position:absolute; left:20px; top:60px; }
+ .opp-hand { display:flex; flex-direction:column; align-items:center; gap:1px; margin-top:2px; }
+ .opp-hand .back { width:26px; height:36px; border-radius:3px; background:#1a3a6a; border:1px solid #0a1a3a; margin-top:-30px; box-shadow:0 0 0 1px #2a5a9a inset; }
+ .opp-hand .back:first-child { margin-top:0; }
+@@ -156,21 +156,10 @@ textarea {
+ .clock { position:absolute; width:52px; height:58px; z-index:15; animation:clockShake 1s infinite; }
+ @keyframes clockShake { 0%,100%{transform:rotate(-4deg);} 50%{transform:rotate(4deg);} }
+ 
+-/* 角色立绘 */
+-.char-figure { position:absolute; opacity:.85; pointer-events:none; z-index:1; }
+-.char-figure.p-me { left:50%; bottom:170px; transform:translateX(-50%); }
+-.char-figure.p-right { right:8px; top:30px; }
+-.char-figure.p-left { left:8px; top:30px; }
+-
+ /* 座位头像用素材 */
+ .seat .avatar-sprite { width:70px; height:74px; border-radius:8px; border:2px solid #ffd54a; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.5); background-image:url('../img/dou.png'); background-repeat:no-repeat; background-color:#2a3a26; }
+ .seat .crown-sprite { position:absolute; top:-14px; left:50%; transform:translateX(-50%); }
+ .seat .badge-sprite { margin-top:2px; }
+-.seat { position:relative; }
+-
+-/* 角标图标栏 */
+-.icon-bar { position:absolute; right:10px; bottom:8px; display:flex; gap:6px; opacity:.55; z-index:5; }
+-.icon-bar .sprite { cursor:default; }
+ 
+ /* 按钮图片 */
+ .img-btn { background:transparent; border:none; padding:0; cursor:pointer; margin:3px; transition:transform .12s; display:inline-block; background-image:url('../img/dou.png'); background-repeat:no-repeat; }
+diff --git a/index.html b/index.html
+index 06d178b..76a9f7d 100644
+--- a/index.html
++++ b/index.html
+@@ -82,10 +82,6 @@
+   <div class="stage">
+     <div class="table"></div>
+     <div class="table-fan" id="tableFan"></div>
+-    <!-- 角色立绘 -->
+-    <div class="char-figure p-left" id="figureLeft"></div>
+-    <div class="char-figure p-right" id="figureRight"></div>
+-    <div class="char-figure p-me" id="figureMe"></div>
+     <!-- 局数牌 -->
+     <div class="sign-zone round" id="signRound"></div>
+     <!-- 倍数卷轴 -->
+@@ -96,26 +92,26 @@
+     <div class="effect-layer" id="effectLayer" style="display:none;"></div>
+     <!-- 胜负横幅 -->
+     <div class="banner-layer" id="bannerLayer" style="display:none;"></div>
+-    <!-- 三座位 -->
++    <!-- 三座位（倒三角：我在下，两对手在左上/右上） -->
+     <div class="seat p-left" id="seatLeft">
+-      <div class="avatar-sprite" id="avatarLeft"></div>
+       <div class="crown-sprite" id="crownLeft" style="display:none;"></div>
++      <div class="avatar-sprite" id="avatarLeft"></div>
+       <div class="name">上家</div>
+       <div class="badge-sprite" id="badgeLeft"></div>
+       <div class="count"></div>
+       <div class="opp-hand" id="handLeft"></div>
+     </div>
+     <div class="seat p-right" id="seatRight">
+-      <div class="avatar-sprite" id="avatarRight"></div>
+       <div class="crown-sprite" id="crownRight" style="display:none;"></div>
++      <div class="avatar-sprite" id="avatarRight"></div>
+       <div class="name">下家</div>
+       <div class="badge-sprite" id="badgeRight"></div>
+       <div class="count"></div>
+       <div class="opp-hand" id="handRight"></div>
+     </div>
+     <div class="seat p-me" id="seatMe">
+-      <div class="avatar-sprite" id="avatarMe"></div>
+       <div class="crown-sprite" id="crownMe" style="display:none;"></div>
++      <div class="avatar-sprite" id="avatarMe"></div>
+       <div class="name">我</div>
+       <div class="badge-sprite" id="badgeMe"></div>
+       <div class="count"></div>
+@@ -126,8 +122,6 @@
+     <div class="played-zone p-me" id="playedMe"></div>
+     <!-- 我的手牌 -->
+     <div class="bottom-area"><div class="my-hand" id="myHand"></div></div>
+-    <!-- 角标图标栏 -->
+-    <div class="icon-bar" id="iconBar"></div>
+   </div>
+   <div class="actions" id="actions">
+     <div class="info" id="actInfo">等待中...</div>
+diff --git a/js/game.js b/js/game.js
+index 3974b65..57d6230 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -328,7 +328,6 @@ function seatPos(idx){
+   return rel===0?'me': rel===1?'right':'left';
+ }
+ function render(){
+-  renderIconBar();
+   renderTableFan();
+   renderSignRound();
+   renderMultScroll();
+@@ -344,9 +343,6 @@ function render(){
+     renderBadge(pos, i);
+   }
+   renderClock();
+-  renderCharFigure('Left', (myIdx+2)%3);
+-  renderCharFigure('Right', (myIdx+1)%3);
+-  renderCharFigure('Me', myIdx);
+   renderOppHand('Left', view.hands[(myIdx+2)%3]);
+   renderOppHand('Right', view.hands[(myIdx+1)%3]);
+   renderBottom();
+@@ -421,21 +417,6 @@ function renderBadge(pos, idx){
+   b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   el.appendChild(b);
+ }
+-function renderCharFigure(pos, idx){
+-  const el = document.getElementById('figure'+cap(pos));
+-  if(!el) return;
+-  el.innerHTML='';
+-  if(view.landlord<0) return;
+-  let name;
+-  if(idx===view.landlord) name='char_landlord';
+-  else name = (genders[idx]==='woman') ? 'char_peasant2' : 'char_peasant1';
+-  const r = SPR[name], s = 0.35;
+-  const f = document.createElement('div'); f.className='card sprite';
+-  f.style.width=(r.w*s)+'px'; f.style.height=(r.h*s)+'px';
+-  f.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+-  f.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+-  el.appendChild(f);
+-}
+ function renderClock(){
+   document.querySelectorAll('.clock').forEach(c=>c.remove());
+   if(view.over || view.turn<0 || view.phase!=='play') return;
+@@ -448,23 +429,11 @@ function renderClock(){
+   clock.style.width='52px'; clock.style.height=(r.h*s)+'px';
+   clock.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+   clock.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+-  if(pos==='me') clock.style.cssText += 'position:absolute;left:50%;bottom:120px;transform:translateX(-50%);';
++  if(pos==='me') clock.style.cssText += 'position:absolute;left:50%;bottom:300px;transform:translateX(-50%);';
+   else if(pos==='right') clock.style.cssText += 'position:absolute;right:80px;top:150px;';
+   else clock.style.cssText += 'position:absolute;left:80px;top:150px;';
+   document.querySelector('.stage').appendChild(clock);
+ }
+-function renderIconBar(){
+-  const el = document.getElementById('iconBar'); if(!el) return;
+-  if(el.children.length>0) return;
+-  ['icon_volume','icon_settings','icon_chat','icon_help','icon_undo'].forEach(name=>{
+-    const r = SPR[name], s = 28/r.w;
+-    const b = document.createElement('div'); b.className='card sprite';
+-    b.style.width='28px'; b.style.height=(r.h*s)+'px';
+-    b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+-    b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+-    el.appendChild(b);
+-  });
+-}
+ function renderTableFan(){
+   const el = document.getElementById('tableFan'); if(!el) return;
+   if(el.children.length>0) return;
+-- 
+2.45.1.windows.1
+
+
+

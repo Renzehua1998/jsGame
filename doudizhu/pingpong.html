@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P 联机乒乓球 - 低延迟版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f23;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 10px; color: #00ff88; }
+    .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
+    
+    .panel {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 10px;
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    button {
+      background: #00ff88;
+      color: #0f0f23;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.2s;
+    }
+    button:hover { background: #00cc6a; transform: translateY(-2px); }
+    button.secondary { background: #333; color: #fff; }
+    button.secondary:hover { background: #444; }
+    button:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+    
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #0f0f23;
+      color: #00ff88;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      resize: vertical;
+      margin: 10px 0;
+    }
+    
+    .step { display: none; animation: fadeIn 0.3s; }
+    .step.active { display: block; }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .label { color: #aaa; font-size: 14px; margin: 10px 0 5px; }
+    
+    #gameCanvas {
+      border: 2px solid #333;
+      border-radius: 8px;
+      background: #000;
+      max-width: 100%;
+    }
+    
+    .controls {
+      margin-top: 15px;
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+    }
+    
+    .status {
+      color: #00ff88;
+      font-size: 18px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    
+    .copy-hint {
+      background: #2a2a4e;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #ccc;
+      margin: 10px 0;
+      border-left: 3px solid #00ff88;
+    }
+    
+    .error-box {
+      background: #3a1a1a;
+      border: 1px solid #ff4444;
+      color: #ff8888;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    
+    .loading {
+      color: #00ff88;
+      font-size: 14px;
+      margin: 10px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏓 P2P 联机乒乓球</h1>
+  <p class="subtitle">低延迟修复版 · 本地预测 · 60fps同步 · 平滑插值</p>
+
+  <div id="step0" class="panel step active">
+    <p style="text-align:center; margin-bottom:20px; color:#ccc;">
+      选择你的角色开始游戏。
+    </p>
+    <div style="text-align:center;">
+      <button onclick="beHost()">🎮 创建房间（主机）</button>
+      <button class="secondary" onclick="beClient()">🔗 加入房间（客户端）</button>
+    </div>
+  </div>
+
+  <div id="stepHost1" class="panel step">
+    <h3>步骤 1/3：生成邀请码</h3>
+    <p class="label">点击下方按钮生成邀请码，然后复制发给对方。</p>
+    <div style="text-align:center;">
+      <button id="btnCreateOffer" onclick="createOffer()">生成邀请码</button>
+    </div>
+    <div id="hostError"></div>
+    <div id="hostLoading" class="loading" style="display:none;">⏳ 正在收集网络信息，请稍候（最多5秒）...</div>
+    <div id="hostOfferArea" style="display:none; margin-top:15px;">
+      <p class="label">📋 复制以下全部内容发给对方：</p>
+      <textarea id="offerOut" readonly onclick="this.select()"></textarea>
+      <p class="copy-hint">💡 点击文本框全选 → Ctrl+C 复制，通过微信/QQ发给对方。</p>
+      <p class="label">📥 粘贴对方发回的应答码：</p>
+      <textarea id="answerIn" placeholder="将对方发回的应答码粘贴到这里..."></textarea>
+      <div style="text-align:center;">
+        <button onclick="acceptAnswer()">建立连接</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stepClient1" class="panel step">
+    <h3>步骤 1/2：输入邀请码</h3>
+    <p class="label">将主机发给你的邀请码粘贴到下方：</p>
+    <textarea id="offerIn" placeholder="粘贴邀请码..."></textarea>
+    <div style="text-align:center;">
+      <button id="btnCreateAnswer" onclick="createAnswer()">生成应答码</button>
+    </div>
+    <div id="clientError"></div>
+    <div id="clientLoading" class="loading" style="display:none;">⏳ 正在处理，请稍候（最多5秒）...</div>
+    <div id="clientAnswerArea" style="display:none; margin-top:15px;">
+      <p class="label">📋 复制以下全部内容发回给主机：</p>
+      <textarea id="answerOut" readonly onclick="this.select()"></textarea>
+      <p class="copy-hint">💡 点击文本框全选 → Ctrl+C 复制发给主机，然后等待连接。</p>
+    </div>
+  </div>
+
+  <div id="gameArea" class="step" style="text-align:center;">
+    <div class="status" id="gameStatus">🟢 已连接！游戏开始</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="controls">
+      <span id="roleText"></span> | 
+      控制方式：<span id="controlText"></span> | 
+      <span id="netInfo" style="color:#ffaa00;">RTT: --ms</span>
+    </div>
+  </div>
+
+  <script>
+    if (!window.RTCPeerConnection) {
+      alert('你的浏览器不支持 WebRTC，请使用 Chrome、Edge 或 Firefox 最新版。');
+    }
+
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+      ]
+    };
+
+    let pc = null;
+    let channel = null;
+    let role = null;
+    let rtt = 0;
+    let lastPingSent = 0;
+
+    function showStep(id) {
+      document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+    function beHost() { role = 'host'; showStep('stepHost1'); }
+    function beClient() { role = 'client'; showStep('stepClient1'); }
+
+    function showError(id, msg) {
+      document.getElementById(id).innerHTML = `<div class="error-box">❌ ${msg}</div>`;
+    }
+    function clearError(id) {
+      document.getElementById(id).innerHTML = '';
+    }
+
+    function waitIceComplete(pc, timeout = 5000) {
+      return new Promise((resolve) => {
+        if (pc.iceGatheringState === 'complete') return resolve();
+        let resolved = false;
+        let timer = null;
+        const doResolve = () => {
+          if (resolved) return;
+          resolved = true;
+          if (timer) clearTimeout(timer);
+          pc.removeEventListener('icecandidate', onCandidate);
+          pc.removeEventListener('icegatheringstatechange', onStateChange);
+          resolve();
+        };
+        const onCandidate = (e) => { if (e.candidate === null) doResolve(); };
+        const onStateChange = () => { if (pc.iceGatheringState === 'complete') doResolve(); };
+        timer = setTimeout(() => { console.warn('ICE 超时，使用已收集候选'); doResolve(); }, timeout);
+        pc.addEventListener('icecandidate', onCandidate);
+        pc.addEventListener('icegatheringstatechange', onStateChange);
+      });
+    }
+
+    async function createOffer() {
+      clearError('hostError');
+      const btn = document.getElementById('btnCreateOffer');
+      btn.disabled = true;
+      document.getElementById('hostLoading').style.display = 'block';
+      try {
+        pc = new RTCPeerConnection(RTC_CONFIG);
+        // 关键优化：无序、不重传，新包覆盖旧包，不阻塞
+        channel = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 });
+        setupChannel(channel);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitIceComplete(pc, 5000);
+        document.getElementById('offerOut').value = JSON.stringify(pc.localDescription);
+        document.getElementById('hostOfferArea').style.display = 'block';
+      } catch (err) {
+        showError('hostError', '生成邀请码失败：' + err.message);
+        btn.disabled = false;
+      } finally {
+        document.getElementById('hostLoading').style.display = 'none';
+      }
+    }
+
+    async function acceptAnswer() {
+      clearError('hostError');
+      const answerStr = document.getElementById('answerIn').value.trim();
+      if (!answerStr) return alert('请输入应答码');
+      try {
+        const answer = JSON.parse(answerStr);
+        await pc.setRemoteDescription(answer);
+      } catch(e) {
+        showError('hostError', '应答码格式错误：' + e.message);
+      }
+    }
+
+    async function createAnswer() {
+      clearError('clientError');
+      const offerStr = document.getElementById('offerIn').value.trim();
+      if (!offerStr) return showError('clientError', '请输入邀请码');
+      let offer;
+      try { offer = JSON.parse(offerStr); } 
+      catch(e) { return showError('clientError', '邀请码格式错误：' + e.message); }
+      const btn = document.getElementById('btnCreateAnswer');
+      btn.disabled = true;
+      document.getElementById('clientLoading').style.display = 'block';
+      try {
+        pc = new RTCPeerConnection(RTC_CONFIG);
+        pc.addEventListener('datachannel', e => {
+          channel = e.channel;
+          setupChannel(channel);
+        });
+        await pc.setRemoteDescription(offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await waitIceComplete(pc, 5000);
+        document.getElementById('answerOut').value = JSON.stringify(pc.localDescription);
+        document.getElementById('clientAnswerArea').style.display = 'block';
+      } catch (err) {
+        showError('clientError', '生成应答码失败：' + err.message);
+        btn.disabled = false;
+      } finally {
+        document.getElementById('clientLoading').style.display = 'none';
+      }
+    }
+
+    function setupChannel(ch) {
+      ch.addEventListener('open', () => {
+        console.log('DataChannel 已打开');
+        showStep('gameArea');
+        document.getElementById('roleText').textContent = role === 'host' ? '你是：主机（左侧）' : '你是：客户端（右侧）';
+        document.getElementById('controlText').textContent = role === 'host' ? 'W / S' : '↑ / ↓';
+        initGame();
+      });
+      ch.addEventListener('message', e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.t === 'p') { // ping/pong
+            if (role === 'host') {
+              ch.send(JSON.stringify({ t: 'o', time: msg.time })); // pong
+            } else {
+              rtt = performance.now() - msg.time;
+            }
+          } else if (msg.t === 'o') {
+            rtt = performance.now() - msg.time;
+          } else {
+            handleGameMessage(msg);
+          }
+        } catch(err) {}
+      });
+      ch.addEventListener('error', e => console.error('DataChannel 错误:', e));
+      ch.addEventListener('close', () => { alert('连接已断开'); });
+    }
+
+    // ==================== 游戏逻辑（低延迟修复版） ====================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const GAME = {
+      width: 800, height: 400,
+      paddleW: 12, paddleH: 80,
+      ballR: 8,
+      paddleSpeed: 6,
+      ballSpeed: 5
+    };
+
+    let state = {
+      ball: { x: 400, y: 200, vx: 5, vy: 3 },
+      p1: { y: 160 },
+      p2: { y: 160 },
+      score: [0, 0]
+    };
+
+    // 客户端插值用的目标状态
+    let targetState = null;
+    let keys = {};
+
+    function initGame() {
+      resetBall();
+      requestAnimationFrame(gameLoop);
+      // 每 500ms 测一次 RTT
+      setInterval(() => {
+        if (channel && channel.readyState === 'open') {
+          lastPingSent = performance.now();
+          channel.send(JSON.stringify({ t: 'p', time: lastPingSent }));
+        }
+      }, 500);
+    }
+
+    function resetBall() {
+      state.ball.x = GAME.width / 2;
+      state.ball.y = GAME.height / 2;
+      state.ball.vx = (Math.random() > 0.5 ? 1 : -1) * GAME.ballSpeed;
+      state.ball.vy = (Math.random() * 4 - 2);
+    }
+
+    let frameCount = 0;
+
+    function gameLoop() {
+      update();
+      render();
+      frameCount++;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+      if (role === 'host') {
+        // 主机：W/S 控制左挡板
+        if (keys['w'] || keys['W']) state.p1.y -= GAME.paddleSpeed;
+        if (keys['s'] || keys['S']) state.p1.y += GAME.paddleSpeed;
+        state.p1.y = Math.max(0, Math.min(GAME.height - GAME.paddleH, state.p1.y));
+        
+        // 球物理（主机权威）
+        state.ball.x += state.ball.vx;
+        state.ball.y += state.ball.vy;
+        
+        if (state.ball.y - GAME.ballR < 0 || state.ball.y + GAME.ballR > GAME.height) {
+          state.ball.vy *= -1;
+        }
+        
+        const p1x = 20;
+        const p2x = GAME.width - 20 - GAME.paddleW;
+        
+        if (state.ball.x - GAME.ballR < p1x + GAME.paddleW &&
+            state.ball.y > state.p1.y && state.ball.y < state.p1.y + GAME.paddleH &&
+            state.ball.vx < 0) {
+          state.ball.vx = Math.abs(state.ball.vx) * 1.05;
+          const hitPos = (state.ball.y - state.p1.y) / GAME.paddleH - 0.5;
+          state.ball.vy += hitPos * 4;
+        }
+        
+        if (state.ball.x + GAME.ballR > p2x &&
+            state.ball.y > state.p2.y && state.ball.y < state.p2.y + GAME.paddleH &&
+            state.ball.vx > 0) {
+          state.ball.vx = -Math.abs(state.ball.vx) * 1.05;
+          const hitPos = (state.ball.y - state.p2.y) / GAME.paddleH - 0.5;
+          state.ball.vy += hitPos * 4;
+        }
+        
+        if (state.ball.x < 0) { state.score[1]++; resetBall(); }
+        if (state.ball.x > GAME.width) { state.score[0]++; resetBall(); }
+        
+        const maxSpeed = 12;
+        const speed = Math.sqrt(state.ball.vx**2 + state.ball.vy**2);
+        if (speed > maxSpeed) {
+          state.ball.vx = (state.ball.vx / speed) * maxSpeed;
+          state.ball.vy = (state.ball.vy / speed) * maxSpeed;
+        }
+
+        // 关键优化：每帧都发送状态（60fps），而不是 setInterval 30fps
+        if (channel && channel.readyState === 'open') {
+          // 每 3 帧发一次输入包（降低上行），每帧发状态包（保证下行流畅）
+          // 实际上对于 2 人游戏，每帧发一次数据量很小（<200字节），完全没问题
+          channel.send(JSON.stringify({
+            t: 's',
+            time: performance.now(),
+            b: state.ball,
+            p1: state.p1.y,
+            sc: state.score
+          }));
+        }
+        
+      } else {
+        // 客户端：↑/↓ 控制右挡板 —— 本地立即响应！零延迟手感
+        if (keys['ArrowUp']) state.p2.y -= GAME.paddleSpeed;
+        if (keys['ArrowDown']) state.p2.y += GAME.paddleSpeed;
+        state.p2.y = Math.max(0, Math.min(GAME.height - GAME.paddleH, state.p2.y));
+        
+        // 把本地挡板位置发给主机（主机用它做碰撞计算）
+        if (channel && channel.readyState === 'open' && frameCount % 2 === 0) {
+          channel.send(JSON.stringify({ t: 'i', p2: state.p2.y }));
+        }
+        
+        // 关键优化：球位置平滑插值（Lerp），而不是直接瞬移
+        if (targetState) {
+          const lerpFactor = 0.35; // 插值速度，0.3~0.5 比较平滑
+            
+          // 球向目标位置平滑移动
+          state.ball.x += (targetState.ball.x - state.ball.x) * lerpFactor;
+          state.ball.y += (targetState.ball.y - state.ball.y) * lerpFactor;
+          
+          // 左挡板（对手）也做插值
+          state.p1.y += (targetState.p1 - state.p1.y) * lerpFactor;
+          
+          // 分数直接同步（不需要插值）
+          state.score = targetState.score;
+        }
+      }
+    }
+
+    function handleGameMessage(msg) {
+      if (role === 'client' && msg.t === 's') {
+        // 收到主机状态，保存为目标状态（不做直接赋值！）
+        targetState = {
+          ball: { x: msg.b.x, y: msg.b.y },
+          p1: msg.p1,
+          score: msg.sc
+        };
+      } else if (role === 'host' && msg.t === 'i') {
+        // 主机收到客户端挡板位置，直接用于物理计算
+        state.p2.y = msg.p2;
+      }
+    }
+
+    function render() {
+      ctx.fillStyle = '#0a0a1a';
+      ctx.fillRect(0, 0, GAME.width, GAME.height);
+      
+      ctx.strokeStyle = '#222';
+      ctx.setLineDash([10, 10]);
+      ctx.beginPath();
+      ctx.moveTo(GAME.width/2, 0);
+      ctx.lineTo(GAME.width/2, GAME.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // 球发光效果
+      ctx.fillStyle = '#00ff88';
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#00ff88';
+      ctx.beginPath();
+      ctx.arc(state.ball.x, state.ball.y, GAME.ballR, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // 挡板
+      ctx.fillStyle = '#fff';
+      const p1x = 20;
+      const p2x = GAME.width - 20 - GAME.paddleW;
+      ctx.fillRect(p1x, state.p1.y, GAME.paddleW, GAME.paddleH);
+      ctx.fillRect(p2x, state.p2.y, GAME.paddleW, GAME.paddleH);
+      
+      // 分数
+      ctx.font = 'bold 60px monospace';
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'center';
+      ctx.fillText(state.score[0], GAME.width/2 - 60, 80);
+      ctx.fillText(state.score[1], GAME.width/2 + 60, 80);
+      
+      // 网络信息
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'left';
+      const status = channel ? channel.readyState : 'closed';
+      ctx.fillText(`P2P: ${status} | ${role === 'host' ? 'HOST' : 'CLIENT'} | RTT:${Math.round(rtt)}ms`, 10, GAME.height - 10);
+      
+      // 更新 DOM 上的 RTT 显示
+      document.getElementById('netInfo').textContent = `RTT: ${Math.round(rtt)}ms ${rtt > 100 ? '(较高)' : rtt > 50 ? '(一般)' : '(优秀)'}`;
+    }
+
+    window.addEventListener('keydown', e => { keys[e.key] = true; });
+    window.addEventListener('keyup', e => { keys[e.key] = false; });
+  </script>
+</body>
+</html>

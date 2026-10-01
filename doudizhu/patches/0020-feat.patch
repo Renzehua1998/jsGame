@@ -1,0 +1,297 @@
+From 337969214aae030a2603a8e229b5c4280ff0587f Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 14:57:55 +0800
+Subject: [PATCH 20/36] =?UTF-8?q?feat:=20=E9=87=8D=E8=BF=9E=E6=9C=BA?=
+ =?UTF-8?q?=E5=88=B6=20-=20=E6=96=AD=E7=BA=BF=E5=90=8E=E9=87=8D=E6=96=B0?=
+ =?UTF-8?q?=E5=BB=BA=E7=AB=8B=E8=BF=9E=E6=8E=A5=E6=81=A2=E5=A4=8D=E5=AF=B9?=
+ =?UTF-8?q?=E5=B1=80?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 主机端: 客户端断线时保留手牌不结束游戏, 显示重连浮层
+  重新生成该slot的offer, 客户端重连后自动恢复完整状态(手牌+底牌+游戏状态)
+  恢复时自动继续对应阶段(bid/grab/show/play)
+- 客户端: 断线后保存myIdx到localStorage, 显示重连面板
+  输入新邀请码重新建立连接, 连接后自动收到手牌和状态恢复
+- net.js: gameInProgress标志区分首次连接/重连, reconnect专用信令函数
+- 重连浮层overlay样式, 不影响游戏布局
+---
+ css/style.css |  8 +++++
+ index.html    | 25 ++++++++++++++++
+ js/game.js    | 79 +++++++++++++++++++++++++++++++++++++++++++++++-
+ js/net.js     | 83 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 4 files changed, 189 insertions(+), 6 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index bf04596..5b5ef36 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -304,3 +304,11 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ }
+ .switch input:checked + .slider { background:#ffd54a; }
+ .switch input:checked + .slider:before { transform:translateX(22px); }
++
++/* 重连浮层 */
++.reconnect-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:flex; align-items:center; justify-content:center; }
++.reconnect-box { background:#1a2418; border:2px solid #ffd54a; border-radius:16px; padding:24px 28px; max-width:460px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,.5); }
++.reconnect-box h3 { color:#ffd54a; margin:0 0 12px; text-align:center; }
++.reconnect-box p { color:#ccc; font-size:14px; line-height:1.6; }
++.reconnect-box textarea { width:100%; min-height:80px; margin:6px 0; box-sizing:border-box; }
++.reconnect-box .chat-close { position:absolute; top:-12px; right:-12px; }
+diff --git a/index.html b/index.html
+index 54eaf48..bff45b5 100644
+--- a/index.html
++++ b/index.html
+@@ -160,6 +160,31 @@
+   </div>
+   <div id="logBox"></div>
+ </div>
++
++<!-- 重连面板（主机端） -->
++<div id="reconnectHostPanel" class="reconnect-overlay" style="display:none;">
++  <div class="reconnect-box">
++    <h3>🔄 玩家断线重连</h3>
++    <div id="reconnectHostContent"></div>
++    <button class="chat-close" onclick="closeReconnectHostPanel()">✕</button>
++  </div>
++</div>
++
++<!-- 重连面板（客户端） -->
++<div id="reconnectClientPanel" class="reconnect-overlay" style="display:none;">
++  <div class="reconnect-box">
++    <h3>🔄 连接断开</h3>
++    <p>请向主机获取新的邀请码：</p>
++    <textarea id="reconnectOfferIn" placeholder="粘贴新邀请码..."></textarea>
++    <div style="text-align:center;margin:8px 0;"><button onclick="reconnectClient()">重新连接</button></div>
++    <div id="reconnectClientError"></div>
++    <div id="reconnectAnswerArea" style="display:none;">
++      <p class="label">📋 复制以下内容发回给主机：</p>
++      <textarea id="reconnectAnswerOut" readonly onclick="this.select()"></textarea>
++      <p class="copy-hint">💡 发回后等待主机建立重连，对局将自动恢复。</p>
++    </div>
++  </div>
++</div>
+ </div>
+ 
+ <!-- 测试代码 js/test.js 不在生产页面加载，仅供开发时命令行运行：node -e "require('./js/test.js')" -->
+diff --git a/js/game.js b/js/game.js
+index 4807da6..7a1a7c0 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -51,11 +51,88 @@ function enterGame(){
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display='block';
+   const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display='block';
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+-  if(typeof startBgm==='function') startBgm();   // 启动BGM（用户交互后允许播放）
++  if(typeof startBgm==='function') startBgm();
+   if(role==='host') genders[0]=myGender; else genders[myIdx]=myGender;
+   view.genders = genders.slice();
+   if(typeof isMobile!=='undefined' && isMobile) setTimeout(fitScale, 50);
+   if(role==='host') hostStartGame();
++  if(typeof net_setGameInProgress==='function') net_setGameInProgress(true);
++}
++
++/* ---- 重连：主机端客户端断线 ---- */
++function onClientDisconnect(slot){
++  log('玩家'+(slot+1)+' 断线，等待重连... 对局暂停');
++  setActInfo('⚠ 玩家'+(slot+1)+' 断线，等待重连');
++  clearTurnTimer();
++  // 显示重连浮层
++  const panel=document.getElementById('reconnectHostPanel');
++  if(panel) panel.style.display='flex';
++  const content=document.getElementById('reconnectHostContent');
++  if(content){
++    content.innerHTML = '<p>玩家'+(slot+1)+' 已断线。点击下方按钮重新生成邀请码，发给对方重新连接。</p>'+
++      '<div style="text-align:center;margin:10px 0;"><button onclick="genReconnectOffer('+slot+')">重新生成玩家'+(slot+1)+'的邀请码</button></div>'+
++      '<div id="reconnectOfferArea" style="display:none;">'+
++      '<p class="label">📋 新邀请码 — 发给玩家'+(slot+1)+'：</p>'+
++      '<textarea id="reconnectOfferOut" readonly onclick="this.select()"></textarea>'+
++      '<p class="label">📥 玩家'+(slot+1)+' 回传的应答码：</p>'+
++      '<textarea id="reconnectAnswerIn" placeholder="粘贴应答码..."></textarea>'+
++      '<div style="text-align:center;margin:8px 0;"><button onclick="acceptReconnect()">建立重连</button></div>'+
++      '</div>';
++  }
++}
++async function genReconnectOffer(slot){
++  const s = await createOfferForReconnect(slot);
++  if(s){
++    const area=document.getElementById('reconnectOfferArea');
++    if(area) area.style.display='block';
++    const out=document.getElementById('reconnectOfferOut');
++    if(out) out.value=s;
++  }
++}
++async function acceptReconnect(){
++  const a=document.getElementById('reconnectAnswerIn').value.trim();
++  if(!a) return;
++  await acceptReconnectAnswer(a);
++  // 重连成功后 UI 由 channel open 事件触发关闭
++}
++function closeReconnectHostPanel(){
++  const panel=document.getElementById('reconnectHostPanel');
++  if(panel) panel.style.display='none';
++}
++
++/* ---- 重连：主机端恢复客户端状态 ---- */
++function restoreClient(slot){
++  log('正在为玩家'+(slot+1)+' 恢复对局...');
++  // 重新发送手牌
++  const keys = H.hands[slot].map(cardKey);
++  netSend(slot, {t:'deal', hand:keys, you:slot});
++  // 如果是地主且已亮底，发送底牌
++  if(H.landlord === slot && view.bottomShown){
++    netSend(slot, {t:'bottom', cards: view.bottom});
++  }
++  // 广播完整状态
++  broadcastState();
++  // 关闭重连面板
++  closeReconnectHostPanel();
++  // 如果当前是断线玩家的回合，恢复倒计时
++  if(H.phase==='play' && H.turn===slot){
++    promptPlay();
++  } else if(H.phase==='bid' && H.bidIdx===slot){
++    promptBid();
++  } else if(H.phase==='grab' && H.grabIdx===slot){
++    promptGrab();
++  } else if(H.phase==='show' && H.landlord===slot){
++    startShow();
++  }
++  setActInfo('玩家'+(slot+1)+' 已重连，对局继续');
++  log('玩家'+(slot+1)+' 已恢复对局');
++}
++
++/* ---- 重连：客户端断线 ---- */
++function onDisconnect(){
++  log('与主机连接断开，请重连');
++  const panel=document.getElementById('reconnectClientPanel');
++  if(panel) panel.style.display='flex';
+ }
+ 
+ /* ---- 主机：开始一局 ---- */
+diff --git a/js/net.js b/js/net.js
+index 07487d0..3acde69 100644
+--- a/js/net.js
++++ b/js/net.js
+@@ -9,6 +9,8 @@ let pc1=null, pc2=null, ch1=null, ch2=null;   // 主机端
+ let pc=null, channel=null;                      // 客户端端
+ let myIdx = 0;                                   // 我在三人中的座次
+ let rtt=0, lastPing=0;
++let gameInProgress = false;     // 游戏是否在进行中（用于判断重连）
++let reconnectSlot = -1;         // 主机端：正在重连的 slot（1或2）
+ 
+ function showStep(id){
+   document.querySelectorAll('.step').forEach(el=>el.classList.remove('active'));
+@@ -94,13 +96,25 @@ function setupChannel(ch, slot){
+   ch.addEventListener('open',()=>{
+     log('通道已打开 (slot='+slot+')');
+     if(role==='host'){
+-      sendRaw(ch, {t:'assign', you: slot});
+-      if(ch1 && ch1.readyState==='open' && ch2 && ch2.readyState==='open'){
+-        enterGame();
++      if(gameInProgress){
++        // 重连场景：不发 assign，直接恢复
++        log('玩家'+(slot+1)+' 重连成功');
++        if(typeof restoreClient==='function') restoreClient(slot);
++        reconnectSlot = -1;
++      } else {
++        // 首次连接
++        sendRaw(ch, {t:'assign', you: slot});
++        if(ch1 && ch1.readyState==='open' && ch2 && ch2.readyState==='open'){
++          enterGame();
++        }
+       }
+     } else {
+-      // 客户端把自己的性别发给主机
++      // 客户端
+       sendRaw(ch, {t:'gender', g: myGender});
++      if(gameInProgress){
++        // 重连：通知主机我是谁
++        sendRaw(ch, {t:'reconnect', idx: myIdx});
++      }
+       enterGame();
+     }
+   });
+@@ -108,13 +122,36 @@ function setupChannel(ch, slot){
+     try{ const m=JSON.parse(e.data);
+       if(m.t==='p'){ ch.send(JSON.stringify({t:'o',time:m.time})); return; }
+       if(m.t==='o'){ rtt=performance.now()-m.time; return; }
++      if(m.t==='reconnect'){ // 客户端重连时告知座次
++        if(role==='host' && m.idx>=1 && m.idx<=2) log('重连玩家确认：玩家'+(m.idx+1));
++        return;
++      }
+       onNetMessage(m, slot);
+     }catch(err){}
+   });
+-  ch.addEventListener('close',()=>{ log('连接断开'); alert('连接已断开'); });
++  ch.addEventListener('close',()=>{
++    log('连接断开 (slot='+slot+')');
++    if(role==='host'){
++      if(gameInProgress){
++        // 游戏中断线，不结束游戏，触发重连流程
++        if(typeof onClientDisconnect==='function') onClientDisconnect(slot);
++      } else {
++        alert('连接已断开');
++      }
++    } else {
++      if(gameInProgress){
++        // 客户端断线，保存座次，显示重连面板
++        try{ localStorage.setItem('dou_reconnect_idx', String(myIdx)); }catch(e){}
++        if(typeof onDisconnect==='function') onDisconnect();
++      } else {
++        alert('连接已断开');
++      }
++    }
++  });
+   ch.addEventListener('error',e=>log('通道错误'));
+ }
+ function sendRaw(ch, obj){ if(ch && ch.readyState==='open') ch.send(JSON.stringify(obj)); }
++function net_setGameInProgress(v){ gameInProgress = v; }
+ 
+ function netSend(targetIdx, obj){
+   if(role==='host'){
+@@ -126,3 +163,39 @@ function netSend(targetIdx, obj){
+   }
+ }
+ function netBroadcast(obj){ if(role==='host'){ sendRaw(ch1,obj); sendRaw(ch2,obj); } }
++
++/* ---- 主机：为断线客户端重新生成 offer ---- */
++async function createOfferForReconnect(slot){
++  try{
++    const pc = new RTCPeerConnection(RTC_CONFIG);
++    const ch = pc.createDataChannel('g'+slot,{ordered:true});
++    setupChannel(ch, slot);
++    const o = await pc.createOffer(); await pc.setLocalDescription(o); await waitIce(pc);
++    if(slot===1){ pc1=pc; ch1=ch; } else if(slot===2){ pc2=pc; ch2=ch; }
++    reconnectSlot = slot;
++    return JSON.stringify(pc.localDescription);
++  }catch(err){ log('重新生成邀请码失败：'+err.message); return null; }
++}
++async function acceptReconnectAnswer(answerStr){
++  if(reconnectSlot<0) return;
++  try{
++    const pc = reconnectSlot===1?pc1:pc2;
++    await pc.setRemoteDescription(JSON.parse(answerStr));
++    log('重连应答已接受');
++  }catch(e){ log('重连应答码格式错误：'+e.message); }
++}
++
++/* ---- 客户端：重连 ---- */
++async function reconnectClient(){
++  const s=document.getElementById('reconnectOfferIn').value.trim();
++  if(!s) return;
++  let offer; try{ offer=JSON.parse(s);}catch(e){ document.getElementById('reconnectClientError').innerHTML='<div class="error-box">❌ 邀请码格式错误</div>'; return;}
++  try{
++    pc=new RTCPeerConnection(RTC_CONFIG);
++    pc.addEventListener('datachannel',e=>{ channel=e.channel; setupChannel(channel,0); });
++    await pc.setRemoteDescription(offer);
++    const ans=await pc.createAnswer(); await pc.setLocalDescription(ans); await waitIce(pc);
++    document.getElementById('reconnectAnswerOut').value=JSON.stringify(pc.localDescription);
++    document.getElementById('reconnectAnswerArea').style.display='block';
++  }catch(err){ document.getElementById('reconnectClientError').innerHTML='<div class="error-box">❌ '+err.message+'</div>'; }
++}
+-- 
+2.45.1.windows.1
+
+
+

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1410">
+<title>P2P 联机斗地主</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+<h1>🃏 P2P 联机斗地主</h1>
+<p class="subtitle">三人 WebRTC 直连 · 主机权威 · 经典玩法 · 素材切片自 dou.png</p>
+
+<!-- 断线重连提示条 -->
+<div id="reconnectBanner" class="reconnect-banner" style="display:none;">
+  <span>🔄 检测到上次对局断线</span>
+  <button onclick="startReconnectFromNewPage()">重连</button>
+  <button class="secondary" onclick="clearReconnectState()">忽略</button>
+</div>
+
+<!-- 选择角色 -->
+<div id="step0" class="panel step active">
+  <p style="text-align:center;margin-bottom:14px;color:#ccc;">选择你的性别与角色开始游戏。初始每人 100 分，按胜负累计。</p>
+  <p class="label" style="text-align:center;">你的昵称：</p>
+  <div style="text-align:center;margin-bottom:10px;">
+    <input type="text" id="nickInput" maxlength="8" placeholder="玩家" style="background:var(--textarea-bg);color:#fff;border:1px solid var(--panel-border);border-radius:6px;padding:6px 12px;font-size:14px;text-align:center;">
+  </div>
+  <p class="label" style="text-align:center;">自定义头像（可选，留空用默认素材）：</p>
+  <div style="text-align:center;margin-bottom:14px;">
+    <input type="file" id="avatarInput" accept="image/*" style="display:none;" onchange="onAvatarPick(this)">
+    <button class="secondary" style="font-size:13px;padding:6px 14px;" onclick="document.getElementById('avatarInput').click()">📷 上传头像</button>
+    <img id="avatarPreview" style="display:none;width:54px;height:54px;border-radius:50%;border:2px solid var(--accent);vertical-align:middle;margin-left:8px;" />
+  </div>
+  <p class="label" style="text-align:center;">选择性别（决定农民角色形象与语音）：</p>
+  <div style="text-align:center;margin-bottom:14px;">
+    <button id="genderMale" class="secondary" onclick="setGender('man')">👨 男（农民1）</button>
+    <button id="genderFemale" class="secondary" onclick="setGender('woman')">👩 女（农民2）</button>
+  </div>
+  <div style="text-align:center;">
+    <button onclick="beHost()">🏠 创建房间（主机·玩家1）</button>
+    <button class="secondary" onclick="beClient()">🔗 加入房间（客户端）</button>
+    <button class="secondary" onclick="beSpectator()">👁 观战（只读）</button>
+  </div>
+  <p class="copy-hint">💡 三人玩法：1 个主机 + 2 个客户端 + 可选观战者。地主形象与语音与性别无关；农民按性别显示角色1/2。叫地主按局轮换首叫人。</p>
+</div>
+
+<!-- 主机：生成两份邀请码 -->
+<div id="stepHost1" class="panel step">
+  <h3>步骤 1/2：生成两份邀请码</h3>
+  <p class="label">点击生成，然后把两份邀请码分别发给两位朋友。</p>
+  <div style="text-align:center;">
+    <button id="btnCreateOffer" onclick="createOffers()">生成两份邀请码</button>
+  </div>
+  <div id="hostError"></div>
+  <div id="hostLoading" class="loading" style="display:none;">⏳ 正在收集网络信息（最多 8 秒）...</div>
+  <div id="hostOfferArea" style="display:none;margin-top:12px;">
+    <div class="slot">
+      <h4>玩家2（客户端A）</h4>
+      <p class="label">📋 邀请码 — 发给玩家2：</p>
+      <textarea id="offerOut1" readonly onclick="this.select()"></textarea>
+      <p class="label">📥 玩家2 回传的应答码：</p>
+      <textarea id="answerIn1" placeholder="粘贴玩家2的应答码..."></textarea>
+    </div>
+    <div class="slot">
+      <h4>玩家3（客户端B）</h4>
+      <p class="label">📋 邀请码 — 发给玩家3：</p>
+      <textarea id="offerOut2" readonly onclick="this.select()"></textarea>
+      <p class="label">📥 玩家3 回传的应答码：</p>
+      <textarea id="answerIn2" placeholder="粘贴玩家3的应答码..."></textarea>
+    </div>
+    <div style="text-align:center;">
+      <button onclick="acceptAnswers()">建立连接并开局</button>
+    </div>
+  </div>
+  <!-- 观战者邀请码（可选，开局后也可生成） -->
+  <div id="hostSpectatorArea" style="margin-top:12px;">
+    <h4>👁 观战者（可选）</h4>
+    <p class="label">游戏开始后也可随时生成观战邀请码：</p>
+    <div style="text-align:center;">
+      <button id="btnSpecOffer" onclick="createSpectatorOffer()">生成观战邀请码</button>
+    </div>
+    <div id="specOfferArea" style="display:none;margin-top:8px;">
+      <p class="label">📋 观战邀请码 — 发给观战者：</p>
+      <textarea id="specOfferOut" readonly onclick="this.select()"></textarea>
+      <p class="label">📥 观战者回传的应答码：</p>
+      <textarea id="specAnswerIn" placeholder="粘贴观战者的应答码..."></textarea>
+      <div style="text-align:center;"><button onclick="acceptSpectatorAnswer()">建立观战连接</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 客户端 -->
+<div id="stepClient1" class="panel step">
+  <h3>步骤 1/1：输入邀请码</h3>
+  <p class="label">把主机发给你的邀请码粘贴到下方：</p>
+  <textarea id="offerIn" placeholder="粘贴邀请码..."></textarea>
+  <div style="text-align:center;">
+    <button id="btnCreateAnswer" onclick="createAnswer()">生成应答码</button>
+  </div>
+  <div id="clientError"></div>
+  <div id="clientLoading" class="loading" style="display:none;">⏳ 正在处理（最多 8 秒）...</div>
+  <div id="clientAnswerArea" style="display:none;margin-top:12px;">
+    <p class="label">📋 复制以下全部内容发回给主机，然后等待开局：</p>
+    <textarea id="answerOut" readonly onclick="this.select()"></textarea>
+    <p class="copy-hint">💡 发回后保持页面打开，主机会自动开始游戏。</p>
+  </div>
+</div>
+
+<!-- 观战者 -->
+<div id="stepSpectator1" class="panel step">
+  <h3>👁 观战模式</h3>
+  <p class="label">输入主机发给你的观战邀请码：</p>
+  <textarea id="specOfferIn" placeholder="粘贴观战邀请码..."></textarea>
+  <div style="text-align:center;">
+    <button id="btnSpecAnswer" onclick="createSpectatorAnswer()">生成应答码</button>
+  </div>
+  <div id="specError"></div>
+  <div id="specLoading" class="loading" style="display:none;">⏳ 正在处理...</div>
+  <div id="specAnswerArea" style="display:none;margin-top:12px;">
+    <p class="label">📋 复制以下内容发回给主机：</p>
+    <textarea id="specAnswerOut" readonly onclick="this.select()"></textarea>
+    <p class="copy-hint">💡 发回后保持页面打开，即可观战。</p>
+  </div>
+</div>
+
+<!-- 游戏区 -->
+<div id="gameArea" class="step">
+  <div class="status" id="gameStatus">🟢 已连接，准备发牌...</div>
+  <div class="stage">
+    <div class="table"></div>
+    <div class="table-fan" id="tableFan"></div>
+    <!-- 局数牌 -->
+    <div class="sign-zone round" id="signRound"></div>
+    <!-- 倍数卷轴 -->
+    <div class="mult-scroll" id="multScroll"></div>
+    <!-- 底牌 -->
+    <div class="bottom-cards" id="bottomCards"></div>
+    <!-- 特效层 -->
+    <div class="effect-layer" id="effectLayer" style="display:none;"></div>
+    <!-- 胜负横幅 -->
+    <div class="banner-layer" id="bannerLayer" style="display:none;"></div>
+    <!-- 三座位（倒三角：我在下，两对手在左上/右上） -->
+    <div class="seat p-left" id="seatLeft">
+      <div class="crown-sprite" id="crownLeft" style="display:none;"></div>
+      <div class="avatar-sprite" id="avatarLeft"></div>
+      <div class="name">上家</div>
+      <div class="badge-sprite" id="badgeLeft"></div>
+      <div class="count"></div>
+      <div class="opp-hand" id="handLeft"></div>
+      <div class="gift-popup" id="giftPopupLeft"></div>
+    </div>
+    <div class="seat p-right" id="seatRight">
+      <div class="crown-sprite" id="crownRight" style="display:none;"></div>
+      <div class="avatar-sprite" id="avatarRight"></div>
+      <div class="name">下家</div>
+      <div class="badge-sprite" id="badgeRight"></div>
+      <div class="count"></div>
+      <div class="opp-hand" id="handRight"></div>
+      <div class="gift-popup" id="giftPopupRight"></div>
+    </div>
+    <div class="seat p-me" id="seatMe">
+      <div class="crown-sprite" id="crownMe" style="display:none;"></div>
+      <div class="avatar-sprite" id="avatarMe"></div>
+      <div class="name">我</div>
+      <div class="badge-sprite" id="badgeMe"></div>
+      <div class="count"></div>
+      <div class="gift-popup" id="giftPopupMe"></div>
+    </div>
+    <!-- 出牌区 -->
+    <div class="played-zone p-left" id="playedLeft"></div>
+    <div class="played-zone p-right" id="playedRight"></div>
+    <div class="played-zone p-me" id="playedMe"></div>
+    <!-- 我的手牌 -->
+    <div class="hand-preview" id="handPreview"></div>
+    <div class="bottom-area"><div class="my-hand" id="myHand"></div></div>
+  </div>
+  <div class="actions" id="actions">
+    <div class="info" id="actInfo">等待中...</div>
+    <div id="actButtons"></div>
+  </div>
+  <!-- 聊天短语选择条 -->
+  <div id="chatBar" class="chat-bar" style="display:none;">
+    <button class="chat-phrase" onclick="sendChat(0)">大家好</button>
+    <button class="chat-phrase" onclick="sendChat(1)">快点吧</button>
+    <button class="chat-phrase" onclick="sendChat(2)">决战到天亮</button>
+    <button class="chat-phrase" onclick="sendChat(3)">帅哥还是美女</button>
+    <button class="chat-phrase" onclick="sendChat(4)">十盘不算晚</button>
+    <button class="chat-phrase" onclick="sendChat(5)">打错了</button>
+    <button class="chat-close" onclick="toggleChat(false)">✕</button>
+  </div>
+  <!-- 聊天按钮 -->
+  <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
+  <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:76px;">🤖</button>
+  <!-- 设置按钮 -->
+  <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:134px;">⚙</button>
+  <!-- 设置面板 -->
+  <div id="settingsPanel" class="settings-panel" style="display:none;">
+    <div class="settings-row">
+      <span>🎵 音乐</span>
+      <input type="range" id="setBgmVol" min="0" max="100" value="35" class="vol-slider" oninput="setBgmVol(this.value|0)">
+      <span class="vol-val" id="bgmVolVal">35</span>
+    </div>
+    <div class="settings-row">
+      <span>🔊 音效</span>
+      <input type="range" id="setSfxVol" min="0" max="100" value="70" class="vol-slider" oninput="setSfxVol(this.value|0)">
+      <span class="vol-val" id="sfxVolVal">70</span>
+    </div>
+    <div class="settings-row">
+      <span>🎨 主题</span>
+      <select id="themeSelect" onchange="setTheme(this.value)">
+        <option value="green">经典绿桌</option>
+        <option value="blue">蓝桌</option>
+        <option value="dark">夜间</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <button class="secondary" style="width:100%;font-size:13px;padding:6px;" onclick="showStats()">📊 战绩统计</button>
+    </div>
+    <button class="chat-close" onclick="toggleSettings(false)">✕</button>
+  </div>
+</div>
+
+<!-- 战绩面板 -->
+<div id="statsPanel" class="reconnect-overlay" style="display:none;">
+  <div class="reconnect-box" style="max-width:500px;">
+    <h3>📊 战绩统计</h3>
+    <div id="statsContent"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">
+      <button class="secondary" onclick="exportData()">📦 导出</button>
+      <button class="secondary" onclick="document.getElementById('importFile').click()">📥 导入</button>
+      <button class="secondary" onclick="clearStats()">清空记录</button>
+      <button onclick="closeStats()">关闭</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(this)">
+    <button class="chat-close" onclick="closeStats()">✕</button>
+  </div>
+</div>
+  <div id="logBox"></div>
+
+<!-- 重连面板（主机端） -->
+<div id="reconnectHostPanel" class="reconnect-overlay" style="display:none;">
+  <div class="reconnect-box">
+    <h3>🔄 玩家断线重连</h3>
+    <div id="reconnectHostContent"></div>
+    <button class="chat-close" onclick="closeReconnectHostPanel()">✕</button>
+  </div>
+</div>
+
+<!-- 重连面板（客户端） -->
+<div id="reconnectClientPanel" class="reconnect-overlay" style="display:none;">
+  <div class="reconnect-box">
+    <h3>🔄 连接断开</h3>
+    <p>请向主机获取新的邀请码：</p>
+    <textarea id="reconnectOfferIn" placeholder="粘贴新邀请码..."></textarea>
+    <div style="text-align:center;margin:8px 0;"><button onclick="reconnectClient()">重新连接</button></div>
+    <div id="reconnectClientError"></div>
+    <div id="reconnectAnswerArea" style="display:none;">
+      <p class="label">📋 复制以下内容发回给主机：</p>
+      <textarea id="reconnectAnswerOut" readonly onclick="this.select()"></textarea>
+      <p class="copy-hint">💡 发回后等待主机建立重连，对局将自动恢复。</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 测试代码 js/test.js 不在生产页面加载，仅供开发时命令行运行：node -e "require('./js/test.js')" -->
+<script src="js/cards.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/net.js"></script>
+<script src="js/game.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

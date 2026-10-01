@@ -1,0 +1,545 @@
+From 5a7667ad35aa2460f1bca4b60d7dc7114d437250 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Mon, 24 Aug 2026 10:18:04 +0800
+Subject: [PATCH 33/36] =?UTF-8?q?fix:=208=E9=A1=B9bug=E4=BF=AE=E5=A4=8D?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1. 头像上传支持框选裁剪: 非正方形图片可拖动选择正方形区域
+   - 新增 showAvatarCropper() 弹层, 支持鼠标/触摸拖动
+   - 裁剪后输出200x200正方形base64
+
+2. 侧边玩家手牌按数量自动分列: 根据舞台高度动态计算每列上限
+   - renderOppHand 重写为多列布局, 列间微重叠
+   - CSS .opp-hand 支持横向排列多列卡背
+
+3. 移除页面多余红叉按钮: index.html中孤立的chat-close按钮
+
+4. 右下角按钮样式优化: 圆形改圆角方形, 调整位置/大小/间距
+   - 从底部90px移至24px, 三按钮水平排列间距58px
+   - 设置面板/聊天栏位置同步调整
+
+5. 送礼物浮层与飞行动画修复:
+   - 浮层: 侧边座位弹向外侧, 限制max-width+flex-wrap
+   - 飞行: 改用position:fixed+getBoundingClientRect挂载body
+     避免.stage overflow:hidden裁剪, z-index:9999
+
+6. 倒计时闹钟+数字统一为仅剩<=15秒时显示
+
+7. 客户端断线主机自动托管: 不暂停对局, hostAutoActForSlot代替操作
+   - 重连浮层改为非阻塞, 显示已自动托管提示
+   - 重连后恢复, 取消自动托管标记
+
+8. 托管状态显示: 新增autoSlots[3]数组+autoPlay消息同步
+   - 主机维护各座次托管状态, broadcastState广播
+   - 客户端toggleAutoPlay上报主机, 头像旁显示'🤖托管'标识
+   - 断线自动标记托管, 重连后清除
+---
+ css/style.css |  30 +++---
+ index.html    |   6 +-
+ js/game.js    | 280 ++++++++++++++++++++++++++++++++++++++------------
+ 3 files changed, 235 insertions(+), 81 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index f93b810..5aced51 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -120,8 +120,8 @@ textarea {
+ .seat.p-me   { position:absolute; left:50%; bottom:210px; transform:translateX(-50%); z-index:10; }
+ .seat.p-right{ position:absolute; right:20px; top:60px; }
+ .seat.p-left { position:absolute; left:20px; top:60px; }
+-.opp-hand { display:flex; flex-direction:column; align-items:center; gap:1px; margin-top:2px; }
+-.opp-hand .back { width:26px; height:36px; border-radius:3px; background:#1a3a6a; border:1px solid #0a1a3a; margin-top:-30px; box-shadow:0 0 0 1px #2a5a9a inset; }
++.opp-hand { display:flex; flex-direction:column; align-items:center; gap:0; margin-top:2px; max-height:340px; }
++.opp-hand .back { width:26px; height:36px; border-radius:3px; background:#1a3a6a; border:1px solid #0a1a3a; margin-top:-28px; box-shadow:0 0 0 1px #2a5a9a inset; flex-shrink:0; }
+ .opp-hand .back:first-child { margin-top:0; }
+ 
+ .played-zone {
+@@ -274,18 +274,21 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ 
+ /* ============ 聊天 ============ */
+ .chat-btn {
+-  position:fixed; right:18px; bottom:90px; z-index:50;
+-  width:48px; height:48px; border-radius:50%;
+-  background:var(--accent); color:#2a1f00; border:none; font-size:22px;
+-  cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.5);
+-  transition:transform .12s;
++  position:fixed; right:18px; bottom:24px; z-index:50;
++  width:44px; height:44px; border-radius:12px;
++  background:var(--panel-bg); color:var(--accent); border:2px solid var(--accent);
++  font-size:20px; line-height:1; cursor:pointer;
++  box-shadow:0 3px 10px rgba(0,0,0,.5);
++  transition:transform .12s, box-shadow .12s, background .12s;
++  display:flex; align-items:center; justify-content:center;
+ }
+-.chat-btn:hover { transform:scale(1.1); }
++.chat-btn:hover { transform:translateY(-2px); box-shadow:0 5px 14px rgba(0,0,0,.6); background:var(--accent); color:#2a1f00; }
++.chat-btn:active { transform:scale(.95); }
+ .chat-bar {
+-  position:fixed; right:76px; bottom:90px; z-index:51;
++  position:fixed; right:76px; bottom:24px; z-index:51;
+   display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+   max-width:60vw; background:var(--panel-bg); border:1px solid var(--accent);
+-  border-radius:22px; padding:8px 10px; box-shadow:0 4px 14px rgba(0,0,0,.6);
++  border-radius:12px; padding:8px 10px; box-shadow:0 4px 14px rgba(0,0,0,.6);
+ }
+ .chat-phrase {
+   background:#3a4a36; color:#fff; border:none; border-radius:14px;
+@@ -309,20 +312,23 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+   display:none; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+   margin-top:6px; background:var(--panel-bg); border:1px solid var(--accent); border-radius:10px;
+   padding:8px; z-index:60; box-shadow:0 4px 14px rgba(0,0,0,.6);
+-  flex-direction:row; gap:6px;
++  flex-direction:row; gap:6px; max-width:220px; flex-wrap:wrap; justify-content:center;
+ }
+ .gift-popup.show { display:flex; }
+ .seat.p-me .gift-popup { top:auto; bottom:100%; margin-top:0; margin-bottom:6px; }
++.seat.p-left .gift-popup { left:auto; right:100%; transform:none; margin-right:6px; margin-top:0; top:0; }
++.seat.p-right .gift-popup { left:100%; transform:none; margin-left:6px; margin-top:0; top:0; }
+ .gift-item {
+   background:#243018; border:2px solid #3a4a36; border-radius:8px;
+   padding:4px; cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center;
++  width:42px; height:42px; flex-shrink:0;
+ }
+ .gift-item:hover { border-color:var(--accent); transform:translateY(-2px); background:#2e3b2a; }
+ .gift-sprite { background-repeat:no-repeat; }
+ @keyframes giftLand { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0;} 60%{transform:translate(-50%,-50%) scale(1.2);opacity:1;} 100%{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+ @keyframes giftFlyFast { 0%{transform:translate(-50%,-50%) rotate(0);} 100%{transform:translate(-50%,-50%) rotate(720deg);} }
+ .settings-panel {
+-  position:fixed; right:76px; bottom:150px; z-index:51;
++  position:fixed; right:18px; bottom:80px; z-index:51;
+   background:var(--panel-bg); border:1px solid var(--accent); border-radius:12px;
+   padding:14px 16px; box-shadow:0 4px 14px rgba(0,0,0,.6);
+   display:flex; flex-direction:column; gap:12px; min-width:240px;
+diff --git a/index.html b/index.html
+index f2ec80a..880d333 100644
+--- a/index.html
++++ b/index.html
+@@ -186,9 +186,9 @@
+   </div>
+   <!-- 聊天按钮 -->
+   <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
+-  <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:134px;">🤖</button>
++  <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:76px;">🤖</button>
+   <!-- 设置按钮 -->
+-  <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:76px;">⚙</button>
++  <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:134px;">⚙</button>
+   <!-- 设置面板 -->
+   <div id="settingsPanel" class="settings-panel" style="display:none;">
+     <div class="settings-row">
+@@ -231,8 +231,6 @@
+     <button class="chat-close" onclick="closeStats()">✕</button>
+   </div>
+ </div>
+-    <button class="chat-close" onclick="toggleSettings(false)">✕</button>
+-  </div>
+   <div id="logBox"></div>
+ </div>
+ 
+diff --git a/js/game.js b/js/game.js
+index c2e5c35..721b32c 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -44,6 +44,7 @@ let myHand=[];
+ let selected=new Set();
+ let firstBidder = 0;   // 本局首叫人（按局轮换：每局+1）
+ let autoPlay = false;  // 托管标记
++let autoSlots = [false,false,false];  // 三玩家各自的托管状态（主机维护，广播给所有人）
+ let prevPhase = null;
+ let prevPlayed = {0:null,1:null,2:null};
+ 
+@@ -65,37 +66,105 @@ function onAvatarPick(input){
+   reader.onload = e=>{
+     const img = new Image();
+     img.onload = ()=>{
+-      // 限制最大边长200px，等比缩放
+-      const maxSide = 200;
+-      let w = img.width, h = img.height;
+-      if(w > maxSide || h > maxSide){
+-        const scale = maxSide / Math.max(w, h);
+-        w = Math.round(w * scale); h = Math.round(h * scale);
+-      }
+-      const cv = document.createElement('canvas');
+-      cv.width = w; cv.height = h;
+-      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+-      // 逐步降低JPEG质量直到<100KB
+-      let quality = 0.92, dataUrl = cv.toDataURL('image/jpeg', quality);
+-      while(dataUrl.length > 136000 && quality > 0.3){
+-        quality -= 0.1;
+-        dataUrl = cv.toDataURL('image/jpeg', quality);
+-      }
+-      // 若JPEG仍超限，进一步缩小尺寸
+-      while(dataUrl.length > 136000 && w > 32){
+-        w = Math.round(w * 0.8); h = Math.round(h * 0.8);
+-        cv.width = w; cv.height = h;
+-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+-        dataUrl = cv.toDataURL('image/jpeg', 0.7);
+-      }
+-      myAvatar = dataUrl;
+-      const pv = document.getElementById('avatarPreview');
+-      if(pv){ pv.src = myAvatar; pv.style.display = 'inline-block'; }
++      showAvatarCropper(img, function(croppedDataUrl){
++        myAvatar = croppedDataUrl;
++        const pv = document.getElementById('avatarPreview');
++        if(pv){ pv.src = myAvatar; pv.style.display = 'inline-block'; }
++      });
+     };
+     img.src = e.target.result;
+   };
+   reader.readAsDataURL(file);
+ }
++function showAvatarCropper(img, onConfirm){
++  const CW = 280, CH = 280;
++  const maxSrcW = 400, maxSrcH = 400;
++  let sw = img.width, sh = img.height;
++  if(sw > maxSrcW || sh > maxSrcH){ const sc = Math.min(maxSrcW/sw, maxSrcH/sh); sw=Math.round(sw*sc); sh=Math.round(sh*sc); }
++  // 默认裁剪框：居中正方形，边长为图片短边
++  let cw = Math.min(sw, sh), ch = cw;
++  let cx = (sw - cw) / 2, cy = (sh - ch) / 2;
++  const overlay = document.createElement('div');
++  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
++  const title = document.createElement('p');
++  title.textContent = '拖动选择正方形头像区域';
++  title.style.cssText = 'color:#fff;font-size:15px;margin:0;';
++  overlay.appendChild(title);
++  const wrap = document.createElement('div');
++  wrap.style.cssText = 'position:relative;width:'+sw+'px;height:'+sh+'px;overflow:hidden;border:2px solid #555;';
++  const srcCanvas = document.createElement('canvas');
++  srcCanvas.width = sw; srcCanvas.height = sh;
++  srcCanvas.getContext('2d').drawImage(img, 0, 0, sw, sh);
++  srcCanvas.style.cssText = 'position:absolute;left:0;top:0;width:'+sw+'px;height:'+sh+'px;';
++  wrap.appendChild(srcCanvas);
++  const dim = document.createElement('div');
++  dim.style.cssText = 'position:absolute;left:0;top:0;width:'+sw+'px;height:'+sh+'px;background:rgba(0,0,0,.55);pointer-events:none;';
++  wrap.appendChild(dim);
++  const crop = document.createElement('div');
++  crop.style.cssText = 'position:absolute;left:'+cx+'px;top:'+cy+'px;width:'+cw+'px;height:'+ch+'px;border:2px solid #ffd54a;box-shadow:0 0 0 9999px rgba(0,0,0,0);cursor:move;box-sizing:border-box;';
++  // 在裁剪框内开"洞"（用反向阴影让外部变暗）
++  dim.style.background = 'rgba(0,0,0,.55)';
++  crop.style.boxShadow = '0 0 0 9999px rgba(0,0,0,.55)';
++  // 改为用 crop 的 box-shadow 做遮罩，移除 dim
++  dim.style.display = 'none';
++  wrap.appendChild(crop);
++  overlay.appendChild(wrap);
++  const btnRow = document.createElement('div');
++  btnRow.style.cssText = 'display:flex;gap:12px;';
++  const cancelBtn = document.createElement('button');
++  cancelBtn.textContent = '取消'; cancelBtn.className = 'secondary';
++  const okBtn = document.createElement('button');
++  okBtn.textContent = '确认裁剪';
++  btnRow.appendChild(cancelBtn); btnRow.appendChild(okBtn);
++  overlay.appendChild(btnRow);
++  document.body.appendChild(overlay);
++  // 拖动裁剪框
++  let dragging = false, dx = 0, dy = 0;
++  crop.addEventListener('mousedown', e=>{
++    dragging = true; dx = e.clientX - crop.offsetLeft; dy = e.clientY - crop.offsetTop;
++    e.preventDefault();
++  });
++  const moveHandler = e=>{
++    if(!dragging) return;
++    let nx = e.clientX - dx, ny = e.clientY - dy;
++    nx = Math.max(0, Math.min(sw - cw, nx));
++    ny = Math.max(0, Math.min(sh - ch, ny));
++    crop.style.left = nx+'px'; crop.style.top = ny+'px';
++    cx = nx; cy = ny;
++  };
++  document.addEventListener('mousemove', moveHandler);
++  document.addEventListener('mouseup', ()=>{ dragging=false; });
++  // 触摸支持
++  crop.addEventListener('touchstart', e=>{
++    dragging = true; const t = e.touches[0];
++    dx = t.clientX - crop.offsetLeft; dy = t.clientY - crop.offsetTop;
++    e.preventDefault();
++  });
++  document.addEventListener('touchmove', e=>{
++    if(!dragging) return;
++    const t = e.touches[0];
++    let nx = t.clientX - dx, ny = t.clientY - dy;
++    nx = Math.max(0, Math.min(sw - cw, nx));
++    ny = Math.max(0, Math.min(sh - ch, ny));
++    crop.style.left = nx+'px'; crop.style.top = ny+'px';
++    cx = nx; cy = ny;
++    e.preventDefault();
++  }, {passive:false});
++  document.addEventListener('touchend', ()=>{ dragging=false; });
++  cancelBtn.onclick = ()=>{ document.removeEventListener('mousemove', moveHandler); overlay.remove(); };
++  okBtn.onclick = ()=>{
++    document.removeEventListener('mousemove', moveHandler);
++    // 从裁剪区域生成正方形头像
++    const out = 200;
++    const cv = document.createElement('canvas');
++    cv.width = out; cv.height = out;
++    cv.getContext('2d').drawImage(img, cx/sw*img.width, cy/sh*img.height, cw/sw*img.width, ch/sh*img.height, 0, 0, out, out);
++    let quality = 0.92, dataUrl = cv.toDataURL('image/jpeg', quality);
++    while(dataUrl.length > 136000 && quality > 0.3){ quality -= 0.1; dataUrl = cv.toDataURL('image/jpeg', quality); }
++    overlay.remove();
++    onConfirm(dataUrl);
++  };
++}
+ function getDisplayName(idx){
+   if(customNicks[idx]) return customNicks[idx];
+   if(idx===myIdx) return myNick || '我';
+@@ -131,23 +200,61 @@ function enterGame(){
+ 
+ /* ---- 重连：主机端客户端断线 ---- */
+ function onClientDisconnect(slot){
+-  log('玩家'+(slot+1)+' 断线，等待重连... 对局暂停');
+-  setActInfo('⚠ 玩家'+(slot+1)+' 断线，等待重连');
+-  clearTurnTimer();
+-  // 显示重连浮层
++  log('玩家'+(slot+1)+' 断线，自动托管中...');
++  autoSlots[slot] = true;  // 标记该玩家托管
++  // 不暂停对局：如果当前是断线玩家的回合，主机代替操作
++  // 提示其他玩家
++  if(H && H.phase){
++    if((H.phase==='play' && H.turn===slot) ||
++       (H.phase==='bid' && H.bidIdx===slot) ||
++       (H.phase==='grab' && H.grabIdx===slot) ||
++       (H.phase==='show' && H.landlord===slot)){
++      hostAutoActForSlot(slot);
++    }
++  }
++  // 显示可选的重连浮层（不阻塞游戏）
+   const panel=document.getElementById('reconnectHostPanel');
+-  if(panel) panel.style.display='flex';
+-  const content=document.getElementById('reconnectHostContent');
+-  if(content){
+-    content.innerHTML = '<p>玩家'+(slot+1)+' 已断线。点击下方按钮重新生成邀请码，发给对方重新连接。</p>'+
+-      '<div style="text-align:center;margin:10px 0;"><button onclick="genReconnectOffer('+slot+')">重新生成玩家'+(slot+1)+'的邀请码</button></div>'+
+-      '<div id="reconnectOfferArea" style="display:none;">'+
+-      '<p class="label">📋 新邀请码 — 发给玩家'+(slot+1)+'：</p>'+
+-      '<textarea id="reconnectOfferOut" readonly onclick="this.select()"></textarea>'+
+-      '<p class="label">📥 玩家'+(slot+1)+' 回传的应答码：</p>'+
+-      '<textarea id="reconnectAnswerIn" placeholder="粘贴应答码..."></textarea>'+
+-      '<div style="text-align:center;margin:8px 0;"><button onclick="acceptReconnect()">建立重连</button></div>'+
+-      '</div>';
++  if(panel){
++    panel.style.display='flex';
++    const content=document.getElementById('reconnectHostContent');
++    if(content){
++      content.innerHTML = '<p>玩家'+(slot+1)+' 已断线，已自动托管。</p>'+
++        '<p style="font-size:12px;color:#aaa;">如需对方重连，点击下方按钮生成邀请码：</p>'+
++        '<div style="text-align:center;margin:10px 0;"><button onclick="genReconnectOffer('+slot+')">重新生成玩家'+(slot+1)+'的邀请码</button></div>'+
++        '<div id="reconnectOfferArea" style="display:none;">'+
++        '<p class="label">📋 新邀请码 — 发给玩家'+(slot+1)+'：</p>'+
++        '<textarea id="reconnectOfferOut" readonly onclick="this.select()"></textarea>'+
++        '<p class="label">📥 玩家'+(slot+1)+' 回传的应答码：</p>'+
++        '<textarea id="reconnectAnswerIn" placeholder="粘贴应答码..."></textarea>'+
++        '<div style="text-align:center;margin:8px 0;"><button onclick="acceptReconnect()">建立重连</button></div>'+
++        '</div>'+
++        '<div style="text-align:center;margin-top:8px;"><button class="secondary" onclick="closeReconnectHostPanel()">关闭</button></div>';
++    }
++  }
++  broadcastState();
++}
++function hostAutoActForSlot(slot){
++  if(!H) return;
++  if(H.phase==='play' && H.turn===slot){
++    const ol = H.lastPlay;
++    const hand = H.hands[slot];
++    if(!hand || hand.length===0) return;
++    if(ol && H.lastPlayer!==slot){
++      // 有上家牌，尝试出最小能管的，否则pass
++      const h = findHint(hand, ol);
++      if(h && h.length>0){ hostPlay(slot, h.map(cardKey)); }
++      else { hostPass(slot); }
++    } else {
++      // 自由出，出最小单张
++      const minCard = hand.slice().sort((a,b)=>a.val-b.val)[0];
++      hostPlay(slot, [cardKey(minCard)]);
++    }
++  } else if(H.phase==='bid' && H.bidIdx===slot){
++    hostBid(slot, 0); // 不叫
++  } else if(H.phase==='grab' && H.grabIdx===slot){
++    hostGrab(slot, false); // 不抢
++  } else if(H.phase==='show' && H.landlord===slot){
++    hostShow(slot, false); // 不明牌
+   }
+ }
+ async function genReconnectOffer(slot){
+@@ -173,6 +280,7 @@ function closeReconnectHostPanel(){
+ /* ---- 重连：主机端恢复客户端状态 ---- */
+ function restoreClient(slot){
+   log('正在为玩家'+(slot+1)+' 恢复对局...');
++  autoSlots[slot] = false;  // 重连后取消托管标记
+   // 重新发送手牌
+   const keys = H.hands[slot].map(cardKey);
+   netSend(slot, {t:'deal', hand:keys, you:slot});
+@@ -263,7 +371,7 @@ function broadcastState(){
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+     genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards,
+-    avatars:customAvatars, mult:(H?H.mult:1)
++    avatars:customAvatars, mult:(H?H.mult:1), autoSlots:autoSlots.slice()
+   };
+   netBroadcast({t:'state', v:pub});
+   // 观战者收到额外信息：所有人手牌
+@@ -280,7 +388,7 @@ function getSpectatorState(){
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+     genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards,
+-    specHands: H.hands.map(h=>h.map(cardKey)), specBottom: H.bottom.map(cardKey), mult:H.mult
++    specHands: H.hands.map(h=>h.map(cardKey)), specBottom: H.bottom.map(cardKey), mult:H.mult, autoSlots:autoSlots.slice()
+   };
+ }
+ 
+@@ -708,6 +816,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='o'){ }
+     else if(m.t==='gender'){ genders[sender]=m.g||'man'; view.genders=genders.slice(); log('玩家'+(sender+1)+' 性别: '+(m.g==='woman'?'女':'男')); }
+     else if(m.t==='profile'){ customAvatars[sender]=m.avatar||null; customNicks[sender]=m.nick||''; saveAvatars(); saveNicks(); view.names[sender]=getDisplayName(sender); log('玩家'+(sender+1)+' 昵称: '+view.names[sender]); broadcastState(); }
++    else if(m.t==='autoPlay'){ autoSlots[sender]=!!m.on; log('玩家'+(sender+1)+(m.on?' 开启托管':' 取消托管')); broadcastState(); }
+     else if(m.t==='chat'){ // 客户端发来的聊天，主机本地播放并转发给另一客户端
+       onChatMsg(m.from, m.phrase, m.gender);
+       const other = sender===1?2:1;
+@@ -746,6 +855,7 @@ function applyState(v){
+   if(v.genders){ genders = v.genders.slice(); view.genders = genders; }
+   if(v.avatars){ customAvatars = v.avatars.slice(); }
+   if(v.names){ view.names = v.names.slice(); }
++  if(v.autoSlots){ autoSlots = v.autoSlots.slice(); view.autoSlots = autoSlots; }
+   // 观战者：用 specHands 恢复所有人的手牌显示
+   if(role==='spectator' && v.specHands){
+     view.specHands = v.specHands;
+@@ -782,6 +892,13 @@ function toggleAutoPlay(){
+   const btn=document.getElementById('autoBtn');
+   if(btn) btn.classList.toggle('active', autoPlay);
+   log(autoPlay?'已开启托管':'已取消托管，手动接管');
++  // 同步托管状态到主机
++  if(role==='host'){
++    autoSlots[0] = autoPlay;
++    broadcastState();
++  } else if(role==='client'){
++    netSend(0, {t:'autoPlay', on:autoPlay});
++  }
+   if(autoPlay) autoAct();
+   render();
+ }
+@@ -818,27 +935,26 @@ function sendGift(targetIdx, gift){
+ }
+ function flyGift(fromIdx, toIdx, gift){
+   const info=GIFT_INFO[gift]; if(!info) return;
+-  const stage=document.querySelector('.stage');
+   const fromSeat=document.getElementById('seat'+cap(seatPos(fromIdx)));
+   const toSeat=document.getElementById('seat'+cap(seatPos(toIdx)));
+-  if(!fromSeat||!toSeat||!stage) return;
+-  const fx=fromSeat.offsetLeft+fromSeat.offsetWidth/2;
+-  const fy=fromSeat.offsetTop+fromSeat.offsetHeight/2;
+-  const tx=toSeat.offsetLeft+toSeat.offsetWidth/2;
+-  const ty=toSeat.offsetTop+toSeat.offsetHeight/2;
+-  // 外层负责定位+飞行位移，内层负责旋转(避免transform冲突)
++  if(!fromSeat||!toSeat) return;
++  // 使用页面坐标（getBoundingClientRect），挂载到 body 避免 overflow:hidden 裁剪
++  const frect=fromSeat.getBoundingClientRect();
++  const trect=toSeat.getBoundingClientRect();
++  const fx=frect.left+frect.width/2, fy=frect.top+frect.height/2;
++  const tx=trect.left+trect.width/2, ty=trect.top+trect.height/2;
+   const wrap=document.createElement('div');
+-  wrap.style.cssText='position:absolute;left:'+fx+'px;top:'+fy+'px;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:left '+info.dur+'ms linear,top '+info.dur+'ms linear;';
++  wrap.style.cssText='position:fixed;left:'+fx+'px;top:'+fy+'px;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;transition:left '+info.dur+'ms linear,top '+info.dur+'ms linear;';
+   const fly=makeGiftEl(info.fly, 0.2);
+   if(info.spin) fly.style.animation='giftFlyFast '+info.dur+'ms linear';
+   wrap.appendChild(fly);
+-  stage.appendChild(wrap);
++  document.body.appendChild(wrap);
+   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ wrap.style.left=tx+'px'; wrap.style.top=ty+'px'; }); });
+   setTimeout(()=>{
+     wrap.remove();
+     const land=makeGiftEl(info.land, 0.3);
+-    land.style.cssText='position:absolute;left:'+tx+'px;top:'+ty+'px;transform:translate(-50%,-50%);z-index:49;pointer-events:none;animation:giftLand .4s ease-out;';
+-    stage.appendChild(land);
++    land.style.cssText='position:fixed;left:'+tx+'px;top:'+ty+'px;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;animation:giftLand .4s ease-out;';
++    document.body.appendChild(land);
+     setTimeout(()=>land.remove(), 2000);
+   }, info.dur);
+ }
+@@ -1004,6 +1120,7 @@ function render(){
+     renderAvatar(pos, i);
+     renderCrown(pos, i);
+     renderBadge(pos, i);
++    renderAutoBadge(pos, i);
+     // 点头像弹礼物浮层（自己不能给自己送，不弹；观战者不弹）
+     if(i!==myIdx && role!=='spectator'){
+       seat.style.cursor='pointer';
+@@ -1108,9 +1225,25 @@ function renderBadge(pos, idx){
+   b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   el.appendChild(b);
+ }
++function renderAutoBadge(pos, idx){
++  let el = document.getElementById('autoBadge'+cap(pos));
++  if(!el){
++    el = document.createElement('div');
++    el.id = 'autoBadge'+cap(pos);
++    el.style.cssText='font-size:11px;color:#ffd54a;background:rgba(192,57,43,.85);padding:1px 6px;border-radius:8px;margin-top:1px;white-space:nowrap;';
++    el.textContent='🤖 托管';
++    el.style.display='none';
++    const seat = document.getElementById('seat'+cap(pos));
++    if(seat) seat.appendChild(el);
++  }
++  el.style.display = (autoSlots[idx] || (idx===myIdx && autoPlay)) ? 'inline-block' : 'none';
++}
+ function renderClock(){
+   document.querySelectorAll('.clock').forEach(c=>c.remove());
+   if(view.over || view.turn<0 || view.phase!=='play') return;
++  const left = (typeof view.turnLeft!=='undefined') ? view.turnLeft : (view.turnDeadline ? Math.max(0, Math.round((view.turnDeadline-Date.now())/1000)) : TURN_LIMIT);
++  // 剩余≤15秒才显示闹钟+数字
++  if(left > 15) return;
+   const pos = seatPos(view.turn);
+   const seat = document.getElementById('seat'+cap(pos));
+   if(!seat) return;
+@@ -1120,14 +1253,11 @@ function renderClock(){
+   clock.style.width='52px'; clock.style.height=(r.h*s)+'px';
+   clock.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+   clock.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+-  // 倒计时数字（剩≤15秒显示）
+-  const left = (typeof view.turnLeft!=='undefined') ? view.turnLeft : (view.turnDeadline ? Math.max(0, Math.round((view.turnDeadline-Date.now())/1000)) : TURN_LIMIT);
+-  if(left <= 15){
+-    const num = document.createElement('div');
+-    num.className = 'clock-num' + (left<=5?' urgent':'');
+-    num.textContent = left;
+-    clock.appendChild(num);
+-  }
++  // 倒计时数字
++  const num = document.createElement('div');
++  num.className = 'clock-num' + (left<=5?' urgent':'');
++  num.textContent = left;
++  clock.appendChild(num);
+   if(pos==='me') clock.style.cssText += 'position:absolute;left:50%;bottom:300px;transform:translateX(-50%);';
+   else if(pos==='right') clock.style.cssText += 'position:absolute;right:80px;top:150px;';
+   else clock.style.cssText += 'position:absolute;left:80px;top:150px;';
+@@ -1245,8 +1375,28 @@ function renderOppHand(side, count, realCards){
+     realCards.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+     return;
+   }
+-  const show = Math.min(count, 6);
+-  for(let i=0;i<show;i++){ const b=makeBackEl('sm'); b.classList.add('back'); el.appendChild(b); }
++  // 根据页面高度动态决定每列最多牌数，按数量自动分列
++  const stage = document.querySelector('.stage');
++  const stageH = stage ? stage.offsetHeight : 560;
++  // 侧边区域可用高度（从座位顶部到舞台底部）
++  const availH = stageH - 180;
++  const cardH = 36, overlap = 28; // 每张卡背高度+重叠
++  const maxPerCol = Math.max(6, Math.floor(availH / (cardH - overlap)));
++  const cols = Math.max(1, Math.ceil(count / maxPerCol));
++  el.style.flexDirection = 'row';
++  el.style.flexWrap = 'nowrap';
++  el.style.gap = '0';
++  for(let c=0;c<cols;c++){
++    const col = document.createElement('div');
++    col.style.cssText='display:flex;flex-direction:column;align-items:center;';
++    if(c>0) col.style.marginLeft = '-12px'; // 列间微微重叠
++    const start = c * maxPerCol;
++    const end = Math.min(count, start + maxPerCol);
++    for(let i=start;i<end;i++){
++      const b=makeBackEl('sm'); b.classList.add('back'); col.appendChild(b);
++    }
++    el.appendChild(col);
++  }
+ }
+ function renderBottom(){
+   const el=document.getElementById('bottomCards');
+-- 
+2.45.1.windows.1
+
+
+

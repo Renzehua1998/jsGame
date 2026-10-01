@@ -1,0 +1,303 @@
+From b226f5b3ba18553b87ec67fbc271158b478ebcd3 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 14:45:48 +0800
+Subject: [PATCH 18/32] =?UTF-8?q?feat:=20=E6=8A=A2=E5=9C=B0=E4=B8=BB=20+?=
+ =?UTF-8?q?=20=E6=98=8E=E7=89=8C?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 抢地主: 叫分<3时进入抢地主阶段, 叫分者下家起按序询问, 抢则倍数x2并成为新地主, 不抢跳过
+- 明牌: 地主确定后询问是否明牌, 明牌倍数x2, 明牌后地主手牌对所有人可见
+- 倍数卷轴: 实时反映抢地主/明牌/炸弹/春天的累计倍数
+- 文字按钮 txt-btn 样式(无素材用CSS渐变金色按钮)
+- 托管支持 grab/show 阶段自动不抢/不明牌
+- 声音: 抢地主复用call语音, 不抢复用nocal语音
+- 明牌出牌后实时同步手牌显示
+- 新增 view.showCards / H.grabOrder/grabIdx/grabCount 字段
+---
+ css/style.css |   4 ++
+ js/game.js    | 148 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ js/sound.js   |   2 +
+ 3 files changed, 148 insertions(+), 6 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index a9867cf..71692c7 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -168,6 +168,10 @@ textarea {
+ .img-btn { background:transparent; border:none; padding:0; cursor:pointer; margin:3px; transition:transform .12s; display:inline-block; background-image:url('../img/dou.png'); background-repeat:no-repeat; }
+ .img-btn:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.12); }
+ .img-btn:disabled { filter:grayscale(.7) brightness(.6); cursor:not-allowed; transform:none; }
++.txt-btn { background:linear-gradient(180deg,#f5e6a8,#d4a017); border:2px solid #8a6610; border-radius:8px; color:#3a2a08; font-weight:bold; font-size:18px; padding:10px 22px; cursor:pointer; margin:4px; transition:transform .12s, box-shadow .12s; box-shadow:0 2px 0 #8a6610; }
++.txt-btn:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,.3); filter:brightness(1.08); }
++.txt-btn:active { transform:translateY(1px); box-shadow:0 1px 0 #8a6610; }
++.txt-btn:disabled { filter:grayscale(.6) brightness(.6); cursor:not-allowed; transform:none; }
+ 
+ /* 牌桌中央装饰扇形 */
+ .table-fan { position:absolute; left:50%; top:130px; transform:translateX(-50%); opacity:.25; z-index:0; }
+diff --git a/js/game.js b/js/game.js
+index 6c8bf49..71d00ed 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -67,6 +67,7 @@ function hostStartGame(){
+     hands:[[],[],[]], bottom:[], turn:-1, landlord:-1, points:0,
+     lastPlay:null, lastPlayer:-1, passCount:0, phase:'bid',
+     bidIdx:-1, bidMax:0, bidWinner:-1, bidCount:0,
++    grabOrder:[], grabIdx:-1, grabCount:0,
+     scores:prevScores, mult:1, round:prevRound
+   };
+   view.round = prevRound;
+@@ -82,7 +83,7 @@ function hostStartGame(){
+   }
+   view.phase='bid'; view.hands=[17,17,17]; view.bottom=[]; view.bottomShown=false;
+   view.played={0:null,1:null,2:null}; view.lastPlay=null; view.lastPlayer=-1;
+-  view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null; view.lastEffect=null;
++  view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null; view.lastEffect=null; view.showCards=null;
+   view.turnLeft=0; view.turnDeadline=0;
+   clearTurnTimer();
+   document.getElementById('effectLayer').style.display='none';
+@@ -105,7 +106,7 @@ function broadcastState(){
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+-    genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft
++    genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards
+   };
+   netBroadcast({t:'state', v:pub});
+   render();
+@@ -148,6 +149,59 @@ function endBidding(){
+     log('全员不叫，重新发牌');
+     hostStartGame(); return;
+   }
++  // 叫3分直接定地主，跳过抢地主；否则进入抢地主阶段
++  if(H.bidMax>=3){
++    confirmLandlord();
++  } else {
++    startGrab();
++  }
++}
++
++/* ---- 抢地主阶段 ---- */
++function startGrab(){
++  H.phase='grab'; view.phase='grab';
++  // 抢地主顺序：除叫分者外，按叫分者下家开始的两人
++  H.grabOrder = [];
++  for(let i=1;i<=2;i++){ const idx=(H.bidWinner+i)%3; H.grabOrder.push(idx); }
++  H.grabCount=0;
++  log('进入抢地主，倍数 '+H.mult);
++  promptGrab();
++}
++function promptGrab(){
++  if(H.grabCount>=H.grabOrder.length){ endGrab(); return; }
++  H.grabIdx = H.grabOrder[H.grabCount];
++  view.turn = H.grabIdx;
++  broadcastState();
++  if(H.grabIdx===0){
++    showGrabUI();
++  } else {
++    clearButtons();
++    netSend(H.grabIdx, {t:'grabReq'});
++    setActInfo('等待 玩家'+(H.grabIdx+1)+' 抢地主...');
++  }
++}
++function hostGrab(senderIdx, grab){
++  if(H.phase!=='grab' || senderIdx!==H.grabIdx) return;
++  view.bidLog.push({idx:senderIdx, grab});
++  const gnd = genders[senderIdx] || 'man';
++  if(grab){
++    H.mult*=2; H.bidWinner=senderIdx;
++    log('玩家'+(senderIdx+1)+' 抢地主，倍数 '+H.mult);
++    playSound('do','recall',gnd); netBroadcast({t:'sound', from:senderIdx, kind:'recall', gender:gnd});
++  } else {
++    log('玩家'+(senderIdx+1)+' 不抢');
++    playSound('do','bq',gnd); netBroadcast({t:'sound', from:senderIdx, kind:'bq', gender:gnd});
++  }
++  H.grabCount++;
++  promptGrab();
++}
++function endGrab(){
++  log('玩家'+(H.bidWinner+1)+' 抢到地主');
++  confirmLandlord();
++}
++
++/* ---- 确定地主 + 明牌阶段 ---- */
++function confirmLandlord(){
+   H.landlord=H.bidWinner; view.landlord=H.bidWinner; view.points=H.bidMax;
+   H.hands[H.landlord] = sortHand(H.hands[H.landlord].concat(H.bottom));
+   view.hands = H.hands.map(h=>h.length);
+@@ -155,10 +209,38 @@ function endBidding(){
+   view.bottomShown = true;
+   if(H.landlord!==0) netSend(H.landlord, {t:'bottom', cards:view.bottom});
+   else { myHand = H.hands[0].slice(); view.myHand=myHand; }
++  log('玩家'+(H.landlord+1)+' 当地主，底分 '+H.bidMax+'，倍数 '+H.mult);
++  // 进入明牌阶段
++  startShow();
++}
++function startShow(){
++  H.phase='show'; view.phase='show'; view.turn=H.landlord;
++  broadcastState();
++  if(H.landlord===0){
++    showShowUI();
++  } else {
++    clearButtons();
++    netSend(H.landlord, {t:'showReq'});
++    setActInfo('等待 玩家'+(H.landlord+1)+' 选择是否明牌...');
++  }
++}
++function hostShow(senderIdx, show){
++  if(H.phase!=='show' || senderIdx!==H.landlord) return;
++  if(show){
++    H.mult*=2;
++    view.showCards = H.hands[H.landlord].map(cardKey);
++    log('玩家'+(H.landlord+1)+' 明牌，倍数 '+H.mult);
++  } else {
++    log('玩家'+(H.landlord+1)+' 不明牌');
++  }
++  view.showCards = view.showCards || null;
++  beginPlay();
++}
++function beginPlay(){
+   H.phase='play'; view.phase='play'; H.turn=H.landlord; view.turn=H.landlord;
+   H.lastPlay=null; H.lastPlayer=-1; H.passCount=0;
+   view.lastPlay=null; view.lastPlayer=-1;
+-  log('玩家'+(H.landlord+1)+' 当地主，底分 '+H.bidMax+'，开始出牌');
++  log('开始出牌');
+   broadcastState();
+   promptPlay();
+ }
+@@ -235,6 +317,7 @@ function hostPlay(senderIdx, keys){
+   if(H.lastPlay && H.lastPlayer!==senderIdx && !canBeat(type, H.lastPlay)) return rejectPlay(senderIdx,'管不上');
+   H.hands[senderIdx] = H.hands[senderIdx].filter(c=>!keys.includes(cardKey(c)));
+   if(senderIdx===0) myHand = H.hands[0].slice();
++  if(view.showCards && senderIdx===H.landlord) view.showCards = H.hands[H.landlord].map(cardKey);
+   H.lastPlay = type; H.lastPlayer = senderIdx; H.passCount=0;
+   view.lastPlay = type; view.lastPlayer = senderIdx;
+   view.played[senderIdx] = keys.slice();
+@@ -313,6 +396,8 @@ function onNetMessage(m, slot){
+   if(role==='host'){
+     const sender = slot;
+     if(m.t==='bid'){ hostBid(sender, m.val|0); }
++    else if(m.t==='grab'){ hostGrab(sender, m.grab); }
++    else if(m.t==='show'){ hostShow(sender, m.show); }
+     else if(m.t==='play'){ hostPlay(sender, m.cards); }
+     else if(m.t==='pass'){ hostPass(sender); }
+     else if(m.t==='ping'){ netSend(sender,{t:'o',time:m.time}); }
+@@ -334,6 +419,8 @@ function onNetMessage(m, slot){
+     else if(m.t==='deal'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
+     else if(m.t==='bottom'){ myHand = sortHand(myHand.concat(m.cards.map(keyToCard))); view.myHand=myHand; }
+     else if(m.t==='bidReq'){ showBidUI(m.curMax); }
++    else if(m.t==='grabReq'){ showGrabUI(); }
++    else if(m.t==='showReq'){ showShowUI(); }
+     else if(m.t==='playReq'){ showPlayUI(m.lastPlay); }
+     else if(m.t==='reject'){ alert(m.msg); }
+     else if(m.t==='state'){ applyState(m.v); }
+@@ -371,6 +458,12 @@ function imgBtn(sprName, onClick, disabled){
+   b.onclick = onClick;
+   return b;
+ }
++function txtBtn(label, onClick, disabled){
++  const b = document.createElement('button'); b.className='txt-btn'; b.textContent=label;
++  if(disabled) b.disabled=true;
++  b.onclick = onClick;
++  return b;
++}
+ function toggleAutoPlay(){
+   autoPlay = !autoPlay;
+   const btn=document.getElementById('autoBtn');
+@@ -446,6 +539,16 @@ function autoAct(){
+     doBid(0);
+     return;
+   }
++  // 抢地主阶段：不抢
++  if(view.phase==='grab' && view.turn===myIdx){
++    doGrab(false);
++    return;
++  }
++  // 明牌阶段：不明牌
++  if(view.phase==='show' && view.turn===myIdx){
++    doShow(false);
++    return;
++  }
+   // 出牌阶段
+   if(view.phase==='play' && view.turn===myIdx){
+     const ol = (role==='host') ? H.lastPlay : null;
+@@ -495,6 +598,34 @@ function doBid(v){
+   else netSend(0,{t:'bid',val:v});
+   setActInfo('已叫分，等待其他人...');
+ }
++function showGrabUI(){
++  setActInfo('轮到你抢地主（倍数 '+(role==='host'?H.mult:1)+'）');
++  const box=document.getElementById('actButtons'); box.innerHTML='';
++  box.appendChild(txtBtn('抢地主', ()=>doGrab(true)));
++  box.appendChild(txtBtn('不抢', ()=>doGrab(false)));
++  if(autoPlay) setTimeout(autoAct, 600);
++}
++function doGrab(g){
++  clearButtons();
++  if(typeof playEffect==='function') playEffect('button');
++  if(role==='host') hostGrab(0,g);
++  else netSend(0,{t:'grab',grab:g});
++  setActInfo('已选择，等待其他人...');
++}
++function showShowUI(){
++  setActInfo('是否明牌？（明牌倍数×2）');
++  const box=document.getElementById('actButtons'); box.innerHTML='';
++  box.appendChild(txtBtn('明牌', ()=>doShow(true)));
++  box.appendChild(txtBtn('不明牌', ()=>doShow(false)));
++  if(autoPlay) setTimeout(()=>doShow(false), 600);
++}
++function doShow(s){
++  clearButtons();
++  if(typeof playEffect==='function') playEffect('button');
++  if(role==='host') hostShow(0,s);
++  else netSend(0,{t:'show',show:s});
++  setActInfo('已选择，开始出牌...');
++}
+ function showPlayUI(lastPlay){
+   const ol = role==='host'? H.lastPlay : lastPlay;
+   setActInfo(ol? '轮到你出牌（需管上）' : '轮到你出牌（自由出）');
+@@ -564,8 +695,9 @@ function render(){
+     }
+   }
+   renderClock();
+-  renderOppHand('Left', view.hands[(myIdx+2)%3]);
+-  renderOppHand('Right', view.hands[(myIdx+1)%3]);
++  const leftIdx=(myIdx+2)%3, rightIdx=(myIdx+1)%3;
++  renderOppHand('Left', view.hands[leftIdx], view.showCards && view.landlord===leftIdx ? view.showCards : null);
++  renderOppHand('Right', view.hands[rightIdx], view.showCards && view.landlord===rightIdx ? view.showCards : null);
+   renderBottom();
+   renderPlayed('Left', (myIdx+2)%3);
+   renderPlayed('Right', (myIdx+1)%3);
+@@ -763,10 +895,14 @@ function triggerEffect(typeName){
+   } else { el.style.display='none'; return; }
+   effectTimer = setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 2500);
+ }
+-function renderOppHand(side, count){
++function renderOppHand(side, count, realCards){
+   const el=document.getElementById('hand'+side);
+   if(!el) return;
+   el.innerHTML='';
++  if(realCards && realCards.length){
++    realCards.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
++    return;
++  }
+   const show = Math.min(count, 6);
+   for(let i=0;i<show;i++){ const b=makeBackEl('sm'); b.classList.add('back'); el.appendChild(b); }
+ }
+diff --git a/js/sound.js b/js/sound.js
+index 8ddee71..39f6cd5 100644
+--- a/js/sound.js
++++ b/js/sound.js
+@@ -170,6 +170,8 @@ function onSoundMsg(from, kind, key, gender){
+   else if(kind==='bigger') playBiggerSound(g);
+   else if(kind==='call') playCallSound(g);
+   else if(kind==='nocal') playNoCallSound(g);
++  else if(kind==='recall') playCallSound(g);   // 抢地主复用叫地主语音
++  else if(kind==='bq') playNoCallSound(g);      // 不抢复用不叫语音
+   else if(kind==='l1') playSound('do','l1',g);
+   else if(kind==='l2') playSound('do','l2',g);
+ }
+-- 
+2.45.1.windows.1
+

@@ -1,0 +1,104 @@
+From 43f2c3acab45ec9066c08cc9dd71cc1506a113bb Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 14:13:59 +0800
+Subject: [PATCH 17/36] =?UTF-8?q?fix:=20=E5=A4=9A=E4=B8=AA=E6=98=BE?=
+ =?UTF-8?q?=E7=A4=BA=E4=B8=8E=E7=8E=A9=E6=B3=95=20bug?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 倒计时残留: promptPlay/hostStartGame 重置 view.turnLeft, broadcastState 含 turnLeft
+  避免新回合开始时客户端显示旧倒计时数字
+- 倍数卷轴显示: 叫地主阶段显示'待叫', 出牌阶段显示 倍数x底分, 语义清晰
+- 出牌区标签: 自己出牌显示'我'而非'玩家X'
+- 礼物飞行动画: 拆分外层(定位+位移)和内层(旋转), 避免旋转animation覆盖
+  translate(-50%,-50%)导致元素偏移
+- 落地效果补 transform:translate(-50%,-50%) 居中
+- hostStartGame 清理: clearTurnTimer + closeAllGiftPopups 防残留
+---
+ js/game.js | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/js/game.js b/js/game.js
+index 27b3184..6c8bf49 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -83,8 +83,11 @@ function hostStartGame(){
+   view.phase='bid'; view.hands=[17,17,17]; view.bottom=[]; view.bottomShown=false;
+   view.played={0:null,1:null,2:null}; view.lastPlay=null; view.lastPlayer=-1;
+   view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null; view.lastEffect=null;
++  view.turnLeft=0; view.turnDeadline=0;
++  clearTurnTimer();
+   document.getElementById('effectLayer').style.display='none';
+   document.getElementById('bannerLayer').style.display='none';
++  closeAllGiftPopups();
+   broadcastState();
+   // 轮流叫地主：首叫人按局轮换（每局 firstBidder 递增 1）
+   H.bidIdx = firstBidder % 3;
+@@ -102,7 +105,7 @@ function broadcastState(){
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+-    genders:view.genders, turnDeadline:view.turnDeadline
++    genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft
+   };
+   netBroadcast({t:'state', v:pub});
+   render();
+@@ -210,6 +213,7 @@ function startTurnTimer(){
+ /* ---- 主机：出牌提示 ---- */
+ function promptPlay(){
+   view.turn = H.turn;
++  view.turnLeft = TURN_LIMIT;   // 重置倒计时显示
+   broadcastState();
+   startTurnTimer();
+   if(H.turn===0){
+@@ -416,15 +420,18 @@ function flyGift(fromIdx, toIdx, gift){
+   const fy=fromSeat.offsetTop+fromSeat.offsetHeight/2;
+   const tx=toSeat.offsetLeft+toSeat.offsetWidth/2;
+   const ty=toSeat.offsetTop+toSeat.offsetHeight/2;
++  // 外层负责定位+飞行位移，内层负责旋转(避免transform冲突)
++  const wrap=document.createElement('div');
++  wrap.style.cssText='position:absolute;left:'+fx+'px;top:'+fy+'px;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:left '+info.dur+'ms linear,top '+info.dur+'ms linear;';
+   const fly=makeGiftEl(info.fly, 0.2);
+-  fly.style.cssText+='position:absolute;left:'+fx+'px;top:'+fy+'px;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:left '+info.dur+'ms linear,top '+info.dur+'ms linear;';
+-  if(info.spin) fly.style.cssText+='animation:giftFlyFast '+info.dur+'ms linear;';
+-  stage.appendChild(fly);
+-  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ fly.style.left=tx+'px'; fly.style.top=ty+'px'; }); });
++  if(info.spin) fly.style.animation='giftFlyFast '+info.dur+'ms linear';
++  wrap.appendChild(fly);
++  stage.appendChild(wrap);
++  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ wrap.style.left=tx+'px'; wrap.style.top=ty+'px'; }); });
+   setTimeout(()=>{
+-    fly.remove();
++    wrap.remove();
+     const land=makeGiftEl(info.land, 0.3);
+-    land.style.cssText+='position:absolute;left:'+tx+'px;top:'+ty+'px;z-index:49;pointer-events:none;animation:giftLand .4s ease-out;';
++    land.style.cssText='position:absolute;left:'+tx+'px;top:'+ty+'px;transform:translate(-50%,-50%);z-index:49;pointer-events:none;animation:giftLand .4s ease-out;';
+     stage.appendChild(land);
+     setTimeout(()=>land.remove(), 2000);
+   }, info.dur);
+@@ -689,7 +696,9 @@ function renderMultScroll(){
+   bg.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   wrap.appendChild(bg);
+   const mult = (role==='host'? (H&&H.mult||1) : (view.over?view.over.mult:1));
+-  const val = document.createElement('div'); val.className='mult-val'; val.textContent='倍 '+mult+' × '+(view.points||0);
++  const base = view.points || 0;
++  const val = document.createElement('div'); val.className='mult-val';
++  val.textContent = base>0 ? (mult+'×'+base) : '待叫';
+   wrap.appendChild(val);
+   el.appendChild(wrap);
+ }
+@@ -779,7 +788,7 @@ function renderPlayed(side, idx){
+     return;
+   }
+   if(Array.isArray(p)){
+-    const lab=document.createElement('div'); lab.className='played-label'; lab.textContent='玩家'+(idx+1); el.appendChild(lab);
++    const lab=document.createElement('div'); lab.className='played-label'; lab.textContent=(idx===myIdx?'我':'玩家'+(idx+1)); el.appendChild(lab);
+     p.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+   }
+ }
+-- 
+2.45.1.windows.1
+
+
+

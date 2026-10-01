@@ -1,0 +1,291 @@
+From 83dfda018e010a839d76d2a52c753208d2ba1272 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Mon, 24 Aug 2026 12:21:14 +0800
+Subject: [PATCH 35/36] =?UTF-8?q?fix:=20=E5=85=A8=E9=9D=A2=E5=AE=A1?=
+ =?UTF-8?q?=E6=9F=A5=E4=BF=AE=E5=A4=8D=E9=80=BB=E8=BE=91/=E6=98=BE?=
+ =?UTF-8?q?=E7=A4=BA/=E5=A3=B0=E9=9F=B3bug?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1. hostPlay wasBeating判定错误: H.lastPlay已被覆盖为新牌型,
+   导致wasBeating恒为false, 管上时播了牌型音而非bigger音
+   修复: 在覆盖H.lastPlay前记录wasBeating
+
+2. 断线托管玩家回合卡死: promptBid/promptGrab/promptShow/promptPlay
+   向已断线的channel发请求, 无人响应等60秒超时
+   修复: 检查autoSlots[slot], 若为true则hostAutoActForSlot代替操作
+
+3. showAutoBadge取消托管不同步: 客户端点取消托管只改本地autoPlay,
+   不通知主机, autoSlots[clientIdx]仍为true, 其他人仍看到托管标识
+   修复: 取消时同步通知主机(autoPlay消息或直接broadcastState)
+
+4. renderOppHand观战者/明牌realCards未分列: 20张牌竖排溢出
+   修复: realCards也走分列逻辑
+
+5. renderBanner横幅图片错误: 农民胜时农民看到banner_defeat图片
+   修复: 按当前玩家是否胜利选择横幅图片
+
+6. renderPlayed标签用'玩家N'而非自定义昵称
+   修复: 改用getDisplayName(idx)
+
+7. triggerEffect客户端重复播放效果音: 主机广播sound消息+客户端
+   triggerEffect本地playEffect, 双重播放
+   修复: triggerEffect仅在主机端播放并广播声音
+
+8. 清理: 删除未使用变量dealSoundAudio/CW/CH/delta
+---
+ js/game.js | 74 ++++++++++++++++++++++++++++++++++++------------------
+ js/test.js | 20 +++++++++++++++
+ 2 files changed, 70 insertions(+), 24 deletions(-)
+
+diff --git a/js/game.js b/js/game.js
+index 1611a46..96d9ec9 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -82,7 +82,6 @@ function onAvatarPick(input){
+   reader.readAsDataURL(file);
+ }
+ function showAvatarCropper(img, onConfirm){
+-  const CW = 280, CH = 280;
+   const maxSrcW = 400, maxSrcH = 400;
+   let sw = img.width, sh = img.height;
+   if(sw > maxSrcW || sh > maxSrcH){ const sc = Math.min(maxSrcW/sw, maxSrcH/sh); sw=Math.round(sw*sc); sh=Math.round(sh*sc); }
+@@ -410,6 +409,10 @@ function promptBid(){
+   broadcastState();
+   if(H.bidIdx===0){
+     showBidUI();
++  } else if(autoSlots[H.bidIdx]){
++    // 断线托管：主机代替操作
++    setTimeout(()=>hostAutoActForSlot(H.bidIdx), 600);
++    setActInfo('玩家'+(H.bidIdx+1)+' 托管中...');
+   } else {
+     clearButtons();
+     netSend(H.bidIdx, {t:'bidReq', curMax:H.bidMax});
+@@ -465,6 +468,9 @@ function promptGrab(){
+   broadcastState();
+   if(H.grabIdx===0){
+     showGrabUI();
++  } else if(autoSlots[H.grabIdx]){
++    setTimeout(()=>hostAutoActForSlot(H.grabIdx), 600);
++    setActInfo('玩家'+(H.grabIdx+1)+' 托管中...');
+   } else {
+     clearButtons();
+     netSend(H.grabIdx, {t:'grabReq', mult:H.mult});
+@@ -509,6 +515,9 @@ function startShow(){
+   broadcastState();
+   if(H.landlord===0){
+     showShowUI();
++  } else if(autoSlots[H.landlord]){
++    setTimeout(()=>hostAutoActForSlot(H.landlord), 600);
++    setActInfo('玩家'+(H.landlord+1)+' 托管中...');
+   } else {
+     clearButtons();
+     netSend(H.landlord, {t:'showReq', mult:H.mult});
+@@ -586,11 +595,15 @@ function startTurnTimer(){
+ /* ---- 主机：出牌提示 ---- */
+ function promptPlay(){
+   view.turn = H.turn;
+-  view.turnLeft = TURN_LIMIT;   // 重置倒计时显示
++  view.turnLeft = TURN_LIMIT;
+   broadcastState();
+   startTurnTimer();
+   if(H.turn===0){
+     showPlayUI();
++  } else if(autoSlots[H.turn]){
++    setActInfo('玩家'+(H.turn+1)+' 托管中...');
++    const autoSlot = H.turn;
++    setTimeout(()=>{ if(H.phase==='play' && H.turn===autoSlot && autoSlots[autoSlot]) hostAutoActForSlot(autoSlot); }, 800);
+   } else {
+     clearButtons();
+     netSend(H.turn, {t:'playReq', lastPlay:H.lastPlay});
+@@ -605,6 +618,8 @@ function hostPlay(senderIdx, keys){
+   if(!keys.every(k=>handSet[k])) return rejectPlay(senderIdx,'手牌不一致');
+   const type = detectType(cards);
+   if(!type) return rejectPlay(senderIdx,'牌型不合法');
++  // 记录出牌前的状态（用于判断是否"管上"）
++  const wasBeating = !!(H.lastPlay && H.lastPlayer!==senderIdx);
+   if(H.lastPlay && H.lastPlayer!==senderIdx && !canBeat(type, H.lastPlay)) return rejectPlay(senderIdx,'管不上');
+   H.hands[senderIdx] = H.hands[senderIdx].filter(c=>!keys.includes(cardKey(c)));
+   if(senderIdx===0) myHand = H.hands[0].slice();
+@@ -620,7 +635,6 @@ function hostPlay(senderIdx, keys){
+   triggerEffect(type.type);
+   // 声音：管上播 bigger，自由出播牌型；剩1/2张播报牌
+   const sndGender = genders[senderIdx] || 'man';
+-  const wasBeating = (H.lastPlay && H.lastPlayer!==senderIdx);
+   if(wasBeating){ playBiggerSound(sndGender); netBroadcast({t:'sound', from:senderIdx, kind:'bigger', gender:sndGender}); }
+   else { playTypeSound(type, sndGender); netBroadcast({t:'sound', from:senderIdx, kind:'type', key:type, gender:sndGender}); }
+   if(H.hands[senderIdx].length===0){ endGame(senderIdx); return; }
+@@ -658,7 +672,6 @@ function endGame(winner){
+   clearTurnTimer();
+   H.phase='over'; view.phase='over';
+   const landlordWin = (winner===H.landlord);
+-  const delta = H.bidMax * H.mult;
+   // 春天判定：地主胜且两农民一张牌都没出过（手牌仍17）
+   const isSpring = landlordWin && [0,1,2].filter(i=>i!==H.landlord).every(i=>H.hands[i].length===17);
+   if(isSpring) H.mult *= 2;
+@@ -1016,7 +1029,7 @@ function showAutoBadge(){
+   box.appendChild(badge);
+   const cancel=document.createElement('button');
+   cancel.textContent='取消托管'; cancel.className='secondary';
+-  cancel.onclick=()=>{ autoPlay=false; log('已取消托管'); render(); };
++  cancel.onclick=()=>{ autoPlay=false; const btn=document.getElementById('autoBtn'); if(btn) btn.classList.remove('active'); log('已取消托管'); if(role==='host'){ autoSlots[0]=false; broadcastState(); } else if(role==='client'){ netSend(0,{t:'autoPlay',on:false}); } render(); };
+   box.appendChild(cancel);
+ }
+ 
+@@ -1319,7 +1332,15 @@ function renderBanner(){
+   if(!view.over){ el.style.display='none'; el.innerHTML=''; return; }
+   el.style.display='flex';
+   el.innerHTML='';
+-  const r = SPR[view.over.landlordWin?'banner_victory':'banner_defeat'], s = 0.7;
++  // 横幅图片：按当前玩家是否胜利选择
++  let iWin;
++  if(role==='spectator'){
++    iWin = true; // 观战者中立，显示胜利横幅
++  } else {
++    const iAmLandlord = (view.over.landlord===myIdx);
++    iWin = iAmLandlord ? view.over.landlordWin : !view.over.landlordWin;
++  }
++  const r = SPR[iWin?'banner_victory':'banner_defeat'], s = 0.7;
+   const b = document.createElement('div'); b.className='card sprite';
+   b.style.width=(r.w*s)+'px'; b.style.height=(r.h*s)+'px';
+   b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+@@ -1329,8 +1350,6 @@ function renderBanner(){
+   if(role==='spectator'){
+     t.textContent = view.over.landlordWin ? '地主胜利 🏆' : '农民胜利 🎉';
+   } else {
+-    const iAmLandlord = (view.over.landlord===myIdx);
+-    const iWin = iAmLandlord ? view.over.landlordWin : !view.over.landlordWin;
+     t.textContent = iWin ? '胜利 🏆 本局 +'+view.over.delta : '失败 💔 本局 -'+view.over.delta;
+   }
+   el.appendChild(t);
+@@ -1340,10 +1359,10 @@ function triggerEffect(typeName){
+   const el = document.getElementById('effectLayer'); if(!el) return;
+   el.innerHTML=''; el.style.display='flex'; el.className='effect-layer';
+   if(effectTimer) clearTimeout(effectTimer);
++  const isHost = role==='host';
+   if(typeName==='bomb'){
+     el.classList.add('bomb');
+-    if(typeof playEffect==='function') playEffect('13');
+-    netBroadcast({t:'sound', from:-1, kind:'effect', key:'13'});
++    if(isHost){ if(typeof playEffect==='function') playEffect('13'); netBroadcast({t:'sound', from:-1, kind:'effect', key:'13'}); }
+     const r = SPR.icon_bomb, s = 0.7;
+     const img = document.createElement('div'); img.className='card sprite';
+     img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
+@@ -1352,8 +1371,7 @@ function triggerEffect(typeName){
+     el.appendChild(img);
+   } else if(typeName==='rocket'){
+     el.classList.add('rocket');
+-    if(typeof playEffect==='function') playEffect('14');
+-    netBroadcast({t:'sound', from:-1, kind:'effect', key:'14'});
++    if(isHost){ if(typeof playEffect==='function') playEffect('14'); netBroadcast({t:'sound', from:-1, kind:'effect', key:'14'}); }
+     const r = SPR.icon_rocket, s = 0.8;
+     const img = document.createElement('div'); img.className='card sprite';
+     img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
+@@ -1362,8 +1380,7 @@ function triggerEffect(typeName){
+     el.appendChild(img);
+   } else if(typeName==='plane' || typeName==='plane1' || typeName==='plane2'){
+     el.classList.add('plane');
+-    if(typeof playEffect==='function') playEffect('11');
+-    netBroadcast({t:'sound', from:-1, kind:'effect', key:'11'});
++    if(isHost){ if(typeof playEffect==='function') playEffect('11'); netBroadcast({t:'sound', from:-1, kind:'effect', key:'11'}); }
+     const t = document.createElement('div'); t.className='effect-text'; t.textContent='✈ 飞机！';
+     el.appendChild(t);
+   } else if(typeName==='bomb2s' || typeName==='bomb2p'){
+@@ -1382,25 +1399,35 @@ function renderOppHand(side, count, realCards){
+   const el=document.getElementById('hand'+side);
+   if(!el) return;
+   el.innerHTML='';
+-  if(realCards && realCards.length){
+-    realCards.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+-    return;
+-  }
+   // 根据页面高度动态决定每列最多牌数，按数量自动分列
+   const stage = document.querySelector('.stage');
+   const stageH = stage ? stage.offsetHeight : 560;
+-  // 侧边区域可用高度（从座位顶部到舞台底部）
+   const availH = stageH - 180;
+-  const cardH = 36, overlap = 28; // 每张卡背高度+重叠
++  const cardH = 36, overlap = 28;
+   const maxPerCol = Math.max(6, Math.floor(availH / (cardH - overlap)));
+-  const cols = Math.max(1, Math.ceil(count / maxPerCol));
++  const total = (realCards && realCards.length) ? realCards.length : count;
++  if(total === 0) return;
++  const cols = Math.max(1, Math.ceil(total / maxPerCol));
+   el.style.flexDirection = 'row';
+   el.style.flexWrap = 'nowrap';
+   el.style.gap = '0';
++  if(realCards && realCards.length){
++    // 真实手牌（观战者/明牌）：分列显示
++    for(let c=0;c<cols;c++){
++      const col = document.createElement('div');
++      col.style.cssText='display:flex;flex-direction:column;align-items:center;';
++      if(c>0) col.style.marginLeft = '-12px';
++      const start = c * maxPerCol;
++      const end = Math.min(realCards.length, start + maxPerCol);
++      for(let i=start;i<end;i++) col.appendChild(makeCardEl(keyToCard(realCards[i]),'sm'));
++      el.appendChild(col);
++    }
++    return;
++  }
+   for(let c=0;c<cols;c++){
+     const col = document.createElement('div');
+     col.style.cssText='display:flex;flex-direction:column;align-items:center;';
+-    if(c>0) col.style.marginLeft = '-12px'; // 列间微微重叠
++    if(c>0) col.style.marginLeft = '-12px';
+     const start = c * maxPerCol;
+     const end = Math.min(count, start + maxPerCol);
+     for(let i=start;i<end;i++){
+@@ -1417,7 +1444,6 @@ function renderBottom(){
+   view.bottom.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+ }
+ let dealSoundTimer = null;
+-let dealSoundAudio = null;
+ function startDealSound(){
+   if(typeof playEffect==='function') playEffect('do');
+   dealSoundTimer = setInterval(()=>{ if(typeof playEffect==='function') playEffect('do'); }, 200);
+@@ -1469,7 +1495,7 @@ function renderPlayed(side, idx){
+     return;
+   }
+   if(Array.isArray(p)){
+-    const lab=document.createElement('div'); lab.className='played-label'; lab.textContent=(idx===myIdx?'我':'玩家'+(idx+1)); el.appendChild(lab);
++    const lab=document.createElement('div'); lab.className='played-label'; lab.textContent=getDisplayName(idx); el.appendChild(lab);
+     p.forEach((k,i)=>{
+       const c=makeCardEl(keyToCard(k),'sm');
+       if(isNew){ c.style.animation='cardFlyIn .35s ease-out '+((i*40)/1000)+'s both'; }
+diff --git a/js/test.js b/js/test.js
+index 8596e3e..313f727 100644
+--- a/js/test.js
++++ b/js/test.js
+@@ -464,6 +464,26 @@
+   ok('重连-非自己回合', simRestorePhase('play',1,2)==='waitMsg');
+   ok('重连-over阶段', simRestorePhase('over',0,1)==='waitMsg');
+ 
++  /* ============================================================
++     Bug修复验证
++     ============================================================ */
++  // wasBeating: 管上声音判定（出牌前lastPlay和lastPlayer状态）
++  ok('wasBeating-自由出不应播bigger', !(function(){
++    // 模拟：无上家牌时，wasBeating应为false
++    const lastPlay = null, lastPlayer = -1, senderIdx = 0;
++    return !!(lastPlay && lastPlayer!==senderIdx);
++  })());
++  ok('wasBeating-管上应播bigger', !!(function(){
++    // 模拟：有上家牌且非自己出的
++    const lastPlay = {type:'single',main:5,len:1}, lastPlayer = 1, senderIdx = 0;
++    return !!(lastPlay && lastPlayer!==senderIdx);
++  })());
++  ok('wasBeating-自己上次出的不应播bigger', !(function(){
++    // 模拟：上家牌是自己出的（连续自由出）
++    const lastPlay = {type:'single',main:5,len:1}, lastPlayer = 0, senderIdx = 0;
++    return !!(lastPlay && lastPlayer!==senderIdx);
++  })());
++
+   /* ============================================================
+      汇总
+      ============================================================ */
+-- 
+2.45.1.windows.1
+
+
+

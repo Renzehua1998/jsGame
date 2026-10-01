@@ -1,0 +1,67 @@
+From 641934164a522111b739e45fb4226bd44964b9a2 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:53:43 +0800
+Subject: [PATCH 29/36] =?UTF-8?q?fix:=20=E5=A4=B4=E5=83=8F/=E6=98=B5?=
+ =?UTF-8?q?=E7=A7=B0=E6=8C=81=E4=B9=85=E5=8C=96=E5=88=B0localStorage,=20?=
+ =?UTF-8?q?=E7=A1=AE=E4=BF=9D=E5=AF=BC=E5=87=BAJSON=E5=8C=85=E5=90=AB?=
+ =?UTF-8?q?=E5=A4=B4=E5=83=8F?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- customAvatars/customNicks启动时从localStorage恢复(dou_avatars/dou_nicks)
+- 主机设置自己的、收到客户端profile、导入数据时均调用saveAvatars/saveNicks
+- 刷新页面后头像和昵称不再丢失, 导出JSON包含base64头像dataURL
+---
+ js/game.js | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/js/game.js b/js/game.js
+index 31e2b10..f4f3657 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -52,6 +52,13 @@ let myNick = '';
+ let myAvatar = null;  // base64 dataURL
+ let customAvatars = [null,null,null];  // 三玩家自定义头像
+ let customNicks = ['','',''];          // 三玩家自定义昵称
++// 从 localStorage 恢复头像和昵称
++try{
++  const sa = localStorage.getItem('dou_avatars'); if(sa) customAvatars = JSON.parse(sa);
++  const sn = localStorage.getItem('dou_nicks'); if(sn) customNicks = JSON.parse(sn);
++}catch(e){}
++function saveAvatars(){ try{ localStorage.setItem('dou_avatars', JSON.stringify(customAvatars)); }catch(e){} }
++function saveNicks(){ try{ localStorage.setItem('dou_nicks', JSON.stringify(customNicks)); }catch(e){} }
+ function onAvatarPick(input){
+   const file = input.files[0]; if(!file) return;
+   if(file.size > 102400){ alert('头像文件过大(>100KB)，请压缩后重试'); input.value=''; return; }
+@@ -75,7 +82,7 @@ function enterGame(){
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+   if(typeof startBgm==='function') startBgm();
+   if(role==='host'){
+-    genders[0]=myGender; customAvatars[0]=myAvatar; customNicks[0]=myNick;
++    genders[0]=myGender; customAvatars[0]=myAvatar; customNicks[0]=myNick; saveAvatars(); saveNicks();
+     view.names[0]=getDisplayName(0);
+   } else if(role!=='spectator'){
+     genders[myIdx]=myGender;
+@@ -634,6 +641,7 @@ function importData(input){
+       if(data.matchHistory) matchHistory = data.matchHistory;
+       if(data.customAvatars) customAvatars = data.customAvatars;
+       if(data.customNicks) customNicks = data.customNicks;
++      saveAvatars(); saveNicks();
+       try{ localStorage.setItem('dou_history', JSON.stringify(matchHistory)); }catch(err){}
+       log('已导入战绩数据: '+matchHistory.length+' 局');
+       showStats();
+@@ -657,7 +665,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='ping'){ netSend(sender,{t:'o',time:m.time}); }
+     else if(m.t==='o'){ }
+     else if(m.t==='gender'){ genders[sender]=m.g||'man'; view.genders=genders.slice(); log('玩家'+(sender+1)+' 性别: '+(m.g==='woman'?'女':'男')); }
+-    else if(m.t==='profile'){ customAvatars[sender]=m.avatar||null; customNicks[sender]=m.nick||''; view.names[sender]=getDisplayName(sender); log('玩家'+(sender+1)+' 昵称: '+view.names[sender]); broadcastState(); }
++    else if(m.t==='profile'){ customAvatars[sender]=m.avatar||null; customNicks[sender]=m.nick||''; saveAvatars(); saveNicks(); view.names[sender]=getDisplayName(sender); log('玩家'+(sender+1)+' 昵称: '+view.names[sender]); broadcastState(); }
+     else if(m.t==='chat'){ // 客户端发来的聊天，主机本地播放并转发给另一客户端
+       onChatMsg(m.from, m.phrase, m.gender);
+       const other = sender===1?2:1;
+-- 
+2.45.1.windows.1
+
+
+

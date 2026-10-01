@@ -1,0 +1,129 @@
+From c62f41e690cbe1cca6ff72f359e768bb789122f3 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 15:31:05 +0800
+Subject: [PATCH 06/36] =?UTF-8?q?feat:=20=E7=A7=BB=E5=8A=A8=E7=AB=AF?=
+ =?UTF-8?q?=E6=A8=AA=E5=B1=8F=E9=80=82=E9=85=8D?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 检测移动端 UA + coarse pointer，body 加 mobile 类
+- 竖屏时全屏遮罩提示旋转设备
+- 动态 scale #gameArea 适配屏宽（监听 resize/orientationchange）
+- viewport 禁缩放、touch-action 优化、触摸目标尺寸调整
+- 缩小移动端字号/间距/头像尺寸以匹配小屏
+---
+ index.html | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/index.html b/index.html
+index 60d8ded..49b45a7 100644
+--- a/index.html
++++ b/index.html
+@@ -2,7 +2,10 @@
+ <html lang="zh-CN">
+ <head>
+ <meta charset="UTF-8">
+-<meta name="viewport" content="width=device-width, initial-scale=1.0">
++<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
++<meta name="apple-mobile-web-app-capable" content="yes">
++<meta name="mobile-web-app-capable" content="yes">
++<meta name="theme-color" content="#0f1410">
+ <title>P2P 联机斗地主</title>
+ <style>
+ * { margin:0; padding:0; box-sizing:border-box; }
+@@ -199,9 +202,52 @@ textarea {
+   border:1px solid #2e3b2a; border-radius:8px; padding:8px 12px;
+   height:90px; overflow-y:auto; font-size:12px; color:#9be08a; font-family:monospace;
+ }
++
++/* ============ 移动端 / 横屏适配 ============ */
++/* 竖屏旋转提示遮罩（移动端竖屏时显示） */
++.rotate-hint {
++  display:none; position:fixed; inset:0; z-index:9999;
++  background:#0f1410; color:#ffd54a;
++  flex-direction:column; align-items:center; justify-content:center;
++  text-align:center; padding:30px; gap:18px;
++}
++.rotate-hint .icon { font-size:64px; animation:rotHint 2s infinite ease-in-out; }
++.rotate-hint .msg  { font-size:18px; line-height:1.6; }
++.rotate-hint .sub  { font-size:13px; color:#888; }
++@keyframes rotHint { 0%,100%{transform:rotate(-90deg);} 50%{transform:rotate(0deg);} }
++
++/* 移动端检测标记：body.mobile 时启用缩放容器 */
++body.mobile { padding:4px; }
++body.mobile #gameArea { transform-origin:top center; }
++body.mobile h1 { font-size:18px; margin-bottom:2px; }
++body.mobile .subtitle { font-size:11px; margin-bottom:8px; }
++body.mobile .panel { padding:14px; margin:4px 0; }
++body.mobile button { padding:9px 16px; font-size:14px; }
++body.mobile textarea { font-size:12px; height:70px; }
++body.mobile #logBox { height:60px; font-size:11px; margin:4px auto 8px; }
++body.mobile .actions { padding:8px; }
++body.mobile .my-hand .card-wrap { margin-left:-26px; }
++body.mobile .seat .avatar-sprite { width:46px; height:48px; }
++body.mobile .seat .name { font-size:11px; }
++body.mobile .seat .count { font-size:11px; }
++
++/* 触摸优化：禁用高亮、tap延时 */
++* { -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
++body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:manipulation; }
++
++/* 竖屏（移动端）显示旋转提示 */
++@media (orientation:portrait) and (max-width:900px){
++  body.mobile .rotate-hint { display:flex; }
++}
+ </style>
+ </head>
+ <body>
++<!-- 竖屏旋转提示（移动端） -->
++<div class="rotate-hint" id="rotateHint">
++  <div class="icon">📱</div>
++  <div class="msg">请将设备横置以获得最佳游戏体验</div>
++  <div class="sub">斗地主为横屏牌桌布局</div>
++</div>
+ <h1>🃏 P2P 联机斗地主</h1>
+ <p class="subtitle">三人 WebRTC 直连 · 主机权威 · 经典玩法 · 素材切片自 dou.png</p>
+ 
+@@ -636,6 +682,7 @@ let selected=new Set(); // 选中的牌 key
+ function enterGame(){
+   showStep('gameArea');
+   document.getElementById('gameStatus').textContent='🟢 三人已连接，准备发牌';
++  if(isMobile) setTimeout(fitScale, 50);
+   if(role==='host') hostStartGame();
+ }
+ 
+@@ -1194,7 +1241,28 @@ function renderActions(){
+ }
+ 
+ /* 初始化 */
++const isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|Mobile/i.test(navigator.userAgent)
++  || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches && window.innerWidth < 1100);
++if(isMobile) document.body.classList.add('mobile');
++function fitScale(){
++  if(!isMobile) return;
++  const ga = document.getElementById('gameArea');
++  if(!ga || ga.classList.contains('step') && !ga.classList.contains('active')) return;
++  const winW = window.innerWidth, winH = window.innerHeight;
++  const baseW = 1000, baseH = 760;
++  const s = Math.min(winW/baseW, winH/baseH, 1);
++  ga.style.transform = `scale(${s})`;
++  ga.style.transformOrigin = 'top center';
++  const newH = baseH * s;
++  document.body.style.minHeight = (newH + 40) + 'px';
++}
++window.addEventListener('resize', fitScale);
++window.addEventListener('orientationchange', ()=>{ setTimeout(fitScale, 300); });
+ window.addEventListener('load', ()=>{
++  if(isMobile){
++    document.body.classList.add('mobile');
++    fitScale();
++  }
+   // 周期测 RTT
+   setInterval(()=>{
+     const ch = role==='host'? (ch1&&ch1.readyState==='open'?ch1:null) : (channel&&channel.readyState==='open'?channel:null);
+-- 
+2.45.1.windows.1
+
+
+

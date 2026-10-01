@@ -1,0 +1,73 @@
+From dac2b02d7d5546c3518c25b32939d3efb64d6de0 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 14:54:13 +0800
+Subject: [PATCH 04/36] =?UTF-8?q?feat:=20=E8=A1=A5=E5=85=A8=E5=9B=9B?=
+ =?UTF-8?q?=E5=B8=A6=E4=BA=8C=E7=89=8C=E5=9E=8B=E4=B8=8E=E9=A3=9E=E6=9C=BA?=
+ =?UTF-8?q?=E5=B8=A6=E7=BF=BC=E6=8F=90=E7=A4=BA?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- detectType 新增 bomb2s(四带两单 6张) / bomb2p(四带两对 8张)
+- canBeat: 四带二可被炸弹/王炸压制，同类按 main 比较
+- findHint 补全 plane1/plane2/bomb2s/bomb2p 的提示算法
+- 出牌面板新增" 清空\按钮，快速取消所有选中
+---
+ index.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/index.html b/index.html
+index 39fde62..7833710 100644
+--- a/index.html
++++ b/index.html
+@@ -303,6 +303,12 @@ function detectType(cs){
+   if(n===2 && groups.length===1) return {type:'pair',main:vals[0],len:1};
+   if(n===3 && groups.length===1) return {type:'triple',main:vals[0],len:1};
+   if(n===4 && groups.length===1) return {type:'bomb',main:vals[0],len:1};
++  if(n===6 && groups.length===3 && groups[0].c===1 && groups[1].c===1 && groups[2].c===4) {
++    return {type:'bomb2s',main:groups[2].v,len:1};
++  }
++  if(n===8 && groups.length===3 && groups[0].c===2 && groups[1].c===2 && groups[2].c===4) {
++    return {type:'bomb2p',main:groups[2].v,len:1};
++  }
+   if(n===4 && groups.length===2 && groups[0].c===1 && groups[1].c===3) return {type:'triple1',main:groups[1].v,len:1};
+   if(n===5 && groups.length===2 && groups[0].c===2 && groups[1].c===3) return {type:'triple2',main:groups[1].v,len:1};
+   const isConsec = (arr)=>{ for(let i=1;i<arr.length;i++) if(arr[i]!==arr[i-1]+1) return false; return true; };
+@@ -327,6 +333,12 @@ function canBeat(ne, ol){
+   if(ol.type==='rocket') return false;
+   if(ne.type==='bomb'){ if(ol.type!=='bomb') return true; return ne.main>ol.main; }
+   if(ol.type==='bomb') return false;
++  // 四带二：只能被炸弹/王炸压；同类同长按 main 比
++  if(ne.type==='bomb2s' || ne.type==='bomb2p'){
++    if(ol.type!==ne.type) return false;
++    return ne.main>ol.main;
++  }
++  if(ol.type==='bomb2s' || ol.type==='bomb2p') return false;
+   if(ne.type!==ol.type) return false;
+   if(ne.len!==ol.len) return false;
+   return ne.main>ol.main;
+@@ -346,6 +358,10 @@ function findHint(hand, ol){
+   if(T==='straight'){ for(let st=ol.main+1; st+ol.len-1<=14; st++){ let ok=true,cards=[]; for(let i=0;i<ol.len;i++){ if(!hasN(st+i,1)){ok=false;break;} cards.push(byVal[st+i][0]); } if(ok) return cards; } }
+   if(T==='pairstraight'){ for(let st=ol.main+1; st+ol.len-1<=14; st++){ let ok=true,cards=[]; for(let i=0;i<ol.len;i++){ if(!hasN(st+i,2)){ok=false;break;} cards.push(...takeN(st+i,2)); } if(ok) return cards; } }
+   if(T==='plane'){ for(let st=ol.main+1; st+ol.len-1<=14; st++){ let ok=true,cards=[]; for(let i=0;i<ol.len;i++){ if(!hasN(st+i,3)){ok=false;break;} cards.push(...takeN(st+i,3)); } if(ok) return cards; } }
++  if(T==='plane1'){ for(let st=ol.main+1; st+ol.len-1<=14; st++){ let ok=true,tris=[]; for(let i=0;i<ol.len;i++){ if(!hasN(st+i,3)){ok=false;break;} tris.push(...takeN(st+i,3)); } if(ok){ const wings=[]; for(const w of valsAsc){ if(tris.some(c=>c.val===w)) continue; if(hasN(w,1)){ wings.push(byVal[w][0]); if(wings.length===ol.len) break; } } if(wings.length===ol.len) return tris.concat(wings); } } }
++  if(T==='plane2'){ for(let st=ol.main+1; st+ol.len-1<=14; st++){ let ok=true,tris=[]; for(let i=0;i<ol.len;i++){ if(!hasN(st+i,3)){ok=false;break;} tris.push(...takeN(st+i,3)); } if(ok){ const wings=[]; for(const w of valsAsc){ if(tris.some(c=>c.val===w)) continue; if(hasN(w,2)){ wings.push(...takeN(w,2)); if(wings.length===ol.len*2) break; } } if(wings.length===ol.len*2) return tris.concat(wings); } } }
++  if(T==='bomb2s'){ for(const v of valsAsc) if(v>ol.main && hasN(v,4)){ const quad=takeN(v,4); const wings=[]; for(const w of valsAsc){ if(w===v) continue; if(hasN(w,1)){ wings.push(byVal[w][0]); if(wings.length===2) break; } } if(wings.length===2) return quad.concat(wings); } }
++  if(T==='bomb2p'){ for(const v of valsAsc) if(v>ol.main && hasN(v,4)){ const quad=takeN(v,4); const wings=[]; for(const w of valsAsc){ if(w===v) continue; if(hasN(w,2)){ wings.push(...takeN(w,2)); if(wings.length===4) break; } } if(wings.length===4) return quad.concat(wings); } }
+   if(T!=='bomb' && T!=='rocket'){ for(const v of valsAsc) if(hasN(v,4)) return takeN(v,4); }
+   if(T==='bomb'){ for(const v of valsAsc) if(v>ol.main && hasN(v,4)) return takeN(v,4); }
+   if(hasN(16,1)&&hasN(17,1)) return [byVal[16][0],byVal[17][0]];
+@@ -725,6 +741,8 @@ function showPlayUI(lastPlay){
+   bPass.disabled = !ol; bPass.onclick=()=>doPass(); box.appendChild(bPass);
+   const bHint=document.createElement('button'); bHint.className='secondary'; bHint.textContent='提示';
+   bHint.onclick=()=>doHint(ol); box.appendChild(bHint);
++  const bClear=document.createElement('button'); bClear.className='secondary'; bClear.textContent='清空';
++  bClear.onclick=()=>{ selected.clear(); render(); }; box.appendChild(bClear);
+   const bPlay=document.createElement('button'); bPlay.textContent='出牌';
+   bPlay.onclick=()=>doPlay(); box.appendChild(bPlay);
+ }
+-- 
+2.45.1.windows.1
+
+
+

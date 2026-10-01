@@ -1,0 +1,89 @@
+From 2a26e8927527744a305a776928b0b63e60c6fde2 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:45:20 +0800
+Subject: [PATCH 28/36] =?UTF-8?q?feat:=20=E5=AF=B9=E5=B1=80=E6=95=B0?=
+ =?UTF-8?q?=E6=8D=AE=E5=AF=BC=E5=87=BA/=E5=AF=BC=E5=85=A5=20-=20=E5=8F=AF?=
+ =?UTF-8?q?=E5=9B=9E=E7=9C=8B=E7=BB=9F=E8=AE=A1=E4=B8=8E=E7=BB=A7=E7=BB=AD?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 战绩面板加导出/导入按钮
+- exportData: 导出JSON含战绩历史+自定义头像+昵称+积分+局数
+- importData: 导入JSON恢复matchHistory/customAvatars/customNicks到localStorage
+- 导出文件名带日期(dou_stats_YYYY-MM-DD.json)
+- 导入后自动刷新战绩面板显示
+---
+ index.html |  3 +++
+ js/game.js | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)
+
+diff --git a/index.html b/index.html
+index 92991a0..f2ec80a 100644
+--- a/index.html
++++ b/index.html
+@@ -222,9 +222,12 @@
+     <h3>📊 战绩统计</h3>
+     <div id="statsContent"></div>
+     <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">
++      <button class="secondary" onclick="exportData()">📦 导出</button>
++      <button class="secondary" onclick="document.getElementById('importFile').click()">📥 导入</button>
+       <button class="secondary" onclick="clearStats()">清空记录</button>
+       <button onclick="closeStats()">关闭</button>
+     </div>
++    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(this)">
+     <button class="chat-close" onclick="closeStats()">✕</button>
+   </div>
+ </div>
+diff --git a/js/game.js b/js/game.js
+index 0cb5169..31e2b10 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -607,6 +607,42 @@ function drawScoreChart(data){
+ function closeStats(){ const p=document.getElementById('statsPanel'); if(p) p.style.display='none'; }
+ function clearStats(){ if(confirm('确定清空所有战绩记录？')){ matchHistory=[]; try{localStorage.removeItem('dou_history');}catch(e){} showStats(); } }
+ 
++/* ---- 导出/导入 ---- */
++function exportData(){
++  const data = {
++    version: 1, exportTime: Date.now(),
++    matchHistory: matchHistory,
++    customAvatars: customAvatars,
++    customNicks: customNicks,
++    scores: view.scores ? view.scores.slice() : [100,100,100],
++    round: view.round || 0
++  };
++  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
++  const url = URL.createObjectURL(blob);
++  const a = document.createElement('a');
++  a.href = url; a.download = 'dou_stats_'+new Date().toISOString().slice(0,10)+'.json';
++  a.click();
++  URL.revokeObjectURL(url);
++  log('已导出战绩数据');
++}
++function importData(input){
++  const file = input.files[0]; if(!file) return;
++  const reader = new FileReader();
++  reader.onload = e=>{
++    try{
++      const data = JSON.parse(e.target.result);
++      if(data.matchHistory) matchHistory = data.matchHistory;
++      if(data.customAvatars) customAvatars = data.customAvatars;
++      if(data.customNicks) customNicks = data.customNicks;
++      try{ localStorage.setItem('dou_history', JSON.stringify(matchHistory)); }catch(err){}
++      log('已导入战绩数据: '+matchHistory.length+' 局');
++      showStats();
++    }catch(err){ alert('导入失败：文件格式错误'); }
++    input.value='';
++  };
++  reader.readAsText(file);
++}
++
+ /* ============================================================
+    网络消息路由
+    ============================================================ */
+-- 
+2.45.1.windows.1
+
+
+

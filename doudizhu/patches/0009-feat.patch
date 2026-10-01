@@ -1,0 +1,528 @@
+From c70380eebf584c3cace5c5c0c2e069f143bc5af0 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 19:11:37 +0800
+Subject: [PATCH 09/36] =?UTF-8?q?feat:=20=E6=80=A7=E5=88=AB=E9=80=89?=
+ =?UTF-8?q?=E6=8B=A9=20+=20=E8=81=8A=E5=A4=A9/=E5=87=BA=E7=89=8C=E8=AF=AD?=
+ =?UTF-8?q?=E9=9F=B3?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+性别选择:
+- step0 加男/女选择按钮，存 myGender
+- 通道建立时客户端把性别发主机，主机收集3人性别存 genders 数组
+- 广播 state 含 genders，各端同步
+- 农民头像/立绘按性别: 男 avatar_peasant1/char_peasant1, 女 avatar_peasant2/char_peasant2
+- 地主头像/立绘固定 avatar_landlord/char_landlord 与性别无关
+- 新增角色立绘 DOM 与 renderCharFigure 渲染
+
+声音 (js/sound.js, 声音文件 sound/ 不入库仅本地):
+- 出牌: 按牌型播放 do/{gender}/对应文件
+  单张s1-s13+小王s60+大王s61, 对子d1-d13, 三个5, 三带一7, 三带二8,
+  炸弹13, 王炸14, 四带二9, 四带两对10, 顺子2, 连对4, 飞机11
+- 管上别人: 随机 bigger0/bigger1/bigger2
+- 不出: 随机 pass0/pass1/pass2
+- 叫地主: call, 不叫: bj
+- 主机出牌/不出/叫地主时本地播放并广播 sound 消息, 客户端按出牌人性别播放
+- 按钮点击加 button 音效
+
+聊天:
+- 游戏区右下角聊天按钮, 点击弹出6个短语
+- 选短语: 本地播放 chat/{myGender}/{phrase}.mp3 + 转发给其他人
+- 主机转发客户端聊天给另一客户端, 各端按发送人性别播放
+- 聊天内容写入日志
+
+sound.md 声音清单入库, sound/ 目录由 .gitignore 忽略不入库
+---
+ css/style.css |  26 ++++++++++
+ index.html    |  26 +++++++++-
+ js/game.js    |  63 +++++++++++++++++++++---
+ js/net.js     |   2 +
+ js/sound.js   | 133 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ sound.md      |  49 +++++++++++++++++++
+ 6 files changed, 290 insertions(+), 9 deletions(-)
+ create mode 100644 js/sound.js
+ create mode 100644 sound.md
+
+diff --git a/css/style.css b/css/style.css
+index b96883a..0b012f9 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -227,3 +227,29 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+     overflow-x:hidden;
+   }
+ }
++
++/* ============ 聊天 ============ */
++.chat-btn {
++  position:fixed; right:18px; bottom:90px; z-index:50;
++  width:48px; height:48px; border-radius:50%;
++  background:#ffd54a; color:#2a1f00; border:none; font-size:22px;
++  cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.5);
++  transition:transform .12s;
++}
++.chat-btn:hover { transform:scale(1.1); }
++.chat-bar {
++  position:fixed; right:76px; bottom:90px; z-index:51;
++  display:flex; gap:6px; align-items:center; flex-wrap:wrap;
++  max-width:60vw; background:#1a2418; border:1px solid #ffd54a;
++  border-radius:22px; padding:8px 10px; box-shadow:0 4px 14px rgba(0,0,0,.6);
++}
++.chat-phrase {
++  background:#3a4a36; color:#fff; border:none; border-radius:14px;
++  padding:6px 12px; font-size:12px; cursor:pointer; white-space:nowrap;
++  transition:background .12s;
++}
++.chat-phrase:hover { background:#4a5d44; }
++.chat-close {
++  background:#c0392b; color:#fff; border:none; border-radius:50%;
++  width:24px; height:24px; font-size:13px; cursor:pointer; padding:0;
++}
+diff --git a/index.html b/index.html
+index 8088554..edfb33c 100644
+--- a/index.html
++++ b/index.html
+@@ -16,12 +16,17 @@
+ 
+ <!-- 选择角色 -->
+ <div id="step0" class="panel step active">
+-  <p style="text-align:center;margin-bottom:18px;color:#ccc;">选择你的角色开始游戏。初始每人 100 分，按胜负累计。</p>
++  <p style="text-align:center;margin-bottom:14px;color:#ccc;">选择你的性别与角色开始游戏。初始每人 100 分，按胜负累计。</p>
++  <p class="label" style="text-align:center;">选择性别（决定农民角色形象与语音）：</p>
++  <div style="text-align:center;margin-bottom:14px;">
++    <button id="genderMale" class="secondary" onclick="setGender('man')">👨 男（农民1）</button>
++    <button id="genderFemale" class="secondary" onclick="setGender('woman')">👩 女（农民2）</button>
++  </div>
+   <div style="text-align:center;">
+     <button onclick="beHost()">🏠 创建房间（主机·玩家1）</button>
+     <button class="secondary" onclick="beClient()">🔗 加入房间（客户端）</button>
+   </div>
+-  <p class="copy-hint">💡 三人玩法：1 个主机 + 2 个客户端。主机生成两份邀请码分别发给两位客户端；客户端各自粘贴邀请码、回传应答码即可开局。叫地主按局轮换首叫人。</p>
++  <p class="copy-hint">💡 三人玩法：1 个主机 + 2 个客户端。地主形象与语音与性别无关；农民按性别显示角色1/2。叫地主按局轮换首叫人。</p>
+ </div>
+ 
+ <!-- 主机：生成两份邀请码 -->
+@@ -77,6 +82,10 @@
+   <div class="stage">
+     <div class="table"></div>
+     <div class="table-fan" id="tableFan"></div>
++    <!-- 角色立绘 -->
++    <div class="char-figure p-left" id="figureLeft"></div>
++    <div class="char-figure p-right" id="figureRight"></div>
++    <div class="char-figure p-me" id="figureMe"></div>
+     <!-- 局数牌 -->
+     <div class="sign-zone round" id="signRound"></div>
+     <!-- 倍数卷轴 -->
+@@ -124,6 +133,18 @@
+     <div class="info" id="actInfo">等待中...</div>
+     <div id="actButtons"></div>
+   </div>
++  <!-- 聊天短语选择条 -->
++  <div id="chatBar" class="chat-bar" style="display:none;">
++    <button class="chat-phrase" onclick="sendChat(0)">大家好</button>
++    <button class="chat-phrase" onclick="sendChat(1)">快点吧</button>
++    <button class="chat-phrase" onclick="sendChat(2)">决战到天亮</button>
++    <button class="chat-phrase" onclick="sendChat(3)">帅哥还是美女</button>
++    <button class="chat-phrase" onclick="sendChat(4)">十盘不算晚</button>
++    <button class="chat-phrase" onclick="sendChat(5)">打错了</button>
++    <button class="chat-close" onclick="toggleChat(false)">✕</button>
++  </div>
++  <!-- 聊天按钮 -->
++  <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
+   <div id="logBox"></div>
+ </div>
+ </div>
+@@ -133,6 +154,7 @@
+ <script src="js/engine.js"></script>
+ <script src="js/net.js"></script>
+ <script src="js/game.js"></script>
++<script src="js/sound.js"></script>
+ <script src="js/main.js"></script>
+ </body>
+ </html>
+diff --git a/js/game.js b/js/game.js
+index e930aa2..addfc14 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -9,7 +9,8 @@ let view = {
+   phase:'wait', turn:-1, landlord:-1, points:0,
+   hands:[0,0,0], played:{0:null,1:null,2:null}, lastPlay:null, lastPlayer:-1,
+   bottom:[], bottomShown:false, bidLog:[], scores:[INIT_SCORE,INIT_SCORE,INIT_SCORE],
+-  over:null, names:['玩家1','玩家2','玩家3'], myHand:[], round:0, lastEffect:null
++  over:null, names:['玩家1','玩家2','玩家3'], myHand:[], round:0, lastEffect:null,
++  genders:['man','man','man']
+ };
+ let myHand=[];
+ let selected=new Set();
+@@ -18,6 +19,9 @@ let firstBidder = 0;   // 本局首叫人（按局轮换：每局+1）
+ function enterGame(){
+   showStep('gameArea');
+   document.getElementById('gameStatus').textContent='🟢 三人已连接，准备发牌';
++  const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display='block';
++  if(role==='host') genders[0]=myGender; else genders[myIdx]=myGender;
++  view.genders = genders.slice();
+   if(typeof isMobile!=='undefined' && isMobile) setTimeout(fitScale, 50);
+   if(role==='host') hostStartGame();
+ }
+@@ -65,7 +69,8 @@ function broadcastState(){
+     phase:view.phase, turn:view.turn, landlord:view.landlord, points:view.points,
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+-    scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round
++    scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
++    genders:view.genders
+   };
+   netBroadcast({t:'state', v:pub});
+   render();
+@@ -91,8 +96,14 @@ function hostBid(senderIdx, val){
+   if(val>0){
+     H.bidMax=val; H.bidWinner=senderIdx;
+     log('玩家'+(senderIdx+1)+' 叫 '+val+' 分');
++    const gnd = genders[senderIdx] || 'man';
++    playCallSound(gnd); netBroadcast({t:'sound', from:senderIdx, kind:'call', gender:gnd});
+     if(val===3){ endBidding(); return; }
+-  } else log('玩家'+(senderIdx+1)+' 不叫');
++  } else {
++    log('玩家'+(senderIdx+1)+' 不叫');
++    const gnd = genders[senderIdx] || 'man';
++    playNoCallSound(gnd); netBroadcast({t:'sound', from:senderIdx, kind:'nocal', gender:gnd});
++  }
+   H.bidCount++; H.bidIdx=(H.bidIdx+1)%3;
+   if(H.bidCount>=3){ endBidding(); return; }
+   promptBid();
+@@ -148,6 +159,11 @@ function hostPlay(senderIdx, keys){
+   log('玩家'+(senderIdx+1)+' 出：'+keys.join(' '));
+   broadcastState();
+   triggerEffect(type.type);
++  // 声音：管上播 bigger，自由出播牌型；剩1/2张播报牌
++  const sndGender = genders[senderIdx] || 'man';
++  const wasBeating = (H.lastPlay && H.lastPlayer!==senderIdx);
++  if(wasBeating){ playBiggerSound(sndGender); netBroadcast({t:'sound', from:senderIdx, kind:'bigger', gender:sndGender}); }
++  else { playTypeSound(type, sndGender); netBroadcast({t:'sound', from:senderIdx, kind:'type', key:type, gender:sndGender}); }
+   if(H.hands[senderIdx].length===0){ endGame(senderIdx); return; }
+   H.turn=(senderIdx+1)%3; view.turn=H.turn;
+   promptPlay();
+@@ -159,6 +175,8 @@ function hostPass(senderIdx){
+   H.passCount++;
+   log('玩家'+(senderIdx+1)+' 不出');
+   broadcastState();
++  const sndGender = genders[senderIdx] || 'man';
++  playPassSound(sndGender); netBroadcast({t:'sound', from:senderIdx, kind:'pass', gender:sndGender});
+   if(H.passCount>=2){
+     H.lastPlay=null; view.lastPlay=null;
+     H.turn=H.lastPlayer; view.turn=H.turn; H.passCount=0;
+@@ -199,8 +217,15 @@ function onNetMessage(m, slot){
+     else if(m.t==='pass'){ hostPass(sender); }
+     else if(m.t==='ping'){ netSend(sender,{t:'o',time:m.time}); }
+     else if(m.t==='o'){ }
++    else if(m.t==='gender'){ genders[sender]=m.g||'man'; view.genders=genders.slice(); log('玩家'+(sender+1)+' 性别: '+(m.g==='woman'?'女':'男')); }
++    else if(m.t==='chat'){ // 客户端发来的聊天，主机本地播放并转发给另一客户端
++      onChatMsg(m.from, m.phrase, m.gender);
++      const other = sender===1?2:1;
++      netSend(other, {t:'chat', from:m.from, phrase:m.phrase, gender:m.gender});
++    }
++    // 主机广播的 sound 消息由自己发出，客户端在 else 分支处理
+   } else {
+-    if(m.t==='assign'){ myIdx=m.you; view.names[myIdx]='我'; log('已分配座次：玩家'+(myIdx+1)); }
++    if(m.t==='assign'){ myIdx=m.you; view.names[myIdx]='我'; genders[myIdx]=myGender; log('已分配座次：玩家'+(myIdx+1)); }
+     else if(m.t==='deal'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
+     else if(m.t==='bottom'){ myHand = sortHand(myHand.concat(m.cards.map(keyToCard))); view.myHand=myHand; }
+     else if(m.t==='bidReq'){ showBidUI(m.curMax); }
+@@ -208,6 +233,8 @@ function onNetMessage(m, slot){
+     else if(m.t==='reject'){ alert(m.msg); }
+     else if(m.t==='state'){ applyState(m.v); }
+     else if(m.t==='o'){ rtt=performance.now()-m.time; }
++    else if(m.t==='chat'){ onChatMsg(m.from, m.phrase, m.gender); }
++    else if(m.t==='sound'){ onSoundMsg(m.from, m.kind, m.key, m.gender); }
+   }
+   render();
+ }
+@@ -216,6 +243,7 @@ function applyState(v){
+   Object.assign(view, v);
+   view.played = v.played || {0:null,1:null,2:null};
+   view.bidLog = v.bidLog || [];
++  if(v.genders){ genders = v.genders.slice(); view.genders = genders; }
+   if(v.lastEffect && v.lastEffect!==prevEffect) triggerEffect(v.lastEffect);
+   render();
+ }
+@@ -248,6 +276,7 @@ function showBidUI(curMax){
+ }
+ function doBid(v){
+   clearButtons();
++  if(typeof playEffect==='function') playEffect('button');
+   if(role==='host') hostBid(0,v);
+   else netSend(0,{t:'bid',val:v});
+   setActInfo('已叫分，等待其他人...');
+@@ -264,6 +293,7 @@ function showPlayUI(lastPlay){
+ }
+ function doPass(){
+   clearButtons();
++  if(typeof playEffect==='function') playEffect('button');
+   if(role==='host') hostPass(0);
+   else netSend(0,{t:'pass'});
+   setActInfo('已不出，等待...');
+@@ -272,6 +302,7 @@ function doPlay(){
+   const keys = Array.from(selected);
+   if(keys.length===0){ alert('请先选牌'); return; }
+   clearButtons();
++  if(typeof playEffect==='function') playEffect('button');
+   if(role==='host') hostPlay(0, keys);
+   else netSend(0,{t:'play',cards:keys});
+   selected.clear();
+@@ -311,6 +342,9 @@ function render(){
+     renderBadge(pos, i);
+   }
+   renderClock();
++  renderCharFigure('Left', (myIdx+2)%3);
++  renderCharFigure('Right', (myIdx+1)%3);
++  renderCharFigure('Me', myIdx);
+   renderOppHand('Left', view.hands[(myIdx+2)%3]);
+   renderOppHand('Right', view.hands[(myIdx+1)%3]);
+   renderBottom();
+@@ -337,9 +371,9 @@ function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+ function avatarNameFor(idx){
+   if(view.landlord<0) return null;
+   if(idx===view.landlord) return 'avatar_landlord';
+-  const peasants = [0,1,2].filter(x=>x!==view.landlord);
+-  const which = peasants.indexOf(idx);
+-  return which===0 ? 'avatar_peasant1' : 'avatar_peasant2';
++  // 农民：男=peasant1，女=peasant2
++  const g = genders[idx] || 'man';
++  return g==='woman' ? 'avatar_peasant2' : 'avatar_peasant1';
+ }
+ function renderAvatar(pos, idx){
+   const el = document.getElementById('avatar'+cap(pos));
+@@ -378,6 +412,21 @@ function renderBadge(pos, idx){
+   b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   el.appendChild(b);
+ }
++function renderCharFigure(pos, idx){
++  const el = document.getElementById('figure'+cap(pos));
++  if(!el) return;
++  el.innerHTML='';
++  if(view.landlord<0) return;
++  let name;
++  if(idx===view.landlord) name='char_landlord';
++  else name = (genders[idx]==='woman') ? 'char_peasant2' : 'char_peasant1';
++  const r = SPR[name], s = 0.35;
++  const f = document.createElement('div'); f.className='card sprite';
++  f.style.width=(r.w*s)+'px'; f.style.height=(r.h*s)+'px';
++  f.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  f.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  el.appendChild(f);
++}
+ function renderClock(){
+   document.querySelectorAll('.clock').forEach(c=>c.remove());
+   if(view.over || view.turn<0 || view.phase!=='play') return;
+diff --git a/js/net.js b/js/net.js
+index be9041d..07487d0 100644
+--- a/js/net.js
++++ b/js/net.js
+@@ -99,6 +99,8 @@ function setupChannel(ch, slot){
+         enterGame();
+       }
+     } else {
++      // 客户端把自己的性别发给主机
++      sendRaw(ch, {t:'gender', g: myGender});
+       enterGame();
+     }
+   });
+diff --git a/js/sound.js b/js/sound.js
+new file mode 100644
+index 0000000..c44f0a9
+--- /dev/null
++++ b/js/sound.js
+@@ -0,0 +1,133 @@
++/* ============================================================
++   sound.js - 声音播放：出牌/不出/叫地主语音 + 聊天短语
++   目录: sound/{do|chat}/{man|woman}/{key}.mp3
++   ============================================================ */
++let myGender = 'man';          // 本地玩家性别
++let genders = ['man','man','man']; // 三玩家性别（主机同步）
++
++function setGender(g){
++  myGender = g;
++  const m=document.getElementById('genderMale'), f=document.getElementById('genderFemale');
++  if(m) m.classList.toggle('secondary', g!=='man');
++  if(f) f.classList.toggle('secondary', g!=='woman');
++  // 播个按钮音效确认
++  playEffect('button');
++}
++
++/* 通用播放：category=do|chat|effect, gender=man|woman(仅do/chat), key=文件名 */
++let lastAudio = null;
++function playSound(category, key, gender){
++  const g = gender || myGender || 'man';
++  const url = `sound/${category}/${g}/${key}.mp3`;
++  try{
++    if(lastAudio){ try{lastAudio.pause();}catch(e){} }
++    const a = new Audio(url);
++    lastAudio = a;
++    a.play().catch(()=>{});
++  }catch(e){}
++}
++function playEffect(key){
++  try{ const a=new Audio(`sound/effect/${key}.mp3`); a.play().catch(()=>{}); }catch(e){}
++}
++
++/* 牌点值(val) → 单张/对子声音文件序号(1-13)
++   val: 3-13→3-13, 14(A)→1, 15(2)→2 */
++function valToSD(v){
++  if(v===14) return 1;   // A
++  if(v===15) return 2;   // 2
++  return v;              // 3-13
++}
++
++/* 牌型 → do 类声音 key（数组，可随机选一个） */
++function playTypeSound(type, gender){
++  if(!type) return;
++  const T = type.type;
++  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
++  if(T==='single'){
++    if(type.main===16) playSound('do','s60',gender);
++    else if(type.main===17) playSound('do','s61',gender);
++    else playSound('do','s'+valToSD(type.main),gender);
++  } else if(T==='pair'){
++    playSound('do','d'+valToSD(type.main),gender);
++  } else if(T==='triple'){
++    playSound('do','5',gender);
++  } else if(T==='triple1'){
++    playSound('do','7',gender);
++  } else if(T==='triple2'){
++    playSound('do','8',gender);
++  } else if(T==='bomb'){
++    playSound('do','13',gender);
++  } else if(T==='rocket'){
++    playSound('do','14',gender);
++  } else if(T==='bomb2s'){
++    playSound('do','9',gender);
++  } else if(T==='bomb2p'){
++    playSound('do','10',gender);
++  } else if(T==='straight'){
++    playSound('do','2',gender);
++  } else if(T==='pairstraight'){
++    playSound('do','4',gender);
++  } else if(T==='plane' || T==='plane1' || T==='plane2'){
++    playSound('do','11',gender);
++  }
++}
++function playPassSound(gender){ playSound('do',['pass0','pass1','pass2'][Math.floor(Math.random()*3)],gender); }
++function playBiggerSound(gender){ playSound('do',['bigger0','bigger1','bigger2'][Math.floor(Math.random()*3)],gender); }
++function playCallSound(gender){ playSound('do','call',gender); }
++function playNoCallSound(gender){ playSound('do','bj',gender); }
++function playChatSound(phrase, gender){ playSound('chat', String(phrase), gender); }
++
++/* ============ 聊天 ============ */
++function toggleChat(force){
++  const bar=document.getElementById('chatBar');
++  if(!bar) return;
++  if(force===false) bar.style.display='none';
++  else if(force===true) bar.style.display='flex';
++  else bar.style.display = bar.style.display==='flex'?'none':'flex';
++}
++function sendChat(phrase){
++  toggleChat(false);
++  // 本地播放自己的语音
++  playChatSound(phrase, myGender);
++  // 通过网络转发给其他人
++  if(role==='host'){
++    // 主机：广播给两个客户端
++    netBroadcast({t:'chat', from:0, phrase:phrase, gender:myGender});
++  } else {
++    // 客户端：发给主机，主机转发给另一客户端
++    netSend(0, {t:'chat', from:myIdx, phrase:phrase, gender:myGender});
++  }
++  log((role==='host'?'我':'玩家'+(myIdx+1))+'：'+chatPhraseText(phrase));
++}
++function chatPhraseText(p){
++  return ['大家好，很高兴见到各位','快点吧，我等的花都谢了','不要走，决战到天亮',
++          '你是帅哥还是美女','君子报仇，十盘不算晚','打错了，呜呜~'][p] || '';
++}
++
++/* 收到他人聊天：播放对方语音 */
++function onChatMsg(from, phrase, gender){
++  if(from===myIdx) return; // 自己发的已本地播放
++  playChatSound(phrase, gender);
++  log('玩家'+(from+1)+'：'+chatPhraseText(phrase));
++}
++
++/* 收到出牌声音消息（主机广播）：按出牌人性别播放（含自己出牌，因客户端出牌由主机触发广播） */
++function onSoundMsg(from, kind, key, gender){
++  const g = gender || genders[from] || 'man';
++  if(kind==='type') playTypeSound(key, g);
++  else if(kind==='pass') playPassSound(g);
++  else if(kind==='bigger') playBiggerSound(g);
++  else if(kind==='call') playCallSound(g);
++  else if(kind==='nocal') playNoCallSound(g);
++  else if(kind==='l1') playSound('do','l1',g);
++  else if(kind==='l2') playSound('do','l2',g);
++}
++
++if(typeof window!=='undefined'){
++  window.setGender=setGender; window.playSound=playSound; window.playEffect=playEffect;
++  window.playTypeSound=playTypeSound; window.playPassSound=playPassSound;
++  window.playBiggerSound=playBiggerSound; window.playCallSound=playCallSound;
++  window.playNoCallSound=playNoCallSound; window.playChatSound=playChatSound;
++  window.toggleChat=toggleChat; window.sendChat=sendChat; window.chatPhraseText=chatPhraseText;
++  window.onChatMsg=onChatMsg; window.onSoundMsg=onSoundMsg;
++}
+diff --git a/sound.md b/sound.md
+new file mode 100644
+index 0000000..e23b6d3
+--- /dev/null
++++ b/sound.md
+@@ -0,0 +1,49 @@
++# chat
++- 0：大家好，很高兴见到各位
++- 1：快点吧，我等的花都谢了
++- 2：不要走，决战到天亮
++- 3：你是帅哥还是美女
++- 4：君子报仇，十盘不算晚
++- 5：打错了，呜呜~
++# do
++- 2：顺子
++- 4：连对
++- 5：三个
++- 7：三带一
++- 8：三带一对
++- 9：四带二
++- 10：四带两对
++- 11：飞机
++- 13：炸弹
++- 14：王炸
++- bigger0：大你
++- bigger1：管上
++- bigger2：压死
++- bj：不叫
++- bjb：不加倍
++- bq：不抢
++- call：叫地主
++- double：加倍
++- pass0：不要
++- pass1：过
++- pass2：要不起
++- recall：抢地主
++- spring：春天
++- d1：对尖
++- d2：对2
++- d3：对3
++- d4：对4
++- d5：对5
++- d6：对6
++- d7：对7
++- d8：对8
++- d9：对9
++- d10：对10
++- d11：对勾
++- d12：对圈
++- d13：对K
++- l1：我就一张牌了
++- l2：我就两张牌了
++- s1-s13：单张1-K
++- s60：小王
++- s61：大王
+-- 
+2.45.1.windows.1
+
+
+

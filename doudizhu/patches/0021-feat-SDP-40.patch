@@ -1,0 +1,139 @@
+From 5f0b12c67155e9b61b9d0cb28b495e78d3563b72 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:04:59 +0800
+Subject: [PATCH 21/36] =?UTF-8?q?feat:=20SDP=E5=AD=97=E5=85=B8=E5=8E=8B?=
+ =?UTF-8?q?=E7=BC=A9=20-=20=E9=82=80=E8=AF=B7=E7=A0=81=E7=BC=A9=E7=9F=AD?=
+ =?UTF-8?q?=E7=BA=A640%?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 60+常见SDP模式用Unicode单字符替换(candidate/a=ice-ufrag/\\r\\n等)
+- 压缩后前缀DZ:标识, 粘贴时自动检测解压, 兼容原始JSON
+- 所有offer/answer生成时压缩输出, 读取时自动解压
+- 覆盖: createOffers/acceptAnswers/createAnswer/重连信令
+- 无外部依赖, 纯JS实现
+---
+ js/net.js | 51 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 41 insertions(+), 10 deletions(-)
+
+diff --git a/js/net.js b/js/net.js
+index 3acde69..f888d77 100644
+--- a/js/net.js
++++ b/js/net.js
+@@ -4,6 +4,37 @@
+ const RTC_CONFIG = {
+   iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]
+ };
++
++/* ---- SDP 压缩：字典替换，无需外部库 ---- */
++const _SDP_DICT = [
++  ['"type":"offer"','\u00C0'], ['"type":"answer"','\u00C1'], ['"sdp":"','\u00C2'],
++  ['candidate:','\u00C3'], ['\r\n','\u00C4'], ['typ ','\u00C5'], ['generation','\u00C6'],
++  ['network-cost','\u00C7'], ['a=group:BUNDLE','\u00C8'], ['a=ice-ufrag:','\u00C9'],
++  ['a=ice-pwd:','\u00CA'], ['a=fingerprint:','\u00CB'], ['a=setup:actpass','\u00CC'],
++  ['a=setup:active','\u00CD'], ['a=mid:','\u00CE'], ['a=sendrecv','\u00CF'],
++  ['a=sendonly','\u00D0'], ['a=recvonly','\u00D1'], ['a=rtpmap:','\u00D2'],
++  ['a=rtcp-mux','\u00D3'], ['a=ssrc:','\u00D4'], ['a=cname:','\u00D5'],
++  ['a=msid:','\u00D6'], ['a=msid-semantic:','\u00D7'], ['a=track:','\u00D8'],
++  ['IN IP4 ','\u00D9'], ['127.0.0.1','\u00DA'], ['udp','\u00DB'], ['host','\u00DC'],
++  ['srflx','\u00DD'], ['o=- ','\u00DE'], ['s=-','\u00DF'], ['t=0 0','\u00E0'],
++  ['m=application','\u00E1'], ['m=audio','\u00E2'], ['m=video','\u00E3'],
++  ['SCTP/DTLS','\u00E4'], ['RTP/SAVPF','\u00E5'], ['a=sctp-port:','\u00E6'],
++  ['a=max-message-size:','\u00E7'], ['{"','\u00E8'], ['":','\u00E9'], ['"}','\u00EA'],
++  [',"','\u00EB'], ['"endOfCandidates"','\u00EC'], ['relay','\u00ED'], ['prflx','\u00EE'],
++  ['a=end-of-candidates','\u00EF'], ['a=candidate:','\u00F0'], ['tcp','\u00F1'],
++  ['active','\u00F2'], ['passive','\u00F3'], ['actpass','\u00F4'],
++  ['a=ice-options:','\u00F5'], ['trickle','\u00F6'], ['renomination','\u00F7'],
++  ['a=extmap:','\u00F8'], ['a=fmtp:','\u00F9'], ['a=rtcp-fb:','\u00FA'],
++  ['google','\u00FB'], ['chrome','\u00FC'], ['a=rtcp:','\u00FD'],
++  ['RTP/AVPF','\u00FE'], ['9 ','\u00FF'],
++];
++function compressSDP(json){ let s=json; for(const [f,t] of _SDP_DICT) s=s.split(f).join(t); return 'DZ:'+s; }
++function decompressSDP(s){
++  if(!s.startsWith('DZ:')) return s;
++  s=s.slice(3);
++  for(let i=_SDP_DICT.length-1;i>=0;i--) s=s.split(_SDP_DICT[i][1]).join(_SDP_DICT[i][0]);
++  return s;
++}
+ let role=null;
+ let pc1=null, pc2=null, ch1=null, ch2=null;   // 主机端
+ let pc=null, channel=null;                      // 客户端端
+@@ -55,8 +86,8 @@ async function createOffers(){
+     setupChannel(ch2,2);
+     const o1=await pc1.createOffer(); await pc1.setLocalDescription(o1); await waitIce(pc1);
+     const o2=await pc2.createOffer(); await pc2.setLocalDescription(o2); await waitIce(pc2);
+-    document.getElementById('offerOut1').value=JSON.stringify(pc1.localDescription);
+-    document.getElementById('offerOut2').value=JSON.stringify(pc2.localDescription);
++    document.getElementById('offerOut1').value=compressSDP(JSON.stringify(pc1.localDescription));
++    document.getElementById('offerOut2').value=compressSDP(JSON.stringify(pc2.localDescription));
+     document.getElementById('hostOfferArea').style.display='block';
+   }catch(err){ showErr('hostError','生成邀请码失败：'+err.message); document.getElementById('btnCreateOffer').disabled=false; }
+   finally{ document.getElementById('hostLoading').style.display='none'; }
+@@ -67,8 +98,8 @@ async function acceptAnswers(){
+   const a2=document.getElementById('answerIn2').value.trim();
+   if(!a1||!a2) return showErr('hostError','请填入两位客户端的应答码');
+   try{
+-    await pc1.setRemoteDescription(JSON.parse(a1));
+-    await pc2.setRemoteDescription(JSON.parse(a2));
++    await pc1.setRemoteDescription(JSON.parse(decompressSDP(a1)));
++    await pc2.setRemoteDescription(JSON.parse(decompressSDP(a2)));
+   }catch(e){ showErr('hostError','应答码格式错误：'+e.message); }
+ }
+ 
+@@ -77,7 +108,7 @@ async function createAnswer(){
+   clrErr('clientError');
+   const s=document.getElementById('offerIn').value.trim();
+   if(!s) return showErr('clientError','请输入邀请码');
+-  let offer; try{ offer=JSON.parse(s);}catch(e){ return showErr('clientError','邀请码格式错误：'+e.message);}
++  let offer; try{ offer=JSON.parse(decompressSDP(s));}catch(e){ return showErr('clientError','邀请码格式错误：'+e.message);}
+   document.getElementById('btnCreateAnswer').disabled=true;
+   document.getElementById('clientLoading').style.display='block';
+   try{
+@@ -85,7 +116,7 @@ async function createAnswer(){
+     pc.addEventListener('datachannel',e=>{ channel=e.channel; setupChannel(channel,0); });
+     await pc.setRemoteDescription(offer);
+     const ans=await pc.createAnswer(); await pc.setLocalDescription(ans); await waitIce(pc);
+-    document.getElementById('answerOut').value=JSON.stringify(pc.localDescription);
++    document.getElementById('answerOut').value=compressSDP(JSON.stringify(pc.localDescription));
+     document.getElementById('clientAnswerArea').style.display='block';
+   }catch(err){ showErr('clientError','生成应答码失败：'+err.message); document.getElementById('btnCreateAnswer').disabled=false; }
+   finally{ document.getElementById('clientLoading').style.display='none'; }
+@@ -173,14 +204,14 @@ async function createOfferForReconnect(slot){
+     const o = await pc.createOffer(); await pc.setLocalDescription(o); await waitIce(pc);
+     if(slot===1){ pc1=pc; ch1=ch; } else if(slot===2){ pc2=pc; ch2=ch; }
+     reconnectSlot = slot;
+-    return JSON.stringify(pc.localDescription);
++    return compressSDP(JSON.stringify(pc.localDescription));
+   }catch(err){ log('重新生成邀请码失败：'+err.message); return null; }
+ }
+ async function acceptReconnectAnswer(answerStr){
+   if(reconnectSlot<0) return;
+   try{
+     const pc = reconnectSlot===1?pc1:pc2;
+-    await pc.setRemoteDescription(JSON.parse(answerStr));
++    await pc.setRemoteDescription(JSON.parse(decompressSDP(answerStr)));
+     log('重连应答已接受');
+   }catch(e){ log('重连应答码格式错误：'+e.message); }
+ }
+@@ -189,13 +220,13 @@ async function acceptReconnectAnswer(answerStr){
+ async function reconnectClient(){
+   const s=document.getElementById('reconnectOfferIn').value.trim();
+   if(!s) return;
+-  let offer; try{ offer=JSON.parse(s);}catch(e){ document.getElementById('reconnectClientError').innerHTML='<div class="error-box">❌ 邀请码格式错误</div>'; return;}
++  let offer; try{ offer=JSON.parse(decompressSDP(s));}catch(e){ document.getElementById('reconnectClientError').innerHTML='<div class="error-box">❌ 邀请码格式错误</div>'; return;}
+   try{
+     pc=new RTCPeerConnection(RTC_CONFIG);
+     pc.addEventListener('datachannel',e=>{ channel=e.channel; setupChannel(channel,0); });
+     await pc.setRemoteDescription(offer);
+     const ans=await pc.createAnswer(); await pc.setLocalDescription(ans); await waitIce(pc);
+-    document.getElementById('reconnectAnswerOut').value=JSON.stringify(pc.localDescription);
++    document.getElementById('reconnectAnswerOut').value=compressSDP(JSON.stringify(pc.localDescription));
+     document.getElementById('reconnectAnswerArea').style.display='block';
+   }catch(err){ document.getElementById('reconnectClientError').innerHTML='<div class="error-box">❌ '+err.message+'</div>'; }
+ }
+-- 
+2.45.1.windows.1
+
+
+

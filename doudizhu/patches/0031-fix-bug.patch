@@ -1,0 +1,244 @@
+From d917f3fdf0ec79c2014728848852669ae1631d47 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 16:13:56 +0800
+Subject: [PATCH 31/36] =?UTF-8?q?fix:=20=E5=A4=9A=E4=B8=AAbug=E4=BF=AE?=
+ =?UTF-8?q?=E5=A4=8D?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 托管autoAct客户端ol恒null: 改用view.lastPlay, 客户端托管也能正确管上
+- 观战者renderPlayed索引错误: myIdx=3导致view.played[3]undefined, 观战者看不到玩家1出牌, 修正索引映射
+- 观战者收不到tick消息: setupSpectatorClientChannel加tick处理, 倒计时正常显示
+- 观战者胜负横幅显示错误: 不应显示个人胜负, 改为显示地主/农民胜利
+- 客户端重连后无操作UI: restoreClient加waitMsg消息, 非回合时告知等待
+- 客户端倍数显示不实时: broadcastState加mult字段, renderMultScroll用view.mult
+- 抢地主/明牌UI倍数显示: grabReq/showReq携带当前倍数, 客户端显示准确
+- drawScoreChart硬编码颜色: 改用CSS变量--accent, 主题切换图表跟随
+- 状态栏用getDisplayName显示昵称, 加grab/show阶段状态
+---
+ js/game.js | 73 ++++++++++++++++++++++++++++++++++++------------------
+ js/net.js  |  1 +
+ 2 files changed, 50 insertions(+), 24 deletions(-)
+
+diff --git a/js/game.js b/js/game.js
+index 9080842..c2e5c35 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -184,7 +184,7 @@ function restoreClient(slot){
+   broadcastState();
+   // 关闭重连面板
+   closeReconnectHostPanel();
+-  // 如果当前是断线玩家的回合，恢复倒计时
++  // 如果当前是断线玩家的回合，恢复倒计时和操作UI
+   if(H.phase==='play' && H.turn===slot){
+     promptPlay();
+   } else if(H.phase==='bid' && H.bidIdx===slot){
+@@ -193,6 +193,14 @@ function restoreClient(slot){
+     promptGrab();
+   } else if(H.phase==='show' && H.landlord===slot){
+     startShow();
++  } else {
++    // 不是该玩家回合，告知等待
++    let waitMsg = '等待中...';
++    if(H.phase==='play') waitMsg = '等待 玩家'+(H.turn+1)+' 出牌...';
++    else if(H.phase==='bid') waitMsg = '等待 玩家'+(H.bidIdx+1)+' 叫分...';
++    else if(H.phase==='grab') waitMsg = '等待 玩家'+(H.grabIdx+1)+' 抢地主...';
++    else if(H.phase==='show') waitMsg = '等待 玩家'+(H.landlord+1)+' 选择明牌...';
++    netSend(slot, {t:'waitMsg', msg:waitMsg});
+   }
+   setActInfo('玩家'+(slot+1)+' 已重连，对局继续');
+   log('玩家'+(slot+1)+' 已恢复对局');
+@@ -255,7 +263,7 @@ function broadcastState(){
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+     genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards,
+-    avatars:customAvatars
++    avatars:customAvatars, mult:(H?H.mult:1)
+   };
+   netBroadcast({t:'state', v:pub});
+   // 观战者收到额外信息：所有人手牌
+@@ -272,7 +280,7 @@ function getSpectatorState(){
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+     genders:view.genders, turnDeadline:view.turnDeadline, turnLeft:view.turnLeft, showCards:view.showCards,
+-    specHands: H.hands.map(h=>h.map(cardKey)), specBottom: H.bottom.map(cardKey)
++    specHands: H.hands.map(h=>h.map(cardKey)), specBottom: H.bottom.map(cardKey), mult:H.mult
+   };
+ }
+ 
+@@ -340,7 +348,7 @@ function promptGrab(){
+     showGrabUI();
+   } else {
+     clearButtons();
+-    netSend(H.grabIdx, {t:'grabReq'});
++    netSend(H.grabIdx, {t:'grabReq', mult:H.mult});
+     setActInfo('等待 玩家'+(H.grabIdx+1)+' 抢地主...');
+   }
+ }
+@@ -384,7 +392,7 @@ function startShow(){
+     showShowUI();
+   } else {
+     clearButtons();
+-    netSend(H.landlord, {t:'showReq'});
++    netSend(H.landlord, {t:'showReq', mult:H.mult});
+     setActInfo('等待 玩家'+(H.landlord+1)+' 选择是否明牌...');
+   }
+ }
+@@ -622,6 +630,8 @@ function drawScoreChart(data){
+   const w=cv.width, h=cv.height, pad=10;
+   ctx.clearRect(0,0,w,h);
+   if(data.length<2) return;
++  // 读取主题色
++  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#ffd54a';
+   const max=Math.max(...data), min=Math.min(...data);
+   const range=max-min||1;
+   // 零线
+@@ -630,7 +640,7 @@ function drawScoreChart(data){
+     ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.beginPath(); ctx.moveTo(pad,zeroY); ctx.lineTo(w-pad,zeroY); ctx.stroke();
+   }
+   // 折线
+-  ctx.strokeStyle='#ffd54a'; ctx.lineWidth=2; ctx.beginPath();
++  ctx.strokeStyle=accent; ctx.lineWidth=2; ctx.beginPath();
+   data.forEach((v,i)=>{
+     const x=pad+i/(data.length-1)*(w-2*pad);
+     const y=h-pad-(v-min)/range*(h-2*pad);
+@@ -639,7 +649,9 @@ function drawScoreChart(data){
+   ctx.stroke();
+   // 填充
+   ctx.lineTo(w-pad,h-pad); ctx.lineTo(pad,h-pad); ctx.closePath();
+-  ctx.fillStyle='rgba(255,213,74,.12)'; ctx.fill();
++  // 把 accent 转成 rgba 填充
++  ctx.fillStyle = accent.startsWith('#') ? accent+'20' : 'rgba(255,213,74,.12)';
++  ctx.fill();
+ }
+ function closeStats(){ const p=document.getElementById('statsPanel'); if(p) p.style.display='none'; }
+ function clearStats(){ if(confirm('确定清空所有战绩记录？')){ matchHistory=[]; try{localStorage.removeItem('dou_history');}catch(e){} showStats(); } }
+@@ -712,10 +724,11 @@ function onNetMessage(m, slot){
+     else if(m.t==='deal'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
+     else if(m.t==='bottom'){ myHand = sortHand(myHand.concat(m.cards.map(keyToCard))); view.myHand=myHand; }
+     else if(m.t==='bidReq'){ showBidUI(m.curMax); }
+-    else if(m.t==='grabReq'){ showGrabUI(); }
+-    else if(m.t==='showReq'){ showShowUI(); }
++    else if(m.t==='grabReq'){ showGrabUI(m.mult); }
++    else if(m.t==='showReq'){ showShowUI(m.mult); }
+     else if(m.t==='playReq'){ showPlayUI(m.lastPlay); }
+     else if(m.t==='reject'){ alert(m.msg); }
++    else if(m.t==='waitMsg'){ clearButtons(); setActInfo(m.msg); }
+     else if(m.t==='state'){ applyState(m.v); }
+     else if(m.t==='o'){ rtt=performance.now()-m.time; }
+     else if(m.t==='chat'){ onChatMsg(m.from, m.phrase, m.gender); }
+@@ -851,7 +864,7 @@ function autoAct(){
+   }
+   // 出牌阶段
+   if(view.phase==='play' && view.turn===myIdx){
+-    const ol = (role==='host') ? H.lastPlay : null;
++    const ol = (role==='host') ? H.lastPlay : view.lastPlay;
+     const h = findHint(myHand, ol);
+     if(h && h.length>0){
+       selected.clear();
+@@ -898,8 +911,9 @@ function doBid(v){
+   else netSend(0,{t:'bid',val:v});
+   setActInfo('已叫分，等待其他人...');
+ }
+-function showGrabUI(){
+-  setActInfo('轮到你抢地主（倍数 '+(role==='host'?H.mult:1)+'）');
++function showGrabUI(curMult){
++  const mult = curMult || (role==='host'? H.mult : 1);
++  setActInfo('轮到你抢地主（倍数 '+mult+'，抢则×2）');
+   const box=document.getElementById('actButtons'); box.innerHTML='';
+   box.appendChild(txtBtn('抢地主', ()=>doGrab(true)));
+   box.appendChild(txtBtn('不抢', ()=>doGrab(false)));
+@@ -912,8 +926,9 @@ function doGrab(g){
+   else netSend(0,{t:'grab',grab:g});
+   setActInfo('已选择，等待其他人...');
+ }
+-function showShowUI(){
+-  setActInfo('是否明牌？（明牌倍数×2）');
++function showShowUI(curMult){
++  const mult = curMult || (role==='host'? H.mult : 1);
++  setActInfo('是否明牌？（当前倍数 '+mult+'，明牌×2）');
+   const box=document.getElementById('actButtons'); box.innerHTML='';
+   box.appendChild(txtBtn('明牌', ()=>doShow(true)));
+   box.appendChild(txtBtn('不明牌', ()=>doShow(false)));
+@@ -1008,9 +1023,12 @@ function render(){
+     renderOppHand('Right', view.hands[rightIdx], view.showCards && view.landlord===rightIdx ? view.showCards : null);
+   }
+   renderBottom();
+-  renderPlayed('Left', (myIdx+2)%3);
+-  renderPlayed('Right', (myIdx+1)%3);
+-  renderPlayed('Me', myIdx);
++  const renderIdxMe = role==='spectator' ? 0 : myIdx;
++  const renderIdxLeft = role==='spectator' ? 2 : (myIdx+2)%3;
++  const renderIdxRight = role==='spectator' ? 1 : (myIdx+1)%3;
++  renderPlayed('Left', renderIdxLeft);
++  renderPlayed('Right', renderIdxRight);
++  renderPlayed('Me', renderIdxMe);
+   renderMyHand();
+   renderBanner();
+   renderActions();
+@@ -1021,7 +1039,11 @@ function render(){
+   } else if(view.phase==='bid'){
+     st.textContent = '🟡 第'+view.round+'局叫地主中 ｜ 当前最高 '+view.points+' 分 ｜ 积分 '+view.scores.join('/');
+   } else if(view.phase==='play'){
+-    st.textContent = '🟢 第'+view.round+'局出牌中 ｜ 轮到 '+ (view.turn===myIdx?'你':('玩家'+(view.turn+1)))+' ｜ 积分 '+view.scores.join('/');
++    st.textContent = '🟢 第'+view.round+'局出牌中 ｜ 轮到 '+ (view.turn===myIdx?'你':getDisplayName(view.turn))+' ｜ 积分 '+view.scores.join('/');
++  } else if(view.phase==='grab'){
++    st.textContent = '🟡 第'+view.round+'局抢地主中 ｜ 轮到 '+ (view.turn===myIdx?'你':getDisplayName(view.turn))+' ｜ 积分 '+view.scores.join('/');
++  } else if(view.phase==='show'){
++    st.textContent = '🟡 第'+view.round+'局明牌选择 ｜ 等待 '+getDisplayName(view.landlord)+' ｜ 积分 '+view.scores.join('/');
+   } else {
+     st.textContent='🟢 已连接';
+   }
+@@ -1144,7 +1166,7 @@ function renderMultScroll(){
+   bg.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+   bg.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   wrap.appendChild(bg);
+-  const mult = (role==='host'? (H&&H.mult||1) : (view.over?view.over.mult:1));
++  const mult = (role==='host'? (H&&H.mult||1) : (view.mult||1));
+   const base = view.points || 0;
+   const val = document.createElement('div'); val.className='mult-val';
+   val.textContent = base>0 ? (mult+'×'+base) : '待叫';
+@@ -1156,17 +1178,20 @@ function renderBanner(){
+   if(!view.over){ el.style.display='none'; el.innerHTML=''; return; }
+   el.style.display='flex';
+   el.innerHTML='';
+-  const iAmLandlord = (view.over.landlord===myIdx);
+-  const iWin = iAmLandlord ? view.over.landlordWin : !view.over.landlordWin;
+-  const bannerName = iWin ? 'banner_victory' : 'banner_defeat';
+-  const r = SPR[bannerName], s = 0.7;
++  const r = SPR[view.over.landlordWin?'banner_victory':'banner_defeat'], s = 0.7;
+   const b = document.createElement('div'); b.className='card sprite';
+   b.style.width=(r.w*s)+'px'; b.style.height=(r.h*s)+'px';
+   b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+   b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   el.appendChild(b);
+   const t = document.createElement('div'); t.className='banner-text';
+-  t.textContent = iWin ? '胜利 🏆 本局 +'+view.over.delta : '失败 💔 本局 -'+view.over.delta;
++  if(role==='spectator'){
++    t.textContent = view.over.landlordWin ? '地主胜利 🏆' : '农民胜利 🎉';
++  } else {
++    const iAmLandlord = (view.over.landlord===myIdx);
++    const iWin = iAmLandlord ? view.over.landlordWin : !view.over.landlordWin;
++    t.textContent = iWin ? '胜利 🏆 本局 +'+view.over.delta : '失败 💔 本局 -'+view.over.delta;
++  }
+   el.appendChild(t);
+ }
+ let effectTimer = null;
+diff --git a/js/net.js b/js/net.js
+index e8c0e6e..956ef27 100644
+--- a/js/net.js
++++ b/js/net.js
+@@ -191,6 +191,7 @@ function setupSpectatorClientChannel(ch){
+       if(m.t==='sound'){ if(typeof onSoundMsg==='function') onSoundMsg(m.from, m.kind, m.key, m.gender); return; }
+       if(m.t==='chat'){ if(typeof onChatMsg==='function') onChatMsg(m.from, m.phrase, m.gender); return; }
+       if(m.t==='gift'){ if(typeof flyGift==='function') flyGift(m.from, m.to, m.gift); return; }
++      if(m.t==='tick'){ view.turnLeft = m.left; view.turnDeadline = m.deadline; if(typeof render==='function') render(); return; }
+     }catch(err){}
+   });
+   ch.addEventListener('close',()=>{ log('观战连接断开'); alert('观战连接已断开'); });
+-- 
+2.45.1.windows.1
+
+
+

@@ -1,0 +1,106 @@
+From 72702bf6c050beb72605c04ab8605c11c1865e1d Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 19:46:08 +0800
+Subject: [PATCH 11/36] =?UTF-8?q?fix:=20=E5=A4=B4=E5=83=8F=E6=98=BE?=
+ =?UTF-8?q?=E7=A4=BA=20+=20=E7=8E=A9=E5=AE=B6=E5=80=92=E4=B8=89=E8=A7=92?=
+ =?UTF-8?q?=E5=B8=83=E5=B1=80?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+头像:
+- 去掉强制圆形裁剪(border-radius:50%+overflow)，改为圆角矩形保留素材原样
+- 容器 70x74，按素材宽高比等比缩放渲染，avatar_landlord/peasant1/peasant2 完整显示
+- renderAvatar 用素材精确坐标，不再强制 54x54
+
+布局(倒三角排布):
+- 当前玩家(p-me)在正下方手牌上方 bottom:210px z-index:10
+- 左右对手(p-left/p-right)在上方两侧 top:60px，形成倒三角
+- me 出牌区上移到 bottom:300px 避免与座位重叠
+- 移动端头像尺寸 56x60
+---
+ css/style.css | 13 +++++++------
+ js/game.js    | 19 +++++++++++++------
+ 2 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index 8f6c318..8edb921 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -77,9 +77,10 @@ textarea {
+ }
+ .seat .count { font-size:12px; color:#cfe8c0; background:rgba(0,0,0,.4); padding:1px 8px; border-radius:10px; }
+ .seat .crown { font-size:16px; margin-top:-2px; filter:drop-shadow(0 0 3px #ffd54a); }
+-.seat.p-me   { left:50%; bottom:8px; transform:translateX(-50%); }
+-.seat.p-right{ right:24px; top:90px; }
+-.seat.p-left { left:24px; top:90px; }
++/* 倒三角排布：我在正下方手牌上方，左右对手在上方两侧 */
++.seat.p-me   { left:50%; bottom:210px; transform:translateX(-50%); z-index:10; }
++.seat.p-right{ right:20px; top:60px; }
++.seat.p-left { left:20px; top:60px; }
+ .opp-hand { display:flex; flex-direction:column; align-items:center; gap:1px; margin-top:2px; }
+ .opp-hand .back { width:26px; height:36px; border-radius:3px; background:#1a3a6a; border:1px solid #0a1a3a; margin-top:-30px; box-shadow:0 0 0 1px #2a5a9a inset; }
+ .opp-hand .back:first-child { margin-top:0; }
+@@ -88,7 +89,7 @@ textarea {
+   position:absolute; display:flex; gap:2px; align-items:center; justify-content:center;
+   flex-wrap:wrap; max-width:240px;
+ }
+-.played-zone.p-me   { left:50%; bottom:120px; transform:translateX(-50%); }
++.played-zone.p-me   { left:50%; bottom:300px; transform:translateX(-50%); }
+ .played-zone.p-right{ right:90px; top:170px; }
+ .played-zone.p-left { left:90px; top:170px; }
+ .played-label { font-size:11px; color:#cfe8c0; position:absolute; top:-16px; left:50%; transform:translateX(-50%); white-space:nowrap; }
+@@ -162,7 +163,7 @@ textarea {
+ .char-figure.p-left { left:8px; top:30px; }
+ 
+ /* 座位头像用素材 */
+-.seat .avatar-sprite { width:54px; height:57px; border-radius:50%; border:3px solid #ffd54a; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.5); background-image:url('../img/dou.png'); background-repeat:no-repeat; }
++.seat .avatar-sprite { width:70px; height:74px; border-radius:8px; border:2px solid #ffd54a; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.5); background-image:url('../img/dou.png'); background-repeat:no-repeat; background-color:#2a3a26; }
+ .seat .crown-sprite { position:absolute; top:-14px; left:50%; transform:translateX(-50%); }
+ .seat .badge-sprite { margin-top:2px; }
+ .seat { position:relative; }
+@@ -205,7 +206,7 @@ body.mobile textarea { font-size:12px; height:70px; }
+ body.mobile #logBox { height:60px; font-size:11px; margin:4px auto 8px; }
+ body.mobile .actions { padding:8px; }
+ body.mobile .my-hand .card-wrap { margin-left:-12px; }
+-body.mobile .seat .avatar-sprite { width:46px; height:48px; }
++body.mobile .seat .avatar-sprite { width:56px; height:60px; }
+ body.mobile .seat .name { font-size:11px; }
+ body.mobile .seat .count { font-size:11px; }
+ 
+diff --git a/js/game.js b/js/game.js
+index 80ce4a7..3974b65 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -380,13 +380,20 @@ function avatarNameFor(idx){
+ function renderAvatar(pos, idx){
+   const el = document.getElementById('avatar'+cap(pos));
+   if(!el) return;
++  el.innerHTML='';
++  el.style.background='none';
+   const name = avatarNameFor(idx);
+-  if(!name){ el.style.background='linear-gradient(135deg,#3a4a36,#2a3a26)'; return; }
+-  const r = SPR[name], s = 54/r.w;
+-  el.style.background='url(\'img/dou.png\') no-repeat';
+-  el.style.width='54px'; el.style.height='54px';
+-  el.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+-  el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  if(!name){ el.style.backgroundColor='#2a3a26'; return; }
++  const r = SPR[name];
++  // 按容器宽度等比缩放，保留素材宽高比
++  const targetW = 70;
++  const s = targetW / r.w;
++  el.style.width = targetW+'px';
++  el.style.height = (r.h * s)+'px';
++  el.style.backgroundImage = 'url(\'img/dou.png\')';
++  el.style.backgroundRepeat = 'no-repeat';
++  el.style.backgroundSize = (SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  el.style.backgroundPosition = (-r.x*s)+'px '+(-r.y*s)+'px';
+ }
+ function renderCrown(pos, idx){
+   const el = document.getElementById('crown'+cap(pos));
+-- 
+2.45.1.windows.1
+
+
+

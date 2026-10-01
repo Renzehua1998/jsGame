@@ -1,0 +1,145 @@
+From fa313745d10b0069f927da1ebde25aacb15c15d2 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 09:18:44 +0800
+Subject: [PATCH 14/36] =?UTF-8?q?feat:=20=E6=89=98=E7=AE=A1=E5=8A=9F?=
+ =?UTF-8?q?=E8=83=BD=EF=BC=88=E8=87=AA=E5=8A=A8=E5=87=BA=E6=9C=80=E5=B0=8F?=
+ =?UTF-8?q?=E6=BB=A1=E8=B6=B3=E7=89=8C=E5=9E=8B=EF=BC=8C=E5=8F=AF=E5=8F=96?=
+ =?UTF-8?q?=E6=B6=88=E6=8E=A5=E7=AE=A1=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 游戏区右下角加托管按钮(🤖)，点击切换托管/手动
+- 托管时按钮变红脉动高亮
+- showPlayUI/showBidUI 末尾检测 autoPlay，setTimeout 600ms 后自动执行:
+  出牌: findHint 找满足条件的最小牌型，有则出，无则 pass
+  自由出: 出最小单张
+  叫地主: 不叫(0分)
+- 出牌区显示'🤖 托管中'标识 + '取消托管'按钮
+- 托管状态跨局保持，手动点取消或再点🤖按钮接管
+- log 记录托管开关
+---
+ css/style.css |  3 +++
+ index.html    |  1 +
+ js/game.js    | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+)
+
+diff --git a/css/style.css b/css/style.css
+index ce7e860..47f318d 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -249,6 +249,9 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ 
+ /* ============ 设置面板 ============ */
+ .settings-btn { font-size:20px; }
++.auto-btn { font-size:20px; }
++.auto-btn.active { background:#c0392b; color:#fff; animation:autoPulse 1.2s infinite; }
++@keyframes autoPulse { 0%,100%{box-shadow:0 3px 10px rgba(0,0,0,.5);} 50%{box-shadow:0 0 14px #c0392b;} }
+ .settings-panel {
+   position:fixed; right:76px; bottom:150px; z-index:51;
+   background:#1a2418; border:1px solid #ffd54a; border-radius:12px;
+diff --git a/index.html b/index.html
+index 76a9f7d..2db24d2 100644
+--- a/index.html
++++ b/index.html
+@@ -139,6 +139,7 @@
+   </div>
+   <!-- 聊天按钮 -->
+   <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
++  <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:134px;">🤖</button>
+   <!-- 设置按钮 -->
+   <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:76px;">⚙</button>
+   <!-- 设置面板 -->
+diff --git a/js/game.js b/js/game.js
+index 408b5be..5283257 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -15,11 +15,13 @@ let view = {
+ let myHand=[];
+ let selected=new Set();
+ let firstBidder = 0;   // 本局首叫人（按局轮换：每局+1）
++let autoPlay = false;  // 托管标记
+ 
+ function enterGame(){
+   showStep('gameArea');
+   document.getElementById('gameStatus').textContent='🟢 三人已连接，准备发牌';
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display='block';
++  const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display='block';
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+   if(typeof startBgm==='function') startBgm();   // 启动BGM（用户交互后允许播放）
+   if(role==='host') genders[0]=myGender; else genders[myIdx]=myGender;
+@@ -331,6 +333,52 @@ function imgBtn(sprName, onClick, disabled){
+   b.onclick = onClick;
+   return b;
+ }
++function toggleAutoPlay(){
++  autoPlay = !autoPlay;
++  const btn=document.getElementById('autoBtn');
++  if(btn) btn.classList.toggle('active', autoPlay);
++  log(autoPlay?'已开启托管':'已取消托管，手动接管');
++  if(autoPlay) autoAct();
++  render();
++}
++function autoAct(){
++  if(!autoPlay) return;
++  // 叫地主阶段：不叫
++  if(view.phase==='bid' && view.turn===myIdx){
++    doBid(0);
++    return;
++  }
++  // 出牌阶段
++  if(view.phase==='play' && view.turn===myIdx){
++    const ol = (role==='host') ? H.lastPlay : null;
++    const h = findHint(myHand, ol);
++    if(h && h.length>0){
++      selected.clear();
++      h.forEach(c=>selected.add(cardKey(c)));
++      doPlay();
++    } else if(ol){
++      doPass();
++    } else {
++      // 自由出无提示（不可能，findHint 自由出总返回最小单张）
++      const c = myHand[myHand.length-1];
++      if(c){ selected.clear(); selected.add(cardKey(c)); doPlay(); }
++    }
++  }
++}
++function showAutoBadge(){
++  if(!autoPlay) return;
++  const box=document.getElementById('actButtons');
++  if(!box) return;
++  const badge=document.createElement('span');
++  badge.style.cssText='color:#ffd54a;font-weight:bold;margin-right:8px;';
++  badge.textContent='🤖 托管中';
++  box.appendChild(badge);
++  const cancel=document.createElement('button');
++  cancel.textContent='取消托管'; cancel.className='secondary';
++  cancel.onclick=()=>{ autoPlay=false; log('已取消托管'); render(); };
++  box.appendChild(cancel);
++}
++
+ function showBidUI(curMax){
+   curMax = curMax || (role==='host'? H.bidMax : 0);
+   setActInfo('轮到你叫分'+(curMax>0?'（当前最高 '+curMax+'）':''));
+@@ -340,6 +388,7 @@ function showBidUI(curMax){
+   box.appendChild(imgBtn('btn_2', ()=>doBid(2), 2<=curMax));
+   box.appendChild(imgBtn('btn_3', ()=>doBid(3), 3<=curMax));
+   box.appendChild(imgBtn('btn_call_landlord', ()=>doBid(curMax>0?curMax:1)));
++  if(autoPlay) setTimeout(autoAct, 600);
+ }
+ function doBid(v){
+   clearButtons();
+@@ -357,6 +406,8 @@ function showPlayUI(lastPlay){
+   const bClear=document.createElement('button'); bClear.className='secondary'; bClear.textContent='清空';
+   bClear.onclick=()=>{ selected.clear(); render(); }; box.appendChild(bClear);
+   box.appendChild(imgBtn('btn_play', ()=>doPlay()));
++  showAutoBadge();
++  if(autoPlay) setTimeout(autoAct, 600);
+ }
+ function doPass(){
+   clearButtons();
+-- 
+2.45.1.windows.1
+
+
+

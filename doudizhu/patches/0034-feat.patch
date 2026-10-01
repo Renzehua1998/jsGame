@@ -1,0 +1,219 @@
+From bead326e3cb7c1660d3c5390d3df9fca17579888 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Mon, 24 Aug 2026 11:05:45 +0800
+Subject: [PATCH 34/36] =?UTF-8?q?feat:=20=E6=96=B0=E5=BC=80=E7=AA=97?=
+ =?UTF-8?q?=E5=8F=A3=E9=87=8D=E8=BF=9E=20-=20=E6=A3=80=E6=B5=8B=E6=96=AD?=
+ =?UTF-8?q?=E7=BA=BF=E7=8A=B6=E6=80=81=E5=B9=B6=E6=81=A2=E5=A4=8D=E5=AF=B9?=
+ =?UTF-8?q?=E5=B1=80?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+保留原有重连机制(网页仍开着时粘贴新邀请码), 新增:
+
+- 持久化玩家信息: myGender/myNick/myAvatar 存localStorage
+  (dou_gender/dou_nick/dou_avatar), 页面加载时自动恢复
+  step0 UI(性别按钮/昵称输入/头像预览)也恢复
+
+- 断线检测: 页面加载时读localStorage.dou_reconnect_idx
+  若有值则显示红色提示条'检测到上次对局断线'
+
+- 重连入口: 点击提示条'重连'按钮 → startReconnectFromNewPage()
+  设置myIdx/role/gameInProgress → 跳过step0直出客户端重连面板
+  用户粘贴主机给的新邀请码 → reconnectClient() → 通道建立
+
+- 重连成功清理: 通道open时清除dou_reconnect_idx+隐藏重连面板
+  '忽略'按钮清除标记不重连
+
+- CSS: .reconnect-banner 提示条样式
+
+流程: 客户端断线→主机自动托管+生成新邀请码发给对方→
+对方新开网页→页面检测到断线→点重连→粘贴新邀请码→
+回传answer→主机建立重连→restoreClient恢复完整对局状态
+---
+ css/style.css |  9 +++++++++
+ index.html    |  7 +++++++
+ js/game.js    | 13 ++++++++++++-
+ js/main.js    | 41 +++++++++++++++++++++++++++++++++++++++++
+ js/net.js     |  5 +++++
+ js/sound.js   |  2 ++
+ 6 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/css/style.css b/css/style.css
+index 5aced51..b601115 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -375,3 +375,12 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ .stats-history { max-height:200px; overflow-y:auto; }
+ .hist-row { display:flex; justify-content:space-between; padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.08); font-size:12px; color:#ccc; }
+ .hist-row span:first-child { color:var(--accent); }
++
++/* 断线重连提示条 */
++.reconnect-banner {
++  max-width:980px; margin:0 auto 10px; padding:8px 14px;
++  background:rgba(192,57,43,.15); border:1px solid #c0392b; border-radius:8px;
++  display:flex; align-items:center; gap:10px; justify-content:center;
++  color:#fff; font-size:14px;
++}
++.reconnect-banner button { padding:4px 16px; font-size:13px; }
+diff --git a/index.html b/index.html
+index 880d333..07a4c84 100644
+--- a/index.html
++++ b/index.html
+@@ -14,6 +14,13 @@
+ <h1>🃏 P2P 联机斗地主</h1>
+ <p class="subtitle">三人 WebRTC 直连 · 主机权威 · 经典玩法 · 素材切片自 dou.png</p>
+ 
++<!-- 断线重连提示条 -->
++<div id="reconnectBanner" class="reconnect-banner" style="display:none;">
++  <span>🔄 检测到上次对局断线</span>
++  <button onclick="startReconnectFromNewPage()">重连</button>
++  <button class="secondary" onclick="clearReconnectState()">忽略</button>
++</div>
++
+ <!-- 选择角色 -->
+ <div id="step0" class="panel step active">
+   <p style="text-align:center;margin-bottom:14px;color:#ccc;">选择你的性别与角色开始游戏。初始每人 100 分，按胜负累计。</p>
+diff --git a/js/game.js b/js/game.js
+index 721b32c..1611a46 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -51,6 +51,11 @@ let prevPlayed = {0:null,1:null,2:null};
+ /* ---- 自定义头像与昵称 ---- */
+ let myNick = '';
+ let myAvatar = null;  // base64 dataURL
++// 从 localStorage 恢复本机玩家信息（供新页面重连用）
++try{
++  const sn = localStorage.getItem('dou_nick'); if(sn) myNick = sn;
++  const sa = localStorage.getItem('dou_avatar'); if(sa) myAvatar = sa;
++}catch(e){}
+ let customAvatars = [null,null,null];  // 三玩家自定义头像
+ let customNicks = ['','',''];          // 三玩家自定义昵称
+ // 从 localStorage 恢复头像和昵称
+@@ -152,7 +157,7 @@ function showAvatarCropper(img, onConfirm){
+   }, {passive:false});
+   document.addEventListener('touchend', ()=>{ dragging=false; });
+   cancelBtn.onclick = ()=>{ document.removeEventListener('mousemove', moveHandler); overlay.remove(); };
+-  okBtn.onclick = ()=>{
++      okBtn.onclick = ()=>{
+     document.removeEventListener('mousemove', moveHandler);
+     // 从裁剪区域生成正方形头像
+     const out = 200;
+@@ -163,6 +168,7 @@ function showAvatarCropper(img, onConfirm){
+     while(dataUrl.length > 136000 && quality > 0.3){ quality -= 0.1; dataUrl = cv.toDataURL('image/jpeg', quality); }
+     overlay.remove();
+     onConfirm(dataUrl);
++    try{ localStorage.setItem('dou_avatar', dataUrl); }catch(e){}
+   };
+ }
+ function getDisplayName(idx){
+@@ -175,6 +181,11 @@ function enterGame(){
+   showStep('gameArea');
+   // 读取昵称
+   const nickEl=document.getElementById('nickInput'); if(nickEl && nickEl.value.trim()) myNick=nickEl.value.trim();
++  // 持久化玩家信息供新页面重连使用
++  try{
++    if(myNick) localStorage.setItem('dou_nick', myNick);
++    if(myAvatar) localStorage.setItem('dou_avatar', myAvatar);
++  }catch(e){}
+   document.getElementById('gameStatus').textContent='🟢 '+(role==='spectator'?'观战模式':'三人已连接，准备发牌');
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display=role==='spectator'?'none':'block';
+   const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display=role==='spectator'?'none':'block';
+diff --git a/js/main.js b/js/main.js
+index 9177b37..c30e117 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -37,6 +37,8 @@ window.addEventListener('resize', fitScale);
+ window.addEventListener('orientationchange', ()=>{ setTimeout(fitScale, 300); });
+ document.addEventListener('click', (e)=>{ if(typeof cancelGiftOnEmpty==='function') cancelGiftOnEmpty(e); });
+ window.addEventListener('load', ()=>{
++  // 检测断线重连：如果上次有未完成的客户端对局，显示重连入口
++  detectReconnectOnLoad();
+   if(isMobile){
+     document.body.classList.add('mobile');
+     fitScale();
+@@ -46,4 +48,43 @@ window.addEventListener('load', ()=>{
+     if(ch){ lastPing=performance.now(); ch.send(JSON.stringify({t:'p',time:lastPing})); }
+   }, 2000);
+ });
++function detectReconnectOnLoad(){
++  try{
++    const idx = localStorage.getItem('dou_reconnect_idx');
++    if(idx!==null && idx!==''){
++      const banner = document.getElementById('reconnectBanner');
++      if(banner) banner.style.display = 'block';
++    }
++  }catch(e){}
++  // 恢复页面 UI 状态：性别按钮、昵称、头像预览
++  try{
++    const g = localStorage.getItem('dou_gender');
++    if(g && typeof setGender==='function') setGender(g);
++    const n = localStorage.getItem('dou_nick');
++    if(n){ const ni=document.getElementById('nickInput'); if(ni) ni.value=n; }
++    const a = localStorage.getItem('dou_avatar');
++    if(a){ const pv=document.getElementById('avatarPreview'); if(pv){ pv.src=a; pv.style.display='inline-block'; } }
++  }catch(e){}
++}
++function clearReconnectState(){
++  try{ localStorage.removeItem('dou_reconnect_idx'); }catch(e){}
++  const banner = document.getElementById('reconnectBanner');
++  if(banner) banner.style.display = 'none';
++}
++function startReconnectFromNewPage(){
++  const idx = parseInt(localStorage.getItem('dou_reconnect_idx')||'0');
++  myIdx = idx;
++  role = 'client';
++  gameInProgress = true;
++  // 隐藏 step0，显示客户端重连面板
++  document.querySelectorAll('.step').forEach(el=>el.classList.remove('active'));
++  const panel = document.getElementById('reconnectClientPanel');
++  if(panel) panel.style.display = 'flex';
++  const title = panel.querySelector('h3');
++  if(title) title.textContent = '🔄 重连到上次对局（玩家'+(idx+1)+'）';
++  // myGender/myNick/myAvatar 已在页面加载时从 localStorage 恢复
++  // 更新标题提示
++  const p = panel.querySelector('p');
++  if(p) p.textContent = '请向主机获取新的重连邀请码，粘贴到下方：';
++}
+ if(!window.RTCPeerConnection) alert('你的浏览器不支持 WebRTC，请使用 Chrome/Edge/Firefox 最新版。');
+diff --git a/js/net.js b/js/net.js
+index 956ef27..1804bdb 100644
+--- a/js/net.js
++++ b/js/net.js
+@@ -221,6 +221,11 @@ function setupChannel(ch, slot){
+       if(gameInProgress){
+         // 重连：通知主机我是谁
+         sendRaw(ch, {t:'reconnect', idx: myIdx});
++        // 清除断线标记
++        try{ localStorage.removeItem('dou_reconnect_idx'); }catch(e){}
++        // 隐藏重连面板
++        const rp = document.getElementById('reconnectClientPanel');
++        if(rp) rp.style.display='none';
+       }
+       enterGame();
+     }
+diff --git a/js/sound.js b/js/sound.js
+index bdf180a..95a66e5 100644
+--- a/js/sound.js
++++ b/js/sound.js
+@@ -4,6 +4,7 @@
+    设置: bgm开关 / sfx(打牌音效)开关，localStorage 持久化
+    ============================================================ */
+ let myGender = 'man';          // 本地玩家性别
++try{ const g = localStorage.getItem('dou_gender'); if(g) myGender = g; }catch(e){}
+ let genders = ['man','man','man']; // 三玩家性别（主机同步）
+ 
+ /* ---- 设置（BGM/音效音量 0-100，localStorage 持久化） ---- */
+@@ -80,6 +81,7 @@ function toggleSettings(force){
+ 
+ function setGender(g){
+   myGender = g;
++  try{ localStorage.setItem('dou_gender', g); }catch(e){}
+   const m=document.getElementById('genderMale'), f=document.getElementById('genderFemale');
+   if(m) m.classList.toggle('secondary', g!=='man');
+   if(f) f.classList.toggle('secondary', g!=='woman');
+-- 
+2.45.1.windows.1
+
+
+

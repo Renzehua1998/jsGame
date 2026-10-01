@@ -1,0 +1,90 @@
+From e1f16ff1b2d6fddf3cf67dcb4959ff79417f025b Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 14:48:53 +0800
+Subject: [PATCH 19/36] =?UTF-8?q?feat:=20=E7=89=8C=E5=9E=8B=E9=A2=84?=
+ =?UTF-8?q?=E8=A7=88?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 选牌时实时显示牌型名称(单张/对子/顺子/飞机/炸弹等)
+- 出牌阶段额外显示能否管上当前牌(绿色能管/红色管不上)
+- 无效牌型显示红色提示
+- 预览条浮在手牌上方, 不占布局空间
+---
+ css/style.css |  4 ++++
+ index.html    |  1 +
+ js/game.js    | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+)
+
+diff --git a/css/style.css b/css/style.css
+index 71692c7..bf04596 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -96,6 +96,10 @@ textarea {
+ .played-pass { color:#ff9a9a; font-size:13px; padding:14px 18px; background:rgba(0,0,0,.35); border-radius:8px; }
+ 
+ .bottom-area { position:absolute; left:0; right:0; bottom:88px; display:flex; justify-content:center; }
++.hand-preview { position:absolute; left:50%; bottom:212px; transform:translateX(-50%); min-height:24px; padding:4px 16px; font-size:15px; font-weight:bold; color:#fff; background:rgba(0,0,0,.55); border-radius:12px; white-space:nowrap; pointer-events:none; z-index:20; }
++.hand-preview.valid { color:#7fff7f; }
++.hand-preview.invalid { color:#ff7f7f; }
++.hand-preview:empty { display:none; }
+ .my-hand { display:flex; gap:0; padding:0 20px; min-height:118px; align-items:flex-end; }
+ .my-hand .card-wrap { margin-left:-15px; cursor:pointer; transition:transform .12s; }
+ .my-hand .card-wrap:first-child { margin-left:0; }
+diff --git a/index.html b/index.html
+index f1e4f6e..54eaf48 100644
+--- a/index.html
++++ b/index.html
+@@ -124,6 +124,7 @@
+     <div class="played-zone p-right" id="playedRight"></div>
+     <div class="played-zone p-me" id="playedMe"></div>
+     <!-- 我的手牌 -->
++    <div class="hand-preview" id="handPreview"></div>
+     <div class="bottom-area"><div class="my-hand" id="myHand"></div></div>
+   </div>
+   <div class="actions" id="actions">
+diff --git a/js/game.js b/js/game.js
+index 71d00ed..4807da6 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -938,6 +938,34 @@ function renderMyHand(){
+     wrap.onclick=()=>{ const k=cardKey(c); if(selected.has(k)) selected.delete(k); else selected.add(k); render(); };
+     el.appendChild(wrap);
+   });
++  renderHandPreview();
++}
++const TYPE_CN = {
++  single:'单张', pair:'对子', triple:'三张', triple1:'三带一', triple2:'三带二',
++  straight:'顺子', pairstraight:'连对', plane:'飞机', plane1:'飞机带单', plane2:'飞机带对',
++  bomb:'炸弹', bomb2s:'四带二(单)', bomb2p:'四带二(对)', rocket:'王炸'
++};
++function renderHandPreview(){
++  const el=document.getElementById('handPreview'); if(!el) return;
++  if(selected.size===0){ el.textContent=''; el.className='hand-preview'; return; }
++  const cards = Array.from(selected).map(keyToCard);
++  const type = detectType(cards);
++  if(!type){ el.textContent='无效牌型'; el.className='hand-preview invalid'; return; }
++  const cn = TYPE_CN[type.type] || type.type;
++  let txt = cn;
++  if(view.phase==='play' && view.turn===myIdx){
++    const ol = view.lastPlay;
++    if(ol && view.lastPlayer!==myIdx && view.lastPlayer>=0){
++      const beat = canBeat(type, ol);
++      txt += beat ? ' · 能管上 ✓' : ' · 管不上 ✗';
++      el.className = 'hand-preview ' + (beat?'valid':'invalid');
++    } else {
++      el.className = 'hand-preview valid';
++    }
++  } else {
++    el.className = 'hand-preview';
++  }
++  el.textContent = txt;
+ }
+ function renderActions(){
+   if(view.over){
+-- 
+2.45.1.windows.1
+
+
+

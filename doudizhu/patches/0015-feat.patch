@@ -1,0 +1,328 @@
+From cab169091aff5beb269a37cec270991267d4ed1a Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 10:34:06 +0800
+Subject: [PATCH 15/36] =?UTF-8?q?feat:=20=E9=80=81=E7=A4=BC=E7=89=A9?=
+ =?UTF-8?q?=E5=8A=9F=E8=83=BD=EF=BC=88=E5=80=92=E5=92=96=E5=95=A1/?=
+ =?UTF-8?q?=E9=80=81=E7=8E=AB=E7=91=B0/=E6=89=94=E7=95=AA=E8=8C=84/?=
+ =?UTF-8?q?=E6=B3=BC=E6=B0=B4=EF=BC=8C=E9=A3=9E=E8=A1=8C+=E8=90=BD?=
+ =?UTF-8?q?=E5=9C=B0=E5=8A=A8=E6=95=88=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 游戏区右下角加礼物按钮(🎁)，点开面板显示4个礼物图片(纯图无文字)
+- 礼物素材用 img/gift.png，坐标内嵌 GIFT_SPR(8项: 4飞行+4落地)
+- 4种礼物: 倒咖啡/送玫瑰(慢飞1.5s)、扔番茄/泼水(快飞0.6s+旋转)
+- 选礼物后点目标玩家头像送出，座位高亮提示可选
+- 飞行动画: 飞行物从送礼人座位飞到目标座位，到后显示落地效果2秒
+- 落地效果: coffee_cup/petal_ring/splash_red/splash_water
+- 网络同步: 主机转发 gift 消息，三端均播放动画
+- 点空白取消送礼选择
+---
+ css/style.css |  18 +++++++++
+ img/gift.json |  66 ++++++++++++++++++++++++++++++
+ index.html    |   7 ++++
+ js/game.js    | 110 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ js/main.js    |   1 +
+ 5 files changed, 202 insertions(+)
+ create mode 100644 img/gift.json
+
+diff --git a/css/style.css b/css/style.css
+index 47f318d..c9ace88 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -252,6 +252,24 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ .auto-btn { font-size:20px; }
+ .auto-btn.active { background:#c0392b; color:#fff; animation:autoPulse 1.2s infinite; }
+ @keyframes autoPulse { 0%,100%{box-shadow:0 3px 10px rgba(0,0,0,.5);} 50%{box-shadow:0 0 14px #c0392b;} }
++
++/* ============ 送礼物 ============ */
++.gift-btn { font-size:20px; }
++.gift-panel {
++  position:fixed; right:192px; bottom:150px; z-index:51;
++  background:#1a2418; border:1px solid #ffd54a; border-radius:12px;
++  padding:14px 12px; box-shadow:0 4px 14px rgba(0,0,0,.6);
++}
++.gift-grid { display:flex; gap:8px; }
++.gift-item {
++  background:#243018; border:2px solid #3a4a36; border-radius:10px;
++  padding:6px; cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center;
++}
++.gift-item:hover { border-color:#ffd54a; transform:translateY(-2px); background:#2e3b2a; }
++.gift-sprite { background-repeat:no-repeat; }
++.gift-hint { color:#ffd54a; font-size:12px; text-align:center; margin-top:8px; min-height:16px; }
++@keyframes giftLand { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0;} 60%{transform:translate(-50%,-50%) scale(1.2);opacity:1;} 100%{transform:translate(-50%,-50%) scale(1);opacity:1;} }
++@keyframes giftFlyFast { 0%{transform:translate(-50%,-50%) rotate(0);} 100%{transform:translate(-50%,-50%) rotate(720deg);} }
+ .settings-panel {
+   position:fixed; right:76px; bottom:150px; z-index:51;
+   background:#1a2418; border:1px solid #ffd54a; border-radius:12px;
+diff --git a/img/gift.json b/img/gift.json
+new file mode 100644
+index 0000000..eae9b4d
+--- /dev/null
++++ b/img/gift.json
+@@ -0,0 +1,66 @@
++[
++    {
++        "name":  "gift_coffee_pot",
++        "x":  33,
++        "y":  18,
++        "w":  384,
++        "h":  481,
++        "desc":  "咖啡壶(倒咖啡+爱心蒸汽)"
++    },
++    {
++        "name":  "gift_roses",
++        "x":  418,
++        "y":  44,
++        "w":  361,
++        "h":  452,
++        "desc":  "红玫瑰花束(丝带)"
++    },
++    {
++        "name":  "gift_tomato",
++        "x":  795,
++        "y":  87,
++        "w":  381,
++        "h":  420,
++        "desc":  "番茄(带汁水飞溅)"
++    },
++    {
++        "name":  "gift_bucket",
++        "x":  1188,
++        "y":  121,
++        "w":  311,
++        "h":  359,
++        "desc":  "水桶(带水花)"
++    },
++    {
++        "name":  "gift_coffee_cup",
++        "x":  37,
++        "y":  532,
++        "w":  306,
++        "h":  445,
++        "desc":  "咖啡杯(爱心拉花蒸汽)"
++    },
++    {
++        "name":  "gift_petal_ring",
++        "x":  393,
++        "y":  547,
++        "w":  404,
++        "h":  401,
++        "desc":  "花瓣爱心环"
++    },
++    {
++        "name":  "gift_splash_red",
++        "x":  806,
++        "y":  549,
++        "w":  358,
++        "h":  397,
++        "desc":  "红色汁水飞溅"
++    },
++    {
++        "name":  "gift_splash_water",
++        "x":  1170,
++        "y":  559,
++        "w":  345,
++        "h":  396,
++        "desc":  "蓝色水花飞溅"
++    }
++]
+diff --git a/index.html b/index.html
+index 2db24d2..e265ea1 100644
+--- a/index.html
++++ b/index.html
+@@ -140,6 +140,7 @@
+   <!-- 聊天按钮 -->
+   <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
+   <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:134px;">🤖</button>
++  <button id="giftBtn" class="chat-btn gift-btn" onclick="toggleGiftPanel()" style="display:none; right:192px;">🎁</button>
+   <!-- 设置按钮 -->
+   <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:76px;">⚙</button>
+   <!-- 设置面板 -->
+@@ -154,6 +155,12 @@
+     </div>
+     <button class="chat-close" onclick="toggleSettings(false)">✕</button>
+   </div>
++  <!-- 送礼物面板 -->
++  <div id="giftPanel" class="gift-panel" style="display:none;">
++    <div class="gift-grid" id="giftGrid"></div>
++    <div class="gift-hint" id="giftHint"></div>
++    <button class="chat-close" onclick="toggleGiftPanel(false)">✕</button>
++  </div>
+   <div id="logBox"></div>
+ </div>
+ </div>
+diff --git a/js/game.js b/js/game.js
+index 5283257..1adaadb 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -4,6 +4,34 @@
+    ============================================================ */
+ const INIT_SCORE = 100;   // 每人初始积分
+ 
++/* ---- 礼物素材（img/gift.png）---- */
++const GIFT_SHEET_W = 1536, GIFT_SHEET_H = 1024;
++const GIFT_SPR = {
++  coffee_pot:{x:33,y:18,w:384,h:481}, roses:{x:418,y:44,w:361,h:452},
++  tomato:{x:795,y:87,w:381,h:420}, bucket:{x:1188,y:121,w:311,h:359},
++  coffee_cup:{x:37,y:532,w:306,h:445}, petal_ring:{x:393,y:547,w:404,h:401},
++  splash_red:{x:806,y:549,w:358,h:397}, splash_water:{x:1170,y:559,w:345,h:396}
++};
++const GIFT_INFO = {
++  coffee:{fly:'coffee_pot', land:'coffee_cup',   dur:1500, label:'倒咖啡'},
++  roses: {fly:'roses',      land:'petal_ring',   dur:1500, label:'送玫瑰'},
++  tomato:{fly:'tomato',     land:'splash_red',   dur:600,  label:'扔番茄', spin:true},
++  water: {fly:'bucket',     land:'splash_water', dur:600,  label:'泼水',   spin:true}
++};
++function makeGiftEl(name, scale){
++  const r=GIFT_SPR[name]; if(!r) return document.createElement('div');
++  const s=scale||0.2;
++  const el=document.createElement('div');
++  el.className='gift-sprite';
++  el.style.width=(r.w*s)+'px'; el.style.height=(r.h*s)+'px';
++  el.style.backgroundImage="url('img/gift.png')";
++  el.style.backgroundRepeat='no-repeat';
++  el.style.backgroundSize=(GIFT_SHEET_W*s)+'px '+(GIFT_SHEET_H*s)+'px';
++  el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  return el;
++}
++let giftPending = null;   // 待发送礼物名（选目标中）
++
+ let H = null;   // 主机权威状态
+ let view = {
+   phase:'wait', turn:-1, landlord:-1, points:0,
+@@ -22,6 +50,8 @@ function enterGame(){
+   document.getElementById('gameStatus').textContent='🟢 三人已连接，准备发牌';
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display='block';
+   const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display='block';
++  const giftBt=document.getElementById('giftBtn'); if(giftBt) giftBt.style.display='block';
++  initGiftPanel();
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+   if(typeof startBgm==='function') startBgm();   // 启动BGM（用户交互后允许播放）
+   if(role==='host') genders[0]=myGender; else genders[myIdx]=myGender;
+@@ -291,6 +321,11 @@ function onNetMessage(m, slot){
+       const other = sender===1?2:1;
+       netSend(other, {t:'chat', from:m.from, phrase:m.phrase, gender:m.gender});
+     }
++    else if(m.t==='gift'){ // 客户端送礼，主机本地播放并转发给另一客户端
++      flyGift(m.from, m.to, m.gift);
++      const other = sender===1?2:1;
++      netSend(other, {t:'gift', from:m.from, to:m.to, gift:m.gift});
++    }
+     // 主机广播的 sound 消息由自己发出，客户端在 else 分支处理
+   } else {
+     if(m.t==='assign'){ myIdx=m.you; view.names[myIdx]='我'; genders[myIdx]=myGender; log('已分配座次：玩家'+(myIdx+1)); }
+@@ -302,6 +337,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='state'){ applyState(m.v); }
+     else if(m.t==='o'){ rtt=performance.now()-m.time; }
+     else if(m.t==='chat'){ onChatMsg(m.from, m.phrase, m.gender); }
++    else if(m.t==='gift'){ flyGift(m.from, m.to, m.gift); }
+     else if(m.t==='sound'){ onSoundMsg(m.from, m.kind, m.key, m.gender); }
+     else if(m.t==='tick'){ view.turnLeft = m.left; view.turnDeadline = m.deadline; render(); }
+   }
+@@ -341,6 +377,72 @@ function toggleAutoPlay(){
+   if(autoPlay) autoAct();
+   render();
+ }
++/* ---- 送礼物 ---- */
++function initGiftPanel(){
++  const grid=document.getElementById('giftGrid');
++  if(!grid || grid.children.length>0) return;
++  ['coffee','roses','tomato','water'].forEach(g=>{
++    const btn=document.createElement('button');
++    btn.className='gift-item'; btn.title=GIFT_INFO[g].label;
++    btn.onclick=()=>chooseGift(g);
++    btn.appendChild(makeGiftEl(GIFT_INFO[g].fly, 0.16));
++    grid.appendChild(btn);
++  });
++}
++function toggleGiftPanel(force){
++  const p=document.getElementById('giftPanel');
++  if(!p) return;
++  if(force===false){ p.style.display='none'; giftPending=null; updateGiftHint(''); return; }
++  p.style.display = p.style.display==='flex'?'none':'flex';
++  giftPending=null; updateGiftHint('');
++}
++function updateGiftHint(txt){
++  const h=document.getElementById('giftHint'); if(h) h.textContent=txt;
++}
++function chooseGift(gift){
++  giftPending=gift;
++  toggleGiftPanel(false);
++  document.getElementById('giftPanel').style.display='none';
++  updateGiftHint('点击要送礼的玩家头像');
++  setActInfo('🎁 已选 '+GIFT_INFO[gift].label+'，点击目标玩家头像送出（点空白取消）');
++}
++function sendGiftTo(targetIdx){
++  if(!giftPending) return;
++  const gift=giftPending; giftPending=null;
++  updateGiftHint(''); setActInfo('');
++  flyGift(myIdx, targetIdx, gift);
++  if(role==='host') netBroadcast({t:'gift', from:0, to:targetIdx, gift});
++  else netSend(0, {t:'gift', from:myIdx, to:targetIdx, gift});
++  log('送出 '+GIFT_INFO[gift].label+' 给 玩家'+(targetIdx+1));
++}
++function flyGift(fromIdx, toIdx, gift){
++  const info=GIFT_INFO[gift]; if(!info) return;
++  const stage=document.querySelector('.stage');
++  const fromSeat=document.getElementById('seat'+cap(seatPos(fromIdx)));
++  const toSeat=document.getElementById('seat'+cap(seatPos(toIdx)));
++  if(!fromSeat||!toSeat||!stage) return;
++  const fx=fromSeat.offsetLeft+fromSeat.offsetWidth/2;
++  const fy=fromSeat.offsetTop+fromSeat.offsetHeight/2;
++  const tx=toSeat.offsetLeft+toSeat.offsetWidth/2;
++  const ty=toSeat.offsetTop+toSeat.offsetHeight/2;
++  const fly=makeGiftEl(info.fly, 0.2);
++  fly.style.cssText+='position:absolute;left:'+fx+'px;top:'+fy+'px;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:left '+info.dur+'ms linear,top '+info.dur+'ms linear;';
++  if(info.spin) fly.style.cssText+='animation:giftFlyFast '+info.dur+'ms linear;';
++  stage.appendChild(fly);
++  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ fly.style.left=tx+'px'; fly.style.top=ty+'px'; }); });
++  setTimeout(()=>{
++    fly.remove();
++    const land=makeGiftEl(info.land, 0.3);
++    land.style.cssText+='position:absolute;left:'+tx+'px;top:'+ty+'px;z-index:49;pointer-events:none;animation:giftLand .4s ease-out;';
++    stage.appendChild(land);
++    setTimeout(()=>land.remove(), 2000);
++  }, info.dur);
++}
++function cancelGiftOnEmpty(e){
++  if(giftPending && !e.target.closest('.seat') && !e.target.closest('#giftPanel') && !e.target.closest('.gift-item')){
++    giftPending=null; updateGiftHint(''); setActInfo('');
++  }
++}
+ function autoAct(){
+   if(!autoPlay) return;
+   // 叫地主阶段：不叫
+@@ -457,6 +559,14 @@ function render(){
+     renderAvatar(pos, i);
+     renderCrown(pos, i);
+     renderBadge(pos, i);
++    // 送礼物选目标
++    if(giftPending && i!==myIdx){
++      seat.style.cursor='pointer';
++      seat.style.boxShadow='0 0 0 2px #ffd54a';
++      seat.onclick=()=>sendGiftTo(i);
++    } else {
++      seat.style.cursor=''; seat.style.boxShadow=''; seat.onclick=null;
++    }
+   }
+   renderClock();
+   renderOppHand('Left', view.hands[(myIdx+2)%3]);
+diff --git a/js/main.js b/js/main.js
+index a37a21c..37542f8 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -23,6 +23,7 @@ function fitScale(){
+ }
+ window.addEventListener('resize', fitScale);
+ window.addEventListener('orientationchange', ()=>{ setTimeout(fitScale, 300); });
++document.addEventListener('click', (e)=>{ if(typeof cancelGiftOnEmpty==='function') cancelGiftOnEmpty(e); });
+ window.addEventListener('load', ()=>{
+   if(isMobile){
+     document.body.classList.add('mobile');
+-- 
+2.45.1.windows.1
+
+
+

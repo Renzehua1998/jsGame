@@ -1,0 +1,58 @@
+From 4b02e0f4434d3365b185d7a5afd71bb182e9cd04 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:27:22 +0800
+Subject: [PATCH 24/36] =?UTF-8?q?feat:=20=E5=8F=91=E7=89=8C=E9=9F=B3?=
+ =?UTF-8?q?=E6=95=88=20-=20do.mp3=E9=87=8D=E5=A4=8D=E6=92=AD=E6=94=BE?=
+ =?UTF-8?q?=E8=A6=86=E7=9B=96=E5=8F=91=E7=89=8C=E5=8A=A8=E7=94=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- playDealAnim开始时启动startDealSound, 每200ms播放do.mp3
+- 1秒后(发牌动画结束)stopDealSound停止循环
+- 三端独立播放, 无需网络同步
+---
+ js/game.js | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/js/game.js b/js/game.js
+index a06d4b0..ebbf880 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -996,6 +996,15 @@ function renderBottom(){
+   if(!view.bottomShown || view.bottom.length===0){ const h=document.createElement('div'); h.className='label-b'; h.textContent='❓❓❓'; el.appendChild(h); return; }
+   view.bottom.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+ }
++let dealSoundTimer = null;
++let dealSoundAudio = null;
++function startDealSound(){
++  if(typeof playEffect==='function') playEffect('do');
++  dealSoundTimer = setInterval(()=>{ if(typeof playEffect==='function') playEffect('do'); }, 200);
++}
++function stopDealSound(){
++  if(dealSoundTimer){ clearInterval(dealSoundTimer); dealSoundTimer=null; }
++}
+ function playDealAnim(){
+   const stage=document.querySelector('.stage'); if(!stage) return;
+   const cx=480, cy=280;
+@@ -1008,6 +1017,7 @@ function playDealAnim(){
+     if(!s) return {x:cx,y:cy};
+     return {x:s.offsetLeft+s.offsetWidth/2, y:s.offsetTop+s.offsetHeight/2};
+   });
++  startDealSound();
+   for(let r=0;r<6;r++){
+     for(let p=0;p<3;p++){
+       setTimeout(()=>{
+@@ -1024,6 +1034,7 @@ function playDealAnim(){
+       }, r*80+p*25);
+     }
+   }
++  setTimeout(stopDealSound, 1000);
+ }
+ function renderPlayed(side, idx){
+   const el=document.getElementById('played'+side);
+-- 
+2.45.1.windows.1
+
+
+

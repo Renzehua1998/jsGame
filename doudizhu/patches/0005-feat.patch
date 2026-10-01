@@ -1,0 +1,548 @@
+From c236ec0eb23fbca5df9214430b08f1ae40ef6084 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 15:22:10 +0800
+Subject: [PATCH 05/36] =?UTF-8?q?feat:=20=E5=BA=94=E7=94=A8=E5=85=A8?=
+ =?UTF-8?q?=E9=83=A8=E7=B4=A0=E6=9D=90=E5=B9=B6=E4=BC=98=E5=8C=96=E7=89=8C?=
+ =?UTF-8?q?=E9=9D=A2=E8=A7=82=E5=AF=9F=E4=BD=93=E9=AA=8C?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 手牌放大至 0.62 倍、重叠减至 -30px，选中上移 26px，更易观察
+- 座位头像改用 avatar_landlord/peasant1/peasant2 素材切片
+- 地主座位头顶显示 icon_crown 皇冠，下方显示 badge 徽章素材
+- 出炸弹/火箭弹出 icon_bomb/icon_rocket 特效素材；飞机/顺子/连对显示文字特效
+- 游戏结束中央显示 banner_victory/defeat 横幅素材
+- 叫地主/出牌按钮改用 btn_* 素材图片按钮
+- 当前出牌人座位旁显示 clock_timer 闹钟（抖动动画）
+- 桌面中央显示 scroll_paper 卷轴倍数、sign_round 局数牌
+- 桌面背景叠加 card_fan 扇形牌背装饰，右下角 icon_* 角标栏
+- 新增 makeSpriteEl/makeTileEl 通用素材渲染函数
+---
+ index.html | 372 ++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 342 insertions(+), 30 deletions(-)
+
+diff --git a/index.html b/index.html
+index 7833710..60d8ded 100644
+--- a/index.html
++++ b/index.html
+@@ -101,11 +101,11 @@ textarea {
+ .played-label { font-size:11px; color:#cfe8c0; position:absolute; top:-16px; left:50%; transform:translateX(-50%); white-space:nowrap; }
+ .played-pass { color:#ff9a9a; font-size:13px; padding:14px 18px; background:rgba(0,0,0,.35); border-radius:8px; }
+ 
+-.bottom-area { position:absolute; left:0; right:0; bottom:90px; display:flex; justify-content:center; }
+-.my-hand { display:flex; gap:0; padding:0 20px; min-height:96px; align-items:flex-end; }
+-.my-hand .card-wrap { margin-left:-22px; cursor:pointer; transition:transform .12s; }
++.bottom-area { position:absolute; left:0; right:0; bottom:88px; display:flex; justify-content:center; }
++.my-hand { display:flex; gap:0; padding:0 20px; min-height:118px; align-items:flex-end; }
++.my-hand .card-wrap { margin-left:-30px; cursor:pointer; transition:transform .12s; }
+ .my-hand .card-wrap:first-child { margin-left:0; }
+-.my-hand .card-wrap.selected { transform:translateY(-20px); }
++.my-hand .card-wrap.selected { transform:translateY(-26px); }
+ 
+ /* ============ 卡牌切片 ============ */
+ .card {
+@@ -119,9 +119,73 @@ textarea {
+ .card.lg { --s:0.6; }
+ 
+ /* 底牌区 */
+-.bottom-cards { position:absolute; left:50%; top:60px; transform:translateX(-50%); display:flex; gap:4px; }
++.bottom-cards { position:absolute; left:50%; top:56px; transform:translateX(-50%); display:flex; gap:4px; align-items:center; }
+ .bottom-cards .label-b { font-size:11px; color:#ffd54a; margin-right:6px; align-self:center; }
+ 
++/* 出牌特效层 */
++.effect-layer {
++  position:absolute; left:50%; top:200px; transform:translateX(-50%);
++  display:flex; flex-direction:column; align-items:center; gap:6px;
++  pointer-events:none; z-index:30;
++}
++.effect-layer .effect-text {
++  font-size:30px; font-weight:bold; color:#fff;
++  text-shadow:0 0 8px #ff6600, 0 2px 4px #000, 0 0 20px #ffaa00;
++  animation:effectPop .4s ease-out;
++}
++.effect-layer.plane .effect-text { color:#66ccff; text-shadow:0 0 8px #0066ff,0 2px 4px #000,0 0 20px #66ccff; }
++@keyframes effectPop { 0%{transform:scale(0.3);opacity:0;} 60%{transform:scale(1.15);opacity:1;} 100%{transform:scale(1);opacity:1;} }
++
++/* 胜负横幅 */
++.banner-layer {
++  position:absolute; left:50%; top:230px; transform:translateX(-50%);
++  z-index:40; display:flex; flex-direction:column; align-items:center; gap:10px;
++  animation:effectPop .5s ease-out;
++}
++.banner-layer .banner-text { font-size:22px; font-weight:bold; color:#ffd54a; text-shadow:0 2px 4px #000; }
++
++/* 倍数卷轴（桌面中央） */
++.mult-scroll {
++  position:absolute; left:50%; top:108px; transform:translateX(-50%);
++  display:flex; align-items:center; gap:6px; z-index:5;
++}
++.mult-scroll .scroll-bg { position:relative; display:flex; align-items:center; justify-content:center; }
++.mult-scroll .mult-val { position:absolute; color:#5a2a10; font-weight:bold; font-size:14px; text-shadow:0 1px 0 #fff8e0; }
++.mult-scroll .label-m { color:#ffd54a; font-size:12px; }
++
++/* 局数/底分牌 */
++.sign-zone { position:absolute; display:flex; align-items:center; }
++.sign-zone.round { left:50%; top:28px; transform:translateX(-50%); flex-direction:column; gap:4px; }
++.sign-zone .sign-label { font-size:10px; color:#ffd54a; }
++
++/* 倒计时闹钟（当前出牌人） */
++.clock { position:absolute; width:52px; height:58px; z-index:15; animation:clockShake 1s infinite; }
++@keyframes clockShake { 0%,100%{transform:rotate(-4deg);} 50%{transform:rotate(4deg);} }
++
++/* 角色立绘 */
++.char-figure { position:absolute; opacity:.85; pointer-events:none; z-index:1; }
++.char-figure.p-me { left:50%; bottom:170px; transform:translateX(-50%); }
++.char-figure.p-right { right:8px; top:30px; }
++.char-figure.p-left { left:8px; top:30px; }
++
++/* 座位头像用素材 */
++.seat .avatar-sprite { width:54px; height:57px; border-radius:50%; border:3px solid #ffd54a; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.5); background-image:url('img/dou.png'); background-repeat:no-repeat; }
++.seat .crown-sprite { position:absolute; top:-14px; left:50%; transform:translateX(-50%); }
++.seat .badge-sprite { margin-top:2px; }
++.seat { position:relative; }
++
++/* 角标图标栏 */
++.icon-bar { position:absolute; right:10px; bottom:8px; display:flex; gap:6px; opacity:.55; z-index:5; }
++.icon-bar .sprite { cursor:default; }
++
++/* 按钮图片 */
++.img-btn { background:transparent; border:none; padding:0; cursor:pointer; margin:3px; transition:transform .12s; display:inline-block; background-image:url('img/dou.png'); background-repeat:no-repeat; }
++.img-btn:hover { transform:translateY(-2px) scale(1.04); filter:brightness(1.12); }
++.img-btn:disabled { filter:grayscale(.7) brightness(.6); cursor:not-allowed; transform:none; }
++
++/* 牌桌中央装饰扇形 */
++.table-fan { position:absolute; left:50%; top:130px; transform:translateX(-50%); opacity:.25; z-index:0; }
++
+ /* 操作面板 */
+ .actions {
+   width:100%; max-width:980px; margin:8px auto 0; text-align:center;
+@@ -203,19 +267,40 @@ textarea {
+   <div class="status" id="gameStatus">🟢 已连接，准备发牌...</div>
+   <div class="stage">
+     <div class="table"></div>
++    <div class="table-fan" id="tableFan"></div>
++    <!-- 局数牌 -->
++    <div class="sign-zone round" id="signRound"></div>
++    <!-- 倍数卷轴 -->
++    <div class="mult-scroll" id="multScroll"></div>
+     <!-- 底牌 -->
+     <div class="bottom-cards" id="bottomCards"></div>
++    <!-- 特效层 -->
++    <div class="effect-layer" id="effectLayer" style="display:none;"></div>
++    <!-- 胜负横幅 -->
++    <div class="banner-layer" id="bannerLayer" style="display:none;"></div>
+     <!-- 三座位 -->
+     <div class="seat p-left" id="seatLeft">
+-      <div class="avatar">🙂</div><div class="name">上家</div><div class="count"></div>
++      <div class="avatar-sprite" id="avatarLeft"></div>
++      <div class="crown-sprite" id="crownLeft" style="display:none;"></div>
++      <div class="name">上家</div>
++      <div class="badge-sprite" id="badgeLeft"></div>
++      <div class="count"></div>
+       <div class="opp-hand" id="handLeft"></div>
+     </div>
+     <div class="seat p-right" id="seatRight">
+-      <div class="avatar">🙂</div><div class="name">下家</div><div class="count"></div>
++      <div class="avatar-sprite" id="avatarRight"></div>
++      <div class="crown-sprite" id="crownRight" style="display:none;"></div>
++      <div class="name">下家</div>
++      <div class="badge-sprite" id="badgeRight"></div>
++      <div class="count"></div>
+       <div class="opp-hand" id="handRight"></div>
+     </div>
+     <div class="seat p-me" id="seatMe">
+-      <div class="avatar">🙂</div><div class="name">我</div><div class="count"></div>
++      <div class="avatar-sprite" id="avatarMe"></div>
++      <div class="crown-sprite" id="crownMe" style="display:none;"></div>
++      <div class="name">我</div>
++      <div class="badge-sprite" id="badgeMe"></div>
++      <div class="count"></div>
+     </div>
+     <!-- 出牌区 -->
+     <div class="played-zone p-left" id="playedLeft"></div>
+@@ -223,6 +308,8 @@ textarea {
+     <div class="played-zone p-me" id="playedMe"></div>
+     <!-- 我的手牌 -->
+     <div class="bottom-area"><div class="my-hand" id="myHand"></div></div>
++    <!-- 角标图标栏 -->
++    <div class="icon-bar" id="iconBar"></div>
+   </div>
+   <div class="actions" id="actions">
+     <div class="info" id="actInfo">等待中...</div>
+@@ -246,6 +333,21 @@ const ROWS = {
+ };
+ const JOKER = {JB:{x:17,y:403,w:110,h:154}, JR:{x:139,y:403,w:113,h:154}};
+ const BACK_RECT = {x:265,y:403,w:103,h:154};
++const FAN_RECT  = {x:380,y:410,w:210,h:143};
++const SPR = {
++  char_landlord:{x:856,y:25,w:255,h:378}, char_peasant1:{x:1114,y:62,w:209,h:334}, char_peasant2:{x:1324,y:74,w:194,h:323},
++  avatar_landlord:{x:1043,y:417,w:147,h:155}, avatar_peasant1:{x:1205,y:417,w:147,h:155}, avatar_peasant2:{x:1366,y:417,w:148,h:156},
++  icon_bomb:{x:633,y:459,w:291,h:161}, icon_rocket:{x:933,y:467,w:117,h:176}, icon_crown:{x:1157,y:583,w:76,h:63},
++  badge_landlord:{x:1263,y:590,w:104,h:54}, badge_peasant:{x:1395,y:590,w:104,h:54},
++  banner_victory:{x:1074,y:662,w:221,h:108}, banner_defeat:{x:1316,y:663,w:193,h:100},
++  btn_no_call:{x:20,y:581,w:131,h:83}, btn_1:{x:157,y:581,w:102,h:83}, btn_2:{x:265,y:581,w:104,h:83}, btn_3:{x:376,y:581,w:105,h:83}, btn_call_landlord:{x:489,y:582,w:132,h:83},
++  btn_pass:{x:20,y:676,w:155,h:80}, btn_hint:{x:194,y:676,w:172,h:80}, btn_play:{x:384,y:677,w:187,h:79},
++  icon_volume:{x:600,y:679,w:64,h:70}, icon_mute:{x:675,y:679,w:64,h:70}, icon_settings:{x:750,y:679,w:66,h:71}, icon_chat:{x:828,y:679,w:66,h:70}, icon_help:{x:907,y:679,w:66,h:71}, icon_undo:{x:986,y:679,w:67,h:71},
++  player_card1:{x:16,y:779,w:213,h:119}, player_card2:{x:241,y:781,w:215,h:110}, player_card3:{x:467,y:781,w:215,h:111},
++  clock_timer:{x:702,y:777,w:103,h:116}, sign_round:{x:825,y:782,w:165,h:54}, sign_score:{x:826,y:842,w:164,h:56},
++  speech_bubble:{x:1349,y:783,w:146,h:77}, scroll_paper:{x:1338,y:869,w:177,h:114}
++};
++const TILE_RECT = {17:{x:23,y:921,w:50,h:68},16:{x:82,y:922,w:50,h:68},15:{x:142,y:921,w:50,h:68},14:{x:201,y:921,w:50,h:68},13:{x:260,y:921,w:50,h:68},12:{x:320,y:921,w:49,h:68},11:{x:379,y:921,w:50,h:68},10:{x:438,y:921,w:49,h:68},9:{x:496,y:921,w:49,h:68},8:{x:555,y:922,w:48,h:67},7:{x:612,y:921,w:46,h:68},6:{x:667,y:921,w:47,h:68},5:{x:722,y:922,w:47,h:67},4:{x:778,y:922,w:46,h:67},3:{x:833,y:921,w:46,h:68},2:{x:888,y:921,w:45,h:68},1:{x:943,y:921,w:46,h:68}};
+ function rectOf(card){ // card={suit,rank}
+   if(card.suit==='J') return JOKER[card.rank];
+   const r = ROWS[card.suit], idx = RANKS.indexOf(card.rank);
+@@ -268,7 +370,7 @@ function sortHand(a){ return a.slice().sort((p,q)=> q.val-p.val || (p.suit<q.sui
+ 
+ /* 渲染单张牌为 DOM 元素。cls: ''/'sm'/'lg' */
+ function makeCardEl(card, cls){
+-  const r = rectOf(card), s = cls==='sm'?0.42: cls==='lg'?0.6:0.5;
++  const r = rectOf(card), s = cls==='sm'?0.42: cls==='lg'?0.6: cls==='xs'?0.34:0.62;
+   const el = document.createElement('div');
+   el.className = 'card ' + (cls||'');
+   el.style.width  = (r.w*s)+'px';
+@@ -288,6 +390,26 @@ function makeBackEl(cls){
+   el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   return el;
+ }
++function makeSpriteEl(name, scale, extraClass){
++  const r = SPR[name]; if(!r) return document.createElement('div');
++  const s = scale||0.5;
++  const el = document.createElement('div');
++  el.className = 'card sprite '+(extraClass||'');
++  el.style.width=(r.w*s)+'px'; el.style.height=(r.h*s)+'px';
++  el.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  return el;
++}
++function makeTileEl(num, scale){
++  const r = TILE_RECT[num]; if(!r) return null;
++  const s = scale||0.5;
++  const el = document.createElement('div');
++  el.className='card tile';
++  el.style.width=(r.w*s)+'px'; el.style.height=(r.h*s)+'px';
++  el.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  return el;
++}
+ 
+ /* ============================================================
+    2. 牌型识别 / 比较 / 提示
+@@ -538,7 +660,9 @@ function hostStartGame(){
+   // 广播公共初始视图
+   view.phase='bid'; view.hands=[17,17,17]; view.bottom=[]; view.bottomShown=false;
+   view.played={0:null,1:null,2:null}; view.lastPlay=null; view.lastPlayer=-1;
+-  view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null;
++  view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null; view.lastEffect=null;
++  document.getElementById('effectLayer').style.display='none';
++  document.getElementById('bannerLayer').style.display='none';
+   broadcastState();
+   // 开始叫地主
+   H.bidIdx = Math.floor(Math.random()*3);
+@@ -554,7 +678,7 @@ function broadcastState(){
+     phase:view.phase, turn:view.turn, landlord:view.landlord, points:view.points,
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+-    scores:view.scores, over:view.over, names:view.names
++    scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect
+   };
+   netBroadcast({t:'state', v:pub});
+   render();
+@@ -637,8 +761,10 @@ function hostPlay(senderIdx, keys){
+   view.played[senderIdx] = keys.slice();
+   view.hands = H.hands.map(h=>h.length);
+   if(type.type==='bomb' || type.type==='rocket'){ H.mult*=2; }
++  view.lastEffect = type.type;
+   log('玩家'+(senderIdx+1)+' 出：'+keys.join(' '));
+   broadcastState();
++  triggerEffect(type.type);
+   if(H.hands[senderIdx].length===0){ endGame(senderIdx); return; }
+   H.turn=(senderIdx+1)%3; view.turn=H.turn;
+   promptPlay();
+@@ -703,9 +829,11 @@ function onNetMessage(m, slot){
+   render();
+ }
+ function applyState(v){
++  const prevEffect = view.lastEffect;
+   Object.assign(view, v);
+   view.played = v.played || {0:null,1:null,2:null};
+   view.bidLog = v.bidLog || [];
++  if(v.lastEffect && v.lastEffect!==prevEffect) triggerEffect(v.lastEffect);
+   render();
+ }
+ 
+@@ -715,17 +843,25 @@ function applyState(v){
+ function setActInfo(t){ document.getElementById('actInfo').textContent=t; }
+ function clearButtons(){ document.getElementById('actButtons').innerHTML=''; }
+ 
++function imgBtn(sprName, onClick, disabled){
++  const r = SPR[sprName], s = 0.6;
++  const b = document.createElement('button'); b.className='img-btn';
++  b.style.width=(r.w*s)+'px'; b.style.height=(r.h*s)+'px';
++  b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  if(disabled) b.disabled=true;
++  b.onclick = onClick;
++  return b;
++}
+ function showBidUI(curMax){
+   curMax = curMax || (role==='host'? H.bidMax : 0);
+   setActInfo('轮到你叫分'+(curMax>0?'（当前最高 '+curMax+'）':''));
+   const box=document.getElementById('actButtons'); box.innerHTML='';
+-  const mk=(v,label)=>{
+-    const b=document.createElement('button');
+-    b.textContent=label; b.className = v===0?'secondary':'';
+-    if(v!==0 && v<=curMax) b.disabled=true;
+-    b.onclick=()=>doBid(v); box.appendChild(b);
+-  };
+-  mk(0,'不叫'); mk(1,'1分'); mk(2,'2分'); mk(3,'3分');
++  box.appendChild(imgBtn('btn_no_call', ()=>doBid(0)));
++  box.appendChild(imgBtn('btn_1', ()=>doBid(1), 1<=curMax));
++  box.appendChild(imgBtn('btn_2', ()=>doBid(2), 2<=curMax));
++  box.appendChild(imgBtn('btn_3', ()=>doBid(3), 3<=curMax));
++  box.appendChild(imgBtn('btn_call_landlord', ()=>doBid(curMax>0?curMax:1)));
+ }
+ function doBid(v){
+   clearButtons();
+@@ -737,14 +873,11 @@ function showPlayUI(lastPlay){
+   const ol = role==='host'? H.lastPlay : lastPlay;
+   setActInfo(ol? '轮到你出牌（需管上）' : '轮到你出牌（自由出）');
+   const box=document.getElementById('actButtons'); box.innerHTML='';
+-  const bPass=document.createElement('button'); bPass.className='secondary'; bPass.textContent='不出';
+-  bPass.disabled = !ol; bPass.onclick=()=>doPass(); box.appendChild(bPass);
+-  const bHint=document.createElement('button'); bHint.className='secondary'; bHint.textContent='提示';
+-  bHint.onclick=()=>doHint(ol); box.appendChild(bHint);
++  box.appendChild(imgBtn('btn_pass', ()=>doPass(), !ol));
++  box.appendChild(imgBtn('btn_hint', ()=>doHint(ol)));
+   const bClear=document.createElement('button'); bClear.className='secondary'; bClear.textContent='清空';
+   bClear.onclick=()=>{ selected.clear(); render(); }; box.appendChild(bClear);
+-  const bPlay=document.createElement('button'); bPlay.textContent='出牌';
+-  bPlay.onclick=()=>doPlay(); box.appendChild(bPlay);
++  box.appendChild(imgBtn('btn_play', ()=>doPlay()));
+ }
+ function doPass(){
+   clearButtons();
+@@ -781,19 +914,28 @@ function seatPos(idx){
+   return rel===0?'me': rel===1?'right':'left';
+ }
+ function render(){
+-  // 三座位名称/地主皇冠/手牌数
++  // 角标图标栏（静态装饰）
++  renderIconBar();
++  // 桌面扇形装饰
++  renderTableFan();
++  // 局数牌
++  renderSignRound();
++  // 倍数卷轴
++  renderMultScroll();
++  // 三座位：头像/皇冠/徽章/名称/手牌数
+   for(let i=0;i<3;i++){
+     const pos = seatPos(i);
+     const seat = document.getElementById('seat'+cap(pos));
+     if(!seat) continue;
+-    seat.querySelector('.name').textContent = (i===myIdx?'我':'玩家'+(i+1)) + (view.landlord===i?' 🏠':'');
++    seat.querySelector('.name').textContent = (i===myIdx?'我':'玩家'+(i+1));
+     const cntEl = seat.querySelector('.count');
+     cntEl.textContent = view.hands[i]!==undefined ? '🂠 '+view.hands[i] : '';
+-    // 皇冠
+-    let crown = seat.querySelector('.crown');
+-    if(view.landlord===i){ if(!crown){ crown=document.createElement('div'); crown.className='crown'; crown.textContent='👑'; seat.insertBefore(crown, seat.querySelector('.count')); } }
+-    else if(crown) crown.remove();
++    renderAvatar(pos, i);
++    renderCrown(pos, i);
++    renderBadge(pos, i);
+   }
++  // 倒计时闹钟（当前出牌人）
++  renderClock();
+   // 对手手牌（牌背堆）
+   renderOppHand('Left', view.hands[(myIdx+2)%3]);
+   renderOppHand('Right', view.hands[(myIdx+1)%3]);
+@@ -805,6 +947,8 @@ function render(){
+   renderPlayed('Me', myIdx);
+   // 我的手牌
+   renderMyHand();
++  // 胜负横幅
++  renderBanner();
+   // 操作面板自动态
+   renderActions();
+   // 状态条
+@@ -821,6 +965,174 @@ function render(){
+   }
+ }
+ function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
++
++function avatarNameFor(idx){
++  // 地主用 avatar_landlord；两个农民按 idx 顺序用 peasant1/peasant2
++  if(view.landlord<0) return null; // 未确定身份
++  if(idx===view.landlord) return 'avatar_landlord';
++  // 农民：按除地主外的顺序
++  const peasants = [0,1,2].filter(x=>x!==view.landlord);
++  const which = peasants.indexOf(idx);
++  return which===0 ? 'avatar_peasant1' : 'avatar_peasant2';
++}
++function renderAvatar(pos, idx){
++  const el = document.getElementById('avatar'+cap(pos));
++  if(!el) return;
++  const name = avatarNameFor(idx);
++  if(!name){ el.style.backgroundImage='url(img/dou.png)'; el.style.backgroundSize=''; el.style.backgroundPosition='0 0'; el.style.background='linear-gradient(135deg,#3a4a36,#2a3a26)'; return; }
++  const r = SPR[name], s = 54/r.w;
++  el.style.background='url(\'img/dou.png\') no-repeat';
++  el.style.width='54px'; el.style.height='54px';
++  el.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++}
++function renderCrown(pos, idx){
++  const el = document.getElementById('crown'+cap(pos));
++  if(!el) return;
++  if(view.landlord===idx){
++    el.style.display='block';
++    el.innerHTML='';
++    const c = makeSpriteEl('icon_crown', 0.5); c.style.width='38px'; c.style.height='32px';
++    const r = SPR.icon_crown, s = 38/r.w;
++    c.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++    c.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++    el.appendChild(c);
++  } else el.style.display='none';
++}
++function renderBadge(pos, idx){
++  const el = document.getElementById('badge'+cap(pos));
++  if(!el) return;
++  el.innerHTML='';
++  if(view.landlord<0) return;
++  const name = idx===view.landlord ? 'badge_landlord' : 'badge_peasant';
++  const b = makeSpriteEl(name, 0.4); b.style.width='52px'; b.style.height='22px';
++  const r = SPR[name], s = 52/r.w;
++  b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  el.appendChild(b);
++}
++function renderClock(){
++  // 闹钟显示在当前出牌人座位附近
++  document.querySelectorAll('.clock').forEach(c=>c.remove());
++  if(view.over || view.turn<0 || view.phase!=='play') return;
++  const pos = seatPos(view.turn);
++  const seat = document.getElementById('seat'+cap(pos));
++  if(!seat) return;
++  const clock = makeSpriteEl('clock_timer', 0.5);
++  clock.className += ' clock';
++  const r = SPR.clock_timer, s = 52/r.w;
++  clock.style.width='52px'; clock.style.height=(r.h*s)+'px';
++  clock.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  clock.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  if(pos==='me') clock.style.cssText += 'position:absolute;left:50%;bottom:120px;transform:translateX(-50%);';
++  else if(pos==='right') clock.style.cssText += 'position:absolute;right:80px;top:150px;';
++  else clock.style.cssText += 'position:absolute;left:80px;top:150px;';
++  document.querySelector('.stage').appendChild(clock);
++}
++function renderIconBar(){
++  const el = document.getElementById('iconBar'); if(!el) return;
++  if(el.children.length>0) return; // 只渲染一次
++  ['icon_volume','icon_settings','icon_chat','icon_help','icon_undo'].forEach(name=>{
++    const r = SPR[name], s = 28/r.w;
++    const b = document.createElement('div'); b.className='card sprite';
++    b.style.width='28px'; b.style.height=(r.h*s)+'px';
++    b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++    b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++    el.appendChild(b);
++  });
++}
++function renderTableFan(){
++  const el = document.getElementById('tableFan'); if(!el) return;
++  if(el.children.length>0) return;
++  const r = FAN_RECT, s = 0.5;
++  const f = document.createElement('div'); f.className='card sprite';
++  f.style.width=(r.w*s)+'px'; f.style.height=(r.h*s)+'px';
++  f.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  f.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  el.appendChild(f);
++}
++function renderSignRound(){
++  const el = document.getElementById('signRound'); if(!el) return;
++  if(el.children.length>0) return;
++  const r = SPR.sign_round, s = 0.5;
++  const s1 = document.createElement('div'); s1.className='card sprite';
++  s1.style.width=(r.w*s)+'px'; s1.style.height=(r.h*s)+'px';
++  s1.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  s1.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  el.appendChild(s1);
++}
++function renderMultScroll(){
++  const el = document.getElementById('multScroll'); if(!el) return;
++  if(view.phase==='wait' || !view.phase){ el.innerHTML=''; return; }
++  el.innerHTML='';
++  const r = SPR.scroll_paper, s = 0.4;
++  const wrap = document.createElement('div'); wrap.className='scroll-bg'; wrap.style.position='relative';
++  const bg = document.createElement('div'); bg.className='card sprite';
++  bg.style.width=(r.w*s)+'px'; bg.style.height=(r.h*s)+'px';
++  bg.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  bg.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  wrap.appendChild(bg);
++  const mult = (role==='host'? (H&&H.mult||1) : (view.over?view.over.mult:1)) * view.points;
++  const val = document.createElement('div'); val.className='mult-val'; val.textContent='倍 '+mult;
++  wrap.appendChild(val);
++  el.appendChild(wrap);
++}
++function renderBanner(){
++  const el = document.getElementById('bannerLayer'); if(!el) return;
++  if(!view.over){ el.style.display='none'; el.innerHTML=''; return; }
++  el.style.display='flex';
++  el.innerHTML='';
++  // 我是地主则地主胜=胜；我是农民则地主败=胜
++  const iAmLandlord = (view.over.landlord===myIdx);
++  const iWin = iAmLandlord ? view.over.landlordWin : !view.over.landlordWin;
++  const bannerName = iWin ? 'banner_victory' : 'banner_defeat';
++  const r = SPR[bannerName], s = 0.7;
++  const b = document.createElement('div'); b.className='card sprite';
++  b.style.width=(r.w*s)+'px'; b.style.height=(r.h*s)+'px';
++  b.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++  b.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  el.appendChild(b);
++  const t = document.createElement('div'); t.className='banner-text';
++  t.textContent = iWin ? '胜利 🏆 本局 +'+view.over.delta : '失败 💔 本局 -'+view.over.delta;
++  el.appendChild(t);
++}
++let effectTimer = null;
++function triggerEffect(typeName){
++  const el = document.getElementById('effectLayer'); if(!el) return;
++  el.innerHTML=''; el.style.display='flex'; el.className='effect-layer';
++  if(effectTimer) clearTimeout(effectTimer);
++  if(typeName==='bomb'){
++    el.classList.add('bomb');
++    const r = SPR.icon_bomb, s = 0.7;
++    const img = document.createElement('div'); img.className='card sprite';
++    img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
++    img.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++    img.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++    el.appendChild(img);
++  } else if(typeName==='rocket'){
++    el.classList.add('rocket');
++    const r = SPR.icon_rocket, s = 0.8;
++    const img = document.createElement('div'); img.className='card sprite';
++    img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
++    img.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
++    img.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++    el.appendChild(img);
++  } else if(typeName==='plane' || typeName==='plane1' || typeName==='plane2'){
++    el.classList.add('plane');
++    const t = document.createElement('div'); t.className='effect-text'; t.textContent='✈ 飞机！';
++    el.appendChild(t);
++  } else if(typeName==='bomb2s' || typeName==='bomb2p'){
++    const t = document.createElement('div'); t.className='effect-text'; t.textContent='💥 四带二！';
++    el.appendChild(t);
++  } else if(typeName==='straight'){
++    const t = document.createElement('div'); t.className='effect-text'; t.textContent='顺子！';
++    el.appendChild(t);
++  } else if(typeName==='pairstraight'){
++    const t = document.createElement('div'); t.className='effect-text'; t.textContent='连对！';
++    el.appendChild(t);
++  } else { el.style.display='none'; return; }
++  effectTimer = setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 2500);
++}
+ function renderOppHand(side, count){
+   const el=document.getElementById('hand'+side);
+   if(!el) return;
+-- 
+2.45.1.windows.1
+
+
+

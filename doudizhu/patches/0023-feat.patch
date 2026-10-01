@@ -1,0 +1,191 @@
+From a553d5199f680747b211ff0ccb32bfbb90877c5e Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:16:40 +0800
+Subject: [PATCH 23/36] =?UTF-8?q?feat:=20=E5=8F=91=E7=89=8C/=E5=87=BA?=
+ =?UTF-8?q?=E7=89=8C=E5=8A=A8=E7=94=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+发牌动画:
+- phase变为bid时触发, 卡背从桌面中央飞向三座位
+- 6轮x3人交错延时, 缩放+旋转+渐隐, cubic-bezier缓动
+- 每张牌飞行350ms后移除
+
+出牌动画:
+- 新出牌时卡牌从上方飞入出牌区, translateY+scale+rotate
+- 逐张延时40ms, cardFlyIn keyframes 350ms
+- prevPlayed跟踪状态, 仅新出牌触发动画
+---
+ css/style.css | 20 ++++++++++++--------
+ js/game.js    | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 9 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index a8c8ba1..a187217 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -116,7 +116,7 @@ textarea {
+ }
+ .seat .count { font-size:12px; color:#cfe8c0; background:rgba(0,0,0,.4); padding:1px 8px; border-radius:10px; }
+ .seat .crown { font-size:16px; margin-top:-2px; filter:drop-shadow(0 0 3px var(--accent)); }
+-/* 倒三角排布：我在正下方手牌上方，左右对手在上方两�?*/
++/* 倒三角排布：我在正下方手牌上方，左右对手在上方两�?*/
+ .seat.p-me   { position:absolute; left:50%; bottom:210px; transform:translateX(-50%); z-index:10; }
+ .seat.p-right{ position:absolute; right:20px; top:60px; }
+ .seat.p-left { position:absolute; left:20px; top:60px; }
+@@ -133,6 +133,10 @@ textarea {
+ .played-zone.p-left { left:90px; top:170px; }
+ .played-label { font-size:11px; color:#cfe8c0; position:absolute; top:-16px; left:50%; transform:translateX(-50%); white-space:nowrap; }
+ .played-pass { color:#ff9a9a; font-size:13px; padding:14px 18px; background:rgba(0,0,0,.35); border-radius:8px; }
++@keyframes cardFlyIn {
++  from { transform:translateY(-40px) scale(.5) rotate(10deg); opacity:0; }
++  to   { transform:translateY(0) scale(1) rotate(0deg); opacity:1; }
++}
+ 
+ .bottom-area { position:absolute; left:0; right:0; bottom:88px; display:flex; justify-content:center; }
+ .hand-preview { position:absolute; left:50%; bottom:212px; transform:translateX(-50%); min-height:24px; padding:4px 16px; font-size:15px; font-weight:bold; color:#fff; background:rgba(0,0,0,.55); border-radius:12px; white-space:nowrap; pointer-events:none; z-index:20; }
+@@ -155,11 +159,11 @@ textarea {
+ .card.sm { --s:0.42; }
+ .card.lg { --s:0.6; }
+ 
+-/* 底牌�?*/
++/* 底牌�?*/
+ .bottom-cards { position:absolute; left:50%; top:56px; transform:translateX(-50%); display:flex; gap:4px; align-items:center; }
+ .bottom-cards .label-b { font-size:11px; color:var(--accent); margin-right:6px; align-self:center; }
+ 
+-/* 出牌特效�?*/
++/* 出牌特效�?*/
+ .effect-layer {
+   position:absolute; left:50%; top:200px; transform:translateX(-50%);
+   display:flex; flex-direction:column; align-items:center; gap:6px;
+@@ -190,7 +194,7 @@ textarea {
+ .mult-scroll .mult-val { position:absolute; color:#5a2a10; font-weight:bold; font-size:14px; text-shadow:0 1px 0 #fff8e0; }
+ .mult-scroll .label-m { color:var(--accent); font-size:12px; }
+ 
+-/* 局�?底分�?*/
++/* 局�?底分�?*/
+ .sign-zone { position:absolute; display:flex; align-items:center; }
+ .sign-zone.round { left:50%; top:28px; transform:translateX(-50%); flex-direction:column; gap:4px; }
+ .sign-zone .sign-label { font-size:10px; color:var(--accent); }
+@@ -202,7 +206,7 @@ textarea {
+ @keyframes clockPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.3);} }
+ @keyframes clockShake { 0%,100%{transform:rotate(-4deg);} 50%{transform:rotate(4deg);} }
+ 
+-/* 座位头像用素�?*/
++/* 座位头像用素�?*/
+ .seat .avatar-sprite { width:70px; height:74px; border-radius:8px; border:2px solid var(--accent); overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.5); background-image:url('../img/dou.png'); background-repeat:no-repeat; background-color:#2a3a26; }
+ .seat .crown-sprite { position:absolute; top:-14px; left:50%; transform:translateX(-50%); }
+ .seat .badge-sprite { margin-top:2px; }
+@@ -233,8 +237,8 @@ textarea {
+   height:90px; overflow-y:auto; font-size:12px; color:#9be08a; font-family:monospace;
+ }
+ 
+-/* ============ 移动�?/ 横屏适配 ============ */
+-/* 移动端检测标记：body.mobile 时启用缩放容�?*/
++/* ============ 移动�?/ 横屏适配 ============ */
++/* 移动端检测标记：body.mobile 时启用缩放容�?*/
+ body.mobile { padding:4px; }
+ body.mobile #gameArea { transform-origin:top center; }
+ body.mobile h1 { font-size:18px; margin-bottom:2px; }
+@@ -335,7 +339,7 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ .settings-panel .chat-close {
+   position:absolute; top:-10px; right:-10px;
+ }
+-/* 开�?toggle */
++/* 开�?toggle */
+ .switch { position:relative; display:inline-block; width:46px; height:24px; }
+ .switch input { opacity:0; width:0; height:0; }
+ .switch .slider {
+diff --git a/js/game.js b/js/game.js
+index 7a1a7c0..a06d4b0 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -44,6 +44,8 @@ let myHand=[];
+ let selected=new Set();
+ let firstBidder = 0;   // 本局首叫人（按局轮换：每局+1）
+ let autoPlay = false;  // 托管标记
++let prevPhase = null;
++let prevPlayed = {0:null,1:null,2:null};
+ 
+ function enterGame(){
+   showStep('gameArea');
+@@ -160,6 +162,7 @@ function hostStartGame(){
+   }
+   view.phase='bid'; view.hands=[17,17,17]; view.bottom=[]; view.bottomShown=false;
+   view.played={0:null,1:null,2:null}; view.lastPlay=null; view.lastPlayer=-1;
++  prevPlayed={0:null,1:null,2:null};
+   view.bidLog=[]; view.landlord=-1; view.points=0; view.over=null; view.lastEffect=null; view.showCards=null;
+   view.turnLeft=0; view.turnDeadline=0;
+   clearTurnTimer();
+@@ -750,6 +753,9 @@ function seatPos(idx){
+   return rel===0?'me': rel===1?'right':'left';
+ }
+ function render(){
++  // 发牌动画：phase 从非bid变为bid时触发
++  if(view.phase==='bid' && prevPhase && prevPhase!=='bid'){ playDealAnim(); }
++  prevPhase = view.phase;
+   renderTableFan();
+   renderSignRound();
+   renderMultScroll();
+@@ -990,19 +996,54 @@ function renderBottom(){
+   if(!view.bottomShown || view.bottom.length===0){ const h=document.createElement('div'); h.className='label-b'; h.textContent='❓❓❓'; el.appendChild(h); return; }
+   view.bottom.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
+ }
++function playDealAnim(){
++  const stage=document.querySelector('.stage'); if(!stage) return;
++  const cx=480, cy=280;
++  const seats=[
++    document.getElementById('seatMe'),
++    document.getElementById('seatLeft'),
++    document.getElementById('seatRight')
++  ];
++  const targets=seats.map(s=>{
++    if(!s) return {x:cx,y:cy};
++    return {x:s.offsetLeft+s.offsetWidth/2, y:s.offsetTop+s.offsetHeight/2};
++  });
++  for(let r=0;r<6;r++){
++    for(let p=0;p<3;p++){
++      setTimeout(()=>{
++        const card=makeBackEl('sm');
++        card.style.cssText='position:absolute;left:'+cx+'px;top:'+cy+'px;transform:translate(-50%,-50%) scale(.3) rotate(180deg);z-index:60;transition:all .35s cubic-bezier(.22,.61,.36,1);pointer-events:none;opacity:.9;';
++        stage.appendChild(card);
++        requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
++          const t=targets[p];
++          card.style.left=t.x+'px'; card.style.top=t.y+'px';
++          card.style.transform='translate(-50%,-50%) scale(.8) rotate(0deg)';
++          card.style.opacity='0';
++        }); });
++        setTimeout(()=>card.remove(),420);
++      }, r*80+p*25);
++    }
++  }
++}
+ function renderPlayed(side, idx){
+   const el=document.getElementById('played'+side);
+   if(!el) return;
+   el.innerHTML='';
+   const p = view.played[idx];
+   if(p===undefined || p===null) return;
++  const isNew = Array.isArray(p) && p!==prevPlayed[idx];
++  prevPlayed[idx] = p;
+   if(p==='pass'){
+     const d=document.createElement('div'); d.className='played-pass'; d.textContent='不出'; el.appendChild(d);
+     return;
+   }
+   if(Array.isArray(p)){
+     const lab=document.createElement('div'); lab.className='played-label'; lab.textContent=(idx===myIdx?'我':'玩家'+(idx+1)); el.appendChild(lab);
+-    p.forEach(k=> el.appendChild(makeCardEl(keyToCard(k),'sm')));
++    p.forEach((k,i)=>{
++      const c=makeCardEl(keyToCard(k),'sm');
++      if(isNew){ c.style.animation='cardFlyIn .35s ease-out '+((i*40)/1000)+'s both'; }
++      el.appendChild(c);
++    });
+   }
+ }
+ function renderMyHand(){
+-- 
+2.45.1.windows.1
+
+
+

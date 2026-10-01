@@ -1,0 +1,240 @@
+From 16df5af7a3dfd053c9db9f95c63e5ceb2e425d6e Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 10:44:23 +0800
+Subject: [PATCH 16/36] =?UTF-8?q?refactor:=20=E9=80=81=E7=A4=BC=E7=89=A9?=
+ =?UTF-8?q?=E6=94=B9=E4=B8=BA=E7=82=B9=E5=A4=B4=E5=83=8F=E5=BC=B9=E6=B5=AE?=
+ =?UTF-8?q?=E5=B1=82=EF=BC=8C=E8=A1=A5=E5=85=A8=E8=87=AA=E5=B7=B1=E5=A4=B4?=
+ =?UTF-8?q?=E5=83=8F=E6=B8=B2=E6=9F=93?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 删除独立礼物按钮和面板，改为点头像弹出礼物浮层
+- 每个座位下挂 gift-popup 容器，点头像展开4个礼物图片(纯图无文字)
+- 点击礼物图片直接发送(从自己头像飞到目标头像)
+- 自己座位不弹浮层(不能给自己送礼)
+- 点空白关闭浮层
+- avatarNameFor 去掉 landlord<0 返回 null，未定身份也按性别显示农民头像
+  补全自己座位头像渲染(之前 landlord<0 时显示灰底)
+- 浮层位置: 左右对手向下弹，自己座位向上弹(避免被手牌遮挡)
+- 三端同步: 主机转发 gift 消息，各端播放从头像到头像的飞行动画
+---
+ css/style.css | 20 +++++++--------
+ index.html    | 10 +++-----
+ js/game.js    | 71 +++++++++++++++++++++------------------------------
+ 3 files changed, 42 insertions(+), 59 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index c9ace88..a9867cf 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -253,21 +253,21 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ .auto-btn.active { background:#c0392b; color:#fff; animation:autoPulse 1.2s infinite; }
+ @keyframes autoPulse { 0%,100%{box-shadow:0 3px 10px rgba(0,0,0,.5);} 50%{box-shadow:0 0 14px #c0392b;} }
+ 
+-/* ============ 送礼物 ============ */
+-.gift-btn { font-size:20px; }
+-.gift-panel {
+-  position:fixed; right:192px; bottom:150px; z-index:51;
+-  background:#1a2418; border:1px solid #ffd54a; border-radius:12px;
+-  padding:14px 12px; box-shadow:0 4px 14px rgba(0,0,0,.6);
++/* ============ 送礼物（点头像弹出） ============ */
++.gift-popup {
++  display:none; position:absolute; top:100%; left:50%; transform:translateX(-50%);
++  margin-top:6px; background:#1a2418; border:1px solid #ffd54a; border-radius:10px;
++  padding:8px; z-index:60; box-shadow:0 4px 14px rgba(0,0,0,.6);
++  flex-direction:row; gap:6px;
+ }
+-.gift-grid { display:flex; gap:8px; }
++.gift-popup.show { display:flex; }
++.seat.p-me .gift-popup { top:auto; bottom:100%; margin-top:0; margin-bottom:6px; }
+ .gift-item {
+-  background:#243018; border:2px solid #3a4a36; border-radius:10px;
+-  padding:6px; cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center;
++  background:#243018; border:2px solid #3a4a36; border-radius:8px;
++  padding:4px; cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center;
+ }
+ .gift-item:hover { border-color:#ffd54a; transform:translateY(-2px); background:#2e3b2a; }
+ .gift-sprite { background-repeat:no-repeat; }
+-.gift-hint { color:#ffd54a; font-size:12px; text-align:center; margin-top:8px; min-height:16px; }
+ @keyframes giftLand { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0;} 60%{transform:translate(-50%,-50%) scale(1.2);opacity:1;} 100%{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+ @keyframes giftFlyFast { 0%{transform:translate(-50%,-50%) rotate(0);} 100%{transform:translate(-50%,-50%) rotate(720deg);} }
+ .settings-panel {
+diff --git a/index.html b/index.html
+index e265ea1..f1e4f6e 100644
+--- a/index.html
++++ b/index.html
+@@ -100,6 +100,7 @@
+       <div class="badge-sprite" id="badgeLeft"></div>
+       <div class="count"></div>
+       <div class="opp-hand" id="handLeft"></div>
++      <div class="gift-popup" id="giftPopupLeft"></div>
+     </div>
+     <div class="seat p-right" id="seatRight">
+       <div class="crown-sprite" id="crownRight" style="display:none;"></div>
+@@ -108,6 +109,7 @@
+       <div class="badge-sprite" id="badgeRight"></div>
+       <div class="count"></div>
+       <div class="opp-hand" id="handRight"></div>
++      <div class="gift-popup" id="giftPopupRight"></div>
+     </div>
+     <div class="seat p-me" id="seatMe">
+       <div class="crown-sprite" id="crownMe" style="display:none;"></div>
+@@ -115,6 +117,7 @@
+       <div class="name">我</div>
+       <div class="badge-sprite" id="badgeMe"></div>
+       <div class="count"></div>
++      <div class="gift-popup" id="giftPopupMe"></div>
+     </div>
+     <!-- 出牌区 -->
+     <div class="played-zone p-left" id="playedLeft"></div>
+@@ -140,7 +143,6 @@
+   <!-- 聊天按钮 -->
+   <button id="chatBtn" class="chat-btn" onclick="toggleChat()" style="display:none;">💬</button>
+   <button id="autoBtn" class="chat-btn auto-btn" onclick="toggleAutoPlay()" style="display:none; right:134px;">🤖</button>
+-  <button id="giftBtn" class="chat-btn gift-btn" onclick="toggleGiftPanel()" style="display:none; right:192px;">🎁</button>
+   <!-- 设置按钮 -->
+   <button id="settingsBtn" class="chat-btn settings-btn" onclick="toggleSettings()" style="display:none; right:76px;">⚙</button>
+   <!-- 设置面板 -->
+@@ -155,12 +157,6 @@
+     </div>
+     <button class="chat-close" onclick="toggleSettings(false)">✕</button>
+   </div>
+-  <!-- 送礼物面板 -->
+-  <div id="giftPanel" class="gift-panel" style="display:none;">
+-    <div class="gift-grid" id="giftGrid"></div>
+-    <div class="gift-hint" id="giftHint"></div>
+-    <button class="chat-close" onclick="toggleGiftPanel(false)">✕</button>
+-  </div>
+   <div id="logBox"></div>
+ </div>
+ </div>
+diff --git a/js/game.js b/js/game.js
+index 1adaadb..27b3184 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -30,7 +30,7 @@ function makeGiftEl(name, scale){
+   el.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
+   return el;
+ }
+-let giftPending = null;   // 待发送礼物名（选目标中）
++let giftPopupOpen = null;  // 当前打开的礼物浮层对应玩家idx
+ 
+ let H = null;   // 主机权威状态
+ let view = {
+@@ -50,8 +50,6 @@ function enterGame(){
+   document.getElementById('gameStatus').textContent='🟢 三人已连接，准备发牌';
+   const chatBtn=document.getElementById('chatBtn'); if(chatBtn) chatBtn.style.display='block';
+   const autoBt=document.getElementById('autoBtn'); if(autoBt) autoBt.style.display='block';
+-  const giftBt=document.getElementById('giftBtn'); if(giftBt) giftBt.style.display='block';
+-  initGiftPanel();
+   const setBtn=document.getElementById('settingsBtn'); if(setBtn) setBtn.style.display='block';
+   if(typeof startBgm==='function') startBgm();   // 启动BGM（用户交互后允许播放）
+   if(role==='host') genders[0]=myGender; else genders[myIdx]=myGender;
+@@ -377,39 +375,32 @@ function toggleAutoPlay(){
+   if(autoPlay) autoAct();
+   render();
+ }
+-/* ---- 送礼物 ---- */
+-function initGiftPanel(){
+-  const grid=document.getElementById('giftGrid');
+-  if(!grid || grid.children.length>0) return;
++/* ---- 送礼物（点头像弹浮层选礼物） ---- */
++function toggleGiftPopup(targetIdx){
++  // 关闭其他浮层
++  document.querySelectorAll('.gift-popup').forEach(p=>p.classList.remove('show'));
++  if(giftPopupOpen===targetIdx){ giftPopupOpen=null; return; }
++  const pos = seatPos(targetIdx);
++  const popup=document.getElementById('giftPopup'+cap(pos));
++  if(!popup) return;
++  popup.innerHTML='';
+   ['coffee','roses','tomato','water'].forEach(g=>{
+-    const btn=document.createElement('button');
++    const btn=document.createElement('div');
+     btn.className='gift-item'; btn.title=GIFT_INFO[g].label;
+-    btn.onclick=()=>chooseGift(g);
+-    btn.appendChild(makeGiftEl(GIFT_INFO[g].fly, 0.16));
+-    grid.appendChild(btn);
++    btn.onclick=(e)=>{ e.stopPropagation(); sendGift(targetIdx, g); };
++    btn.appendChild(makeGiftEl(GIFT_INFO[g].fly, 0.14));
++    popup.appendChild(btn);
+   });
++  popup.classList.add('show');
++  giftPopupOpen=targetIdx;
+ }
+-function toggleGiftPanel(force){
+-  const p=document.getElementById('giftPanel');
+-  if(!p) return;
+-  if(force===false){ p.style.display='none'; giftPending=null; updateGiftHint(''); return; }
+-  p.style.display = p.style.display==='flex'?'none':'flex';
+-  giftPending=null; updateGiftHint('');
+-}
+-function updateGiftHint(txt){
+-  const h=document.getElementById('giftHint'); if(h) h.textContent=txt;
+-}
+-function chooseGift(gift){
+-  giftPending=gift;
+-  toggleGiftPanel(false);
+-  document.getElementById('giftPanel').style.display='none';
+-  updateGiftHint('点击要送礼的玩家头像');
+-  setActInfo('🎁 已选 '+GIFT_INFO[gift].label+'，点击目标玩家头像送出（点空白取消）');
+-}
+-function sendGiftTo(targetIdx){
+-  if(!giftPending) return;
+-  const gift=giftPending; giftPending=null;
+-  updateGiftHint(''); setActInfo('');
++function closeAllGiftPopups(){
++  document.querySelectorAll('.gift-popup').forEach(p=>p.classList.remove('show'));
++  giftPopupOpen=null;
++}
++function sendGift(targetIdx, gift){
++  closeAllGiftPopups();
++  if(targetIdx===myIdx) return;  // 不能给自己送
+   flyGift(myIdx, targetIdx, gift);
+   if(role==='host') netBroadcast({t:'gift', from:0, to:targetIdx, gift});
+   else netSend(0, {t:'gift', from:myIdx, to:targetIdx, gift});
+@@ -439,9 +430,7 @@ function flyGift(fromIdx, toIdx, gift){
+   }, info.dur);
+ }
+ function cancelGiftOnEmpty(e){
+-  if(giftPending && !e.target.closest('.seat') && !e.target.closest('#giftPanel') && !e.target.closest('.gift-item')){
+-    giftPending=null; updateGiftHint(''); setActInfo('');
+-  }
++  if(giftPopupOpen && !e.target.closest('.seat')) closeAllGiftPopups();
+ }
+ function autoAct(){
+   if(!autoPlay) return;
+@@ -559,13 +548,12 @@ function render(){
+     renderAvatar(pos, i);
+     renderCrown(pos, i);
+     renderBadge(pos, i);
+-    // 送礼物选目标
+-    if(giftPending && i!==myIdx){
++    // 点头像弹礼物浮层（自己不能给自己送，不弹）
++    if(i!==myIdx){
+       seat.style.cursor='pointer';
+-      seat.style.boxShadow='0 0 0 2px #ffd54a';
+-      seat.onclick=()=>sendGiftTo(i);
++      seat.onclick=(e)=>{ if(!e.target.closest('.gift-popup')) toggleGiftPopup(i); };
+     } else {
+-      seat.style.cursor=''; seat.style.boxShadow=''; seat.onclick=null;
++      seat.style.cursor=''; seat.onclick=null;
+     }
+   }
+   renderClock();
+@@ -593,9 +581,8 @@ function render(){
+ function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+ 
+ function avatarNameFor(idx){
+-  if(view.landlord<0) return null;
+   if(idx===view.landlord) return 'avatar_landlord';
+-  // 农民：男=peasant1，女=peasant2
++  // 农民/未定身份：按性别
+   const g = genders[idx] || 'man';
+   return g==='woman' ? 'avatar_peasant2' : 'avatar_peasant1';
+ }
+-- 
+2.45.1.windows.1
+
+
+

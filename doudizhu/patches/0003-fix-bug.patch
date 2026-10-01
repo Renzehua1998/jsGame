@@ -1,0 +1,123 @@
+From 7ba35516f9f6cc5d7519f0e5bdc29fb376d7adc6 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 14:49:38 +0800
+Subject: [PATCH 03/36] =?UTF-8?q?fix:=20=E4=BF=AE=E5=A4=8D=E5=85=B3?=
+ =?UTF-8?q?=E9=94=AE=20bug=20=E5=B9=B6=E6=8F=90=E5=8D=87=E5=9B=9E=E5=90=88?=
+ =?UTF-8?q?=E5=88=B6=E5=8F=AF=E9=9D=A0=E6=80=A7?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 修复 endBidding 中 H.landlord++1 后自增破坏地主索引的严重 bug
+- 数据通道改可靠有序（去掉 maxRetransmits:0），避免发牌/叫地主包丢失卡死
+- 修复状态栏引用不存在的 view.mult，改用 view.over.delta
+- 新一局清空 selected 选中集；累计积分跨局保留（scores:H?H.scores）
+- 主机在等待其他玩家时清空自己的操作按钮（避免残留可点）
+- 客户端游戏结束显示" 等待主机开新局\提示
+---
+ index.html | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/index.html b/index.html
+index 03cd868..39fde62 100644
+--- a/index.html
++++ b/index.html
+@@ -400,10 +400,10 @@ async function createOffers(){
+   document.getElementById('hostLoading').style.display='block';
+   try{
+     pc1=new RTCPeerConnection(RTC_CONFIG);
+-    ch1=pc1.createDataChannel('g1',{ordered:false,maxRetransmits:0});
++    ch1=pc1.createDataChannel('g1',{ordered:true});
+     setupChannel(ch1,1);
+     pc2=new RTCPeerConnection(RTC_CONFIG);
+-    ch2=pc2.createDataChannel('g2',{ordered:false,maxRetransmits:0});
++    ch2=pc2.createDataChannel('g2',{ordered:true});
+     setupChannel(ch2,2);
+     const o1=await pc1.createOffer(); await pc1.setLocalDescription(o1); await waitIce(pc1);
+     const o2=await pc2.createOffer(); await pc2.setLocalDescription(o2); await waitIce(pc2);
+@@ -503,10 +503,11 @@ function enterGame(){
+ 
+ /* ---- 主机：开始一局 ---- */
+ function hostStartGame(){
++  selected.clear();
+   H = {
+     hands:[[],[],[]], bottom:[], turn:-1, landlord:-1, points:0,
+     lastPlay:null, lastPlayer:-1, passCount:0, phase:'bid',
+-    bidIdx:-1, bidMax:0, bidWinner:-1, bidCount:0, scores:[0,0,0], mult:1
++    bidIdx:-1, bidMax:0, bidWinner:-1, bidCount:0, scores:H?H.scores:[0,0,0], mult:1
+   };
+   const deck = shuffle(buildDeck());
+   for(let i=0;i<51;i++) H.hands[i%3].push(deck[i]);
+@@ -551,6 +552,7 @@ function promptBid(){
+   if(H.bidIdx===0){
+     showBidUI();
+   } else {
++    clearButtons();
+     netSend(H.bidIdx, {t:'bidReq', curMax:H.bidMax});
+     setActInfo('等待 玩家'+(H.bidIdx+1)+' 叫分...');
+   }
+@@ -585,7 +587,7 @@ function endBidding(){
+   H.phase='play'; view.phase='play'; H.turn=H.landlord; view.turn=H.landlord;
+   H.lastPlay=null; H.lastPlayer=-1; H.passCount=0;
+   view.lastPlay=null; view.lastPlayer=-1;
+-  log('玩家'+(H.landlord++1)+' 当地主，底分 '+H.bidMax+'，开始出牌');
++  log('玩家'+(H.landlord+1)+' 当地主，底分 '+H.bidMax+'，开始出牌');
+   broadcastState();
+   promptPlay();
+ }
+@@ -597,6 +599,7 @@ function promptPlay(){
+   if(H.turn===0){
+     showPlayUI();
+   } else {
++    clearButtons();
+     netSend(H.turn, {t:'playReq', lastPlay:H.lastPlay});
+     setActInfo('等待 玩家'+(H.turn+1)+' 出牌...');
+   }
+@@ -653,7 +656,7 @@ function endGame(winner){
+   H.phase='over'; view.phase='over';
+   const landlordWin = (winner===H.landlord);
+   const delta = H.bidMax * H.mult;
+-  view.over = {winner, landlord:H.landlord, landlordWin, delta};
++  view.over = {winner, landlord:H.landlord, landlordWin, delta, mult:H.mult, bidMax:H.bidMax};
+   if(landlordWin){ view.scores[H.landlord]+=2*delta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]-=delta; }
+   else { view.scores[H.landlord]-=2*delta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]+=delta; }
+   log((landlordWin?'地主胜':'农民胜')+'，本局倍数 '+H.mult+'，底分 '+H.bidMax);
+@@ -673,7 +676,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='o'){ /* ignore on host */ }
+   } else {
+     if(m.t==='assign'){ myIdx=m.you; view.names[myIdx]='我'; log('已分配座次：玩家'+(myIdx+1)); }
+-    else if(m.t==='deal'){ myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
++    else if(m.t==='deal'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
+     else if(m.t==='bottom'){ myHand = sortHand(myHand.concat(m.cards.map(keyToCard))); view.myHand=myHand; }
+     else if(m.t==='bidReq'){ showBidUI(m.curMax); }
+     else if(m.t==='playReq'){ showPlayUI(m.lastPlay); }
+@@ -790,7 +793,7 @@ function render(){
+   const st=document.getElementById('gameStatus');
+   if(view.over){
+     const win = view.over.landlordWin ? '地主胜' : '农民胜';
+-    st.textContent = '🎉 本局结束：'+win+' ｜ 倍数 '+view.mult+'（仅主机可见）｜ 积分 '+view.scores.join('/');
++    st.textContent = '🎉 本局结束：'+win+' ｜ 本局结算 '+view.over.delta+' 分 ｜ 累计积分 '+view.scores.join('/');
+   } else if(view.phase==='bid'){
+     st.textContent = '🟡 叫地主中 ｜ 当前最高 '+view.points+' 分';
+   } else if(view.phase==='play'){
+@@ -844,10 +847,14 @@ function renderActions(){
+   // 当轮到我且非 over，显示对应面板；否则按主机/客户端状态
+   if(view.over){
+     clearButtons();
+-    setActInfo(view.over.landlordWin ? '地主胜利 🏆' : '农民胜利 🎉');
++    const overText = (view.over.landlordWin ? '地主胜利 🏆' : '农民胜利 🎉') +
++                     ' ｜ 本局结算 '+view.over.delta+' 分';
+     if(role==='host'){
++      setActInfo(overText+' ｜ 你是'+(view.over.landlord===0?'地主':'农民'));
+       const box=document.getElementById('actButtons'); box.innerHTML='';
+       const b=document.createElement('button'); b.textContent='再来一局'; b.onclick=()=>hostStartGame(); box.appendChild(b);
++    } else {
++      setActInfo(overText+' ｜ 你是'+(view.over.landlord===myIdx?'地主':'农民')+' ｜ 等待主机开始下一局...');
+     }
+     return;
+   }
+-- 
+2.45.1.windows.1
+
+
+

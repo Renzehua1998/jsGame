@@ -1,0 +1,249 @@
+From 18f89409b84d17e67cfbc89ecdf8f4a8320d1e44 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 09:09:52 +0800
+Subject: [PATCH 13/36] =?UTF-8?q?feat:=20=E5=87=BA=E7=89=8C60=E7=A7=92?=
+ =?UTF-8?q?=E5=80=92=E8=AE=A1=E6=97=B6=20+=20=E6=98=A5=E5=A4=A9/=E8=83=9C?=
+ =?UTF-8?q?=E8=B4=9F/=E9=A3=9E=E6=9C=BA/=E7=82=B8=E5=BC=B9=E9=9F=B3?=
+ =?UTF-8?q?=E6=95=88?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+倒计时:
+- 每人出牌限时60秒，主机 promptPlay 时 startTurnTimer 设 deadline
+- 剩余<=15秒在闹钟上显示倒计时数字(白字), <=5秒变红放大脉动
+- 剩余<=5秒每秒播放 sound/effect/time.mp3 (主机本地+广播)
+- 超时自动处理: 有上家牌则pass, 自由出则出最小单张
+- hostPlay/hostPass/endGame 清除定时器
+- 主机每秒本地render刷新, 客户端收tick消息更新turnLeft
+
+音效 (sound/effect/):
+- 飞机: 11.mp3 (triggerEffect 飞机时播放+广播)
+- 炸弹: 13.mp3 (bomb时)
+- 王炸: 14.mp3 (rocket时)
+- 春天: spring.mp3 (地主胜且两农民一张没出, 倍数x2)
+- 胜利: win.mp3, 失败: lose.mp3 (按我方胜负播放+广播)
+- onSoundMsg 加 effect 分支由 playEffect 播放
+
+春天判定:
+- 地主胜且两农民手牌仍17张(一张没出) = 春天, 倍数x2
+---
+ css/style.css |  5 ++-
+ js/game.js    | 91 +++++++++++++++++++++++++++++++++++++++++++++++----
+ js/sound.js   |  1 +
+ 3 files changed, 90 insertions(+), 7 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index 2a09856..ce7e860 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -153,7 +153,10 @@ textarea {
+ .sign-zone .sign-label { font-size:10px; color:#ffd54a; }
+ 
+ /* 倒计时闹钟（当前出牌人） */
+-.clock { position:absolute; width:52px; height:58px; z-index:15; animation:clockShake 1s infinite; }
++.clock { position:absolute; width:52px; height:58px; z-index:15; animation:clockShake 1s infinite; display:flex; align-items:center; justify-content:center; }
++.clock-num { color:#fff; font-size:22px; font-weight:bold; text-shadow:0 0 4px #f00, 0 2px 2px #000; z-index:2; }
++.clock-num.urgent { color:#ff4444; font-size:28px; animation:clockPulse .5s infinite; }
++@keyframes clockPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.3);} }
+ @keyframes clockShake { 0%,100%{transform:rotate(-4deg);} 50%{transform:rotate(4deg);} }
+ 
+ /* 座位头像用素材 */
+diff --git a/js/game.js b/js/game.js
+index 57d6230..408b5be 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -10,7 +10,7 @@ let view = {
+   hands:[0,0,0], played:{0:null,1:null,2:null}, lastPlay:null, lastPlayer:-1,
+   bottom:[], bottomShown:false, bidLog:[], scores:[INIT_SCORE,INIT_SCORE,INIT_SCORE],
+   over:null, names:['玩家1','玩家2','玩家3'], myHand:[], round:0, lastEffect:null,
+-  genders:['man','man','man']
++  genders:['man','man','man'], turnDeadline:0, turnLeft:0
+ };
+ let myHand=[];
+ let selected=new Set();
+@@ -72,7 +72,7 @@ function broadcastState(){
+     hands:view.hands, played:view.played, lastPlay:view.lastPlay, lastPlayer:view.lastPlayer,
+     bottom:view.bottom, bottomShown:view.bottomShown, bidLog:view.bidLog.slice(),
+     scores:view.scores, over:view.over, names:view.names, lastEffect:view.lastEffect, round:view.round,
+-    genders:view.genders
++    genders:view.genders, turnDeadline:view.turnDeadline
+   };
+   netBroadcast({t:'state', v:pub});
+   render();
+@@ -130,10 +130,58 @@ function endBidding(){
+   promptPlay();
+ }
+ 
++const TURN_LIMIT = 60;   // 每人出牌限时秒数
++let turnTimer = null;    // 主机出牌倒计时定时器
++let lastTickLeft = -1;   // 上次广播的剩余秒（避免重复广播）
++function clearTurnTimer(){
++  if(turnTimer){ clearInterval(turnTimer); turnTimer=null; }
++  lastTickLeft = -1;
++}
++function startTurnTimer(){
++  clearTurnTimer();
++  if(role!=='host') return;
++  H.deadline = Date.now() + TURN_LIMIT*1000;
++  view.turnDeadline = H.deadline;
++  lastTickLeft = TURN_LIMIT;
++  // 立即广播一次 deadline
++  netBroadcast({t:'tick', left:TURN_LIMIT, deadline:H.deadline});
++  turnTimer = setInterval(()=>{
++    const left = Math.max(0, Math.round((H.deadline - Date.now())/1000));
++    view.turnLeft = left;
++    if(role==='host') render();   // 主机本地刷新倒计时显示
++    if(left <= 15){
++      // 广播剩余秒供客户端显示
++      netBroadcast({t:'tick', left:left, deadline:H.deadline});
++    }
++    if(left <= 5 && left > 0 && lastTickLeft > left){
++      // 播放倒计时音效
++      if(typeof playEffect==='function') playEffect('time');
++      netBroadcast({t:'sound', from:H.turn, kind:'effect', key:'time'});
++    }
++    if(left <= 0){
++      clearTurnTimer();
++      log('玩家'+(H.turn+1)+' 出牌超时');
++      // 超时处理：有上家牌则 pass，无则出最小单张
++      if(H.lastPlay && H.lastPlayer!==H.turn){
++        hostPass(H.turn);
++      } else {
++        // 自由出：出最小单张
++        const hand = H.hands[H.turn];
++        if(hand && hand.length>0){
++          const minCard = hand.slice().sort((a,b)=>a.val-b.val)[0];
++          hostPlay(H.turn, [cardKey(minCard)]);
++        }
++      }
++    }
++    lastTickLeft = left;
++  }, 1000);
++}
++
+ /* ---- 主机：出牌提示 ---- */
+ function promptPlay(){
+   view.turn = H.turn;
+   broadcastState();
++  startTurnTimer();
+   if(H.turn===0){
+     showPlayUI();
+   } else {
+@@ -144,6 +192,7 @@ function promptPlay(){
+ }
+ function hostPlay(senderIdx, keys){
+   if(H.phase!=='play' || senderIdx!==H.turn) return;
++  clearTurnTimer();
+   const cards = keys.map(keyToCard);
+   const handSet = {}; H.hands[senderIdx].forEach(c=>handSet[cardKey(c)]=true);
+   if(!keys.every(k=>handSet[k])) return rejectPlay(senderIdx,'手牌不一致');
+@@ -172,6 +221,7 @@ function hostPlay(senderIdx, keys){
+ }
+ function hostPass(senderIdx){
+   if(H.phase!=='play' || senderIdx!==H.turn) return;
++  clearTurnTimer();
+   if(!H.lastPlay) return rejectPlay(senderIdx,'首出不能 pass');
+   view.played[senderIdx]='pass';
+   H.passCount++;
+@@ -197,15 +247,29 @@ function rejectPlay(idx,msg){
+   if(H.phase==='play') promptPlay(); else if(H.phase==='bid') promptBid();
+ }
+ function endGame(winner){
++  clearTurnTimer();
+   H.phase='over'; view.phase='over';
+   const landlordWin = (winner===H.landlord);
+   const delta = H.bidMax * H.mult;
+-  view.over = {winner, landlord:H.landlord, landlordWin, delta, mult:H.mult, bidMax:H.bidMax};
+-  if(landlordWin){ view.scores[H.landlord]+=2*delta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]-=delta; }
+-  else { view.scores[H.landlord]-=2*delta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]+=delta; }
++  // 春天判定：地主胜且两农民一张牌都没出过（手牌仍17）
++  const isSpring = landlordWin && [0,1,2].filter(i=>i!==H.landlord).every(i=>H.hands[i].length===17);
++  if(isSpring) H.mult *= 2;
++  const finalDelta = H.bidMax * H.mult;
++  view.over = {winner, landlord:H.landlord, landlordWin, delta:finalDelta, mult:H.mult, bidMax:H.bidMax, spring:isSpring};
++  if(landlordWin){ view.scores[H.landlord]+=2*finalDelta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]-=finalDelta; }
++  else { view.scores[H.landlord]-=2*finalDelta; for(let i=0;i<3;i++) if(i!==H.landlord) view.scores[i]+=finalDelta; }
+   H.scores = view.scores.slice();
+-  log((landlordWin?'地主胜':'农民胜')+'，本局倍数 '+H.mult+'，底分 '+H.bidMax+'，结算 '+delta+' 分');
++  log((landlordWin?'地主胜':'农民胜')+'，本局倍数 '+H.mult+'，底分 '+H.bidMax+'，结算 '+finalDelta+' 分'+(isSpring?' [春天]':''));
+   broadcastState();
++  // 胜负音效
++  const iAmLandlord = (H.landlord===0);
++  const iWin = iAmLandlord ? landlordWin : !landlordWin;
++  if(isSpring){
++    if(typeof playEffect==='function') playEffect('spring');
++    netBroadcast({t:'sound', from:-1, kind:'effect', key:'spring'});
++  }
++  if(typeof playEffect==='function') playEffect(iWin?'win':'lose');
++  netBroadcast({t:'sound', from:-1, kind:'effect', key:iWin?'win':'lose'});
+ }
+ 
+ /* ============================================================
+@@ -237,6 +301,7 @@ function onNetMessage(m, slot){
+     else if(m.t==='o'){ rtt=performance.now()-m.time; }
+     else if(m.t==='chat'){ onChatMsg(m.from, m.phrase, m.gender); }
+     else if(m.t==='sound'){ onSoundMsg(m.from, m.kind, m.key, m.gender); }
++    else if(m.t==='tick'){ view.turnLeft = m.left; view.turnDeadline = m.deadline; render(); }
+   }
+   render();
+ }
+@@ -429,6 +494,14 @@ function renderClock(){
+   clock.style.width='52px'; clock.style.height=(r.h*s)+'px';
+   clock.style.backgroundSize=(SHEET_W*s)+'px '+(SHEET_H*s)+'px';
+   clock.style.backgroundPosition=(-r.x*s)+'px '+(-r.y*s)+'px';
++  // 倒计时数字（剩≤15秒显示）
++  const left = (typeof view.turnLeft!=='undefined') ? view.turnLeft : (view.turnDeadline ? Math.max(0, Math.round((view.turnDeadline-Date.now())/1000)) : TURN_LIMIT);
++  if(left <= 15){
++    const num = document.createElement('div');
++    num.className = 'clock-num' + (left<=5?' urgent':'');
++    num.textContent = left;
++    clock.appendChild(num);
++  }
+   if(pos==='me') clock.style.cssText += 'position:absolute;left:50%;bottom:300px;transform:translateX(-50%);';
+   else if(pos==='right') clock.style.cssText += 'position:absolute;right:80px;top:150px;';
+   else clock.style.cssText += 'position:absolute;left:80px;top:150px;';
+@@ -497,6 +570,8 @@ function triggerEffect(typeName){
+   if(effectTimer) clearTimeout(effectTimer);
+   if(typeName==='bomb'){
+     el.classList.add('bomb');
++    if(typeof playEffect==='function') playEffect('13');
++    netBroadcast({t:'sound', from:-1, kind:'effect', key:'13'});
+     const r = SPR.icon_bomb, s = 0.7;
+     const img = document.createElement('div'); img.className='card sprite';
+     img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
+@@ -505,6 +580,8 @@ function triggerEffect(typeName){
+     el.appendChild(img);
+   } else if(typeName==='rocket'){
+     el.classList.add('rocket');
++    if(typeof playEffect==='function') playEffect('14');
++    netBroadcast({t:'sound', from:-1, kind:'effect', key:'14'});
+     const r = SPR.icon_rocket, s = 0.8;
+     const img = document.createElement('div'); img.className='card sprite';
+     img.style.width=(r.w*s)+'px'; img.style.height=(r.h*s)+'px';
+@@ -513,6 +590,8 @@ function triggerEffect(typeName){
+     el.appendChild(img);
+   } else if(typeName==='plane' || typeName==='plane1' || typeName==='plane2'){
+     el.classList.add('plane');
++    if(typeof playEffect==='function') playEffect('11');
++    netBroadcast({t:'sound', from:-1, kind:'effect', key:'11'});
+     const t = document.createElement('div'); t.className='effect-text'; t.textContent='✈ 飞机！';
+     el.appendChild(t);
+   } else if(typeName==='bomb2s' || typeName==='bomb2p'){
+diff --git a/js/sound.js b/js/sound.js
+index 719e623..8ddee71 100644
+--- a/js/sound.js
++++ b/js/sound.js
+@@ -163,6 +163,7 @@ function onChatMsg(from, phrase, gender){
+ 
+ /* 收到出牌声音消息（主机广播）：按出牌人性别播放（含自己出牌，因客户端出牌由主机触发广播） */
+ function onSoundMsg(from, kind, key, gender){
++  if(kind==='effect'){ playEffect(key); return; }   // 音效（time/spring/win/lose/11/13/14）
+   const g = gender || genders[from] || 'man';
+   if(kind==='type') playTypeSound(key, g);
+   else if(kind==='pass') playPassSound(g);
+-- 
+2.45.1.windows.1
+
+
+

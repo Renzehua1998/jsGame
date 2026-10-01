@@ -1,0 +1,162 @@
+From 4bc97680950e828ae1c5b9e9dce7f7a503a984b9 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Thu, 20 Aug 2026 16:13:42 +0800
+Subject: [PATCH 08/36] =?UTF-8?q?refactor:=20=E6=B5=8B=E8=AF=95=E4=BB=A3?=
+ =?UTF-8?q?=E7=A0=81=E4=B8=8E=E7=94=9F=E4=BA=A7=E9=A1=B5=E9=9D=A2=E5=88=86?=
+ =?UTF-8?q?=E7=A6=BB=20+=20=E7=A7=BB=E5=8A=A8=E7=AB=AF=E7=AB=96=E5=B1=8F?=
+ =?UTF-8?q?=E8=87=AA=E5=8A=A8=E6=97=8B=E8=BD=AC=E6=A8=AA=E5=B1=8F?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+测试分离:
+- index.html 不再加载 js/test.js，移除测试按钮与结果面板 DOM
+- test.js 仅作开发时命令行运行 node -e require('./js/test.js') 95/95 通过
+- css 移除 testPanel/testToggle/rotate-hint 样式
+
+移动端竖屏自动横屏:
+- 移除竖屏旋转提示遮罩，改为整体旋转 #app 容器 90 度
+- 竖屏+移动端时 #app fixed width 100vh height 100vw translateX(100vw) rotate(90deg)
+- fitScale 适配 竖屏旋转时有效可视尺寸高当宽宽当高 正确缩放游戏区
+- body overflow hidden 防止旋转后双滚动
+---
+ css/style.css | 46 ++++++++++++----------------------------------
+ index.html    | 18 ++----------------
+ js/main.js    |  6 +++++-
+ 3 files changed, 19 insertions(+), 51 deletions(-)
+
+diff --git a/css/style.css b/css/style.css
+index 33f0018..b96883a 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -194,18 +194,6 @@ textarea {
+ }
+ 
+ /* ============ 移动端 / 横屏适配 ============ */
+-/* 竖屏旋转提示遮罩（移动端竖屏时显示） */
+-.rotate-hint {
+-  display:none; position:fixed; inset:0; z-index:9999;
+-  background:#0f1410; color:#ffd54a;
+-  flex-direction:column; align-items:center; justify-content:center;
+-  text-align:center; padding:30px; gap:18px;
+-}
+-.rotate-hint .icon { font-size:64px; animation:rotHint 2s infinite ease-in-out; }
+-.rotate-hint .msg  { font-size:18px; line-height:1.6; }
+-.rotate-hint .sub  { font-size:13px; color:#888; }
+-@keyframes rotHint { 0%,100%{transform:rotate(-90deg);} 50%{transform:rotate(0deg);} }
+-
+ /* 移动端检测标记：body.mobile 时启用缩放容器 */
+ body.mobile { padding:4px; }
+ body.mobile #gameArea { transform-origin:top center; }
+@@ -225,27 +213,17 @@ body.mobile .seat .count { font-size:11px; }
+ * { -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
+ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:manipulation; }
+ 
+-/* 竖屏（移动端）显示旋转提示 */
++/* 移动端竖屏：整体旋转90度自动横屏（不弹提示，便捷操作） */
+ @media (orientation:portrait) and (max-width:900px){
+-  body.mobile .rotate-hint { display:flex; }
+-}
+-
+-/* ============ 测试面板（开发用） ============ */
+-#testPanel {
+-  position:fixed; right:10px; top:10px; z-index:9000;
+-  background:#1a2418; border:1px solid #ffd54a; border-radius:8px;
+-  padding:10px; max-width:340px; max-height:80vh; overflow:auto;
+-  font-size:12px; color:#9be08a; font-family:monospace;
+-  box-shadow:0 4px 16px rgba(0,0,0,.6);
+-}
+-#testPanel.hidden { display:none; }
+-#testPanel h3 { color:#ffd54a; font-size:13px; margin-bottom:6px; cursor:pointer; }
+-#testPanel .test-result { margin:2px 0; padding:2px 4px; border-radius:3px; }
+-#testPanel .test-ok { color:#6f6; background:rgba(60,180,60,.12); }
+-#testPanel .test-fail { color:#f66; background:rgba(220,60,60,.15); }
+-#testPanel .test-summary { color:#ffd54a; font-weight:bold; margin-top:6px; border-top:1px solid #2e3b2a; padding-top:4px; }
+-#testToggle {
+-  position:fixed; right:10px; top:10px; z-index:9001;
+-  background:#ffd54a; color:#2a1f00; border:none; border-radius:6px;
+-  padding:6px 10px; font-size:12px; font-weight:bold; cursor:pointer;
++  body.mobile { overflow:hidden; }
++  body.mobile #app {
++    position:fixed;
++    top:0; left:0;
++    width:100vh;
++    height:100vw;
++    transform: translateX(100vw) rotate(90deg);
++    transform-origin: top left;
++    overflow-y:auto;
++    overflow-x:hidden;
++  }
+ }
+diff --git a/index.html b/index.html
+index 7be4154..8088554 100644
+--- a/index.html
++++ b/index.html
+@@ -10,12 +10,7 @@
+ <link rel="stylesheet" href="css/style.css">
+ </head>
+ <body>
+-<!-- 竖屏旋转提示（移动端） -->
+-<div class="rotate-hint" id="rotateHint">
+-  <div class="icon">📱</div>
+-  <div class="msg">请将设备横置以获得最佳游戏体验</div>
+-  <div class="sub">斗地主为横屏牌桌布局</div>
+-</div>
++<div id="app">
+ <h1>🃏 P2P 联机斗地主</h1>
+ <p class="subtitle">三人 WebRTC 直连 · 主机权威 · 经典玩法 · 素材切片自 dou.png</p>
+ 
+@@ -27,9 +22,6 @@
+     <button class="secondary" onclick="beClient()">🔗 加入房间（客户端）</button>
+   </div>
+   <p class="copy-hint">💡 三人玩法：1 个主机 + 2 个客户端。主机生成两份邀请码分别发给两位客户端；客户端各自粘贴邀请码、回传应答码即可开局。叫地主按局轮换首叫人。</p>
+-  <div style="text-align:center;margin-top:10px;">
+-    <button class="secondary" id="btnRunTests" onclick="runTests(true)">🧪 运行单元测试</button>
+-  </div>
+ </div>
+ 
+ <!-- 主机：生成两份邀请码 -->
+@@ -134,19 +126,13 @@
+   </div>
+   <div id="logBox"></div>
+ </div>
+-
+-<!-- 测试结果面板 -->
+-<div id="testPanel" class="hidden">
+-  <h3 onclick="document.getElementById('testPanel').classList.add('hidden');document.getElementById('testToggle').style.display='block';">🧪 测试结果 ✕</h3>
+-  <div id="testBody"></div>
+ </div>
+-<button id="testToggle" class="hidden" onclick="document.getElementById('testPanel').classList.remove('hidden');this.style.display='none';">🧪 测试</button>
+ 
++<!-- 测试代码 js/test.js 不在生产页面加载，仅供开发时命令行运行：node -e "require('./js/test.js')" -->
+ <script src="js/cards.js"></script>
+ <script src="js/engine.js"></script>
+ <script src="js/net.js"></script>
+ <script src="js/game.js"></script>
+-<script src="js/test.js"></script>
+ <script src="js/main.js"></script>
+ </body>
+ </html>
+diff --git a/js/main.js b/js/main.js
+index 2981621..a37a21c 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -10,8 +10,12 @@ function fitScale(){
+   if(!ga) return;
+   if(ga.classList.contains('step') && !ga.classList.contains('active')) return;
+   const winW = window.innerWidth, winH = window.innerHeight;
++  // 竖屏时 #app 被旋转90度，有效可视尺寸为 高当宽、宽当高
++  const portraitRotated = winW < winH;
++  const effW = portraitRotated ? winH : winW;
++  const effH = portraitRotated ? winW : winH;
+   const baseW = 1000, baseH = 760;
+-  const s = Math.min(winW/baseW, winH/baseH, 1);
++  const s = Math.min(effW/baseW, effH/baseH, 1);
+   ga.style.transform = `scale(${s})`;
+   ga.style.transformOrigin = 'top center';
+   const newH = baseH * s;
+-- 
+2.45.1.windows.1
+
+
+

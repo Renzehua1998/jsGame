@@ -1,0 +1,179 @@
+From 8771f165bd1d4adf655bd0d2ce84bff181ec3230 Mon Sep 17 00:00:00 2001
+From: 123 <123@123.com>
+Date: Fri, 21 Aug 2026 15:37:52 +0800
+Subject: [PATCH 26/36] =?UTF-8?q?feat:=20=E6=88=98=E7=BB=A9=E7=BB=9F?=
+ =?UTF-8?q?=E8=AE=A1=20-=20=E8=83=9C=E7=8E=87/=E5=9C=B0=E4=B8=BB=E8=83=9C?=
+ =?UTF-8?q?=E7=8E=87/=E7=B4=AF=E8=AE=A1=E7=A7=AF=E5=88=86=E5=9B=BE?=
+ =?UTF-8?q?=E8=A1=A8?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- endGame记录每局结果到localStorage(matchHistory)
+- 设置面板加战绩按钮, 弹层显示:
+  - 总局数/我的胜场/胜率/地主胜率/农民胜率/累计积分
+  - canvas绘制累计积分折线图(含零线+填充)
+  - 最近10局对局历史(局数/胜负/倍数/春天/积分)
+- 支持清空战绩记录
+- getStats聚合计算各项数据
+---
+ css/style.css |  9 +++++
+ index.html    | 19 +++++++++++
+ js/game.js    | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 119 insertions(+)
+
+diff --git a/css/style.css b/css/style.css
+index a187217..f93b810 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -360,3 +360,12 @@ body.mobile .card-wrap, body.mobile .img-btn, body.mobile button { touch-action:
+ .reconnect-box p { color:#ccc; font-size:14px; line-height:1.6; }
+ .reconnect-box textarea { width:100%; min-height:80px; margin:6px 0; box-sizing:border-box; }
+ .reconnect-box .chat-close { position:absolute; top:-12px; right:-12px; }
++
++/* 战绩统计 */
++.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px; }
++.stat-item { background:rgba(0,0,0,.3); border-radius:8px; padding:10px 6px; text-align:center; }
++.stat-num { font-size:22px; font-weight:bold; color:var(--accent); }
++.stat-label { font-size:11px; color:#aaa; margin-top:2px; }
++.stats-history { max-height:200px; overflow-y:auto; }
++.hist-row { display:flex; justify-content:space-between; padding:4px 8px; border-bottom:1px solid rgba(255,255,255,.08); font-size:12px; color:#ccc; }
++.hist-row span:first-child { color:var(--accent); }
+diff --git a/index.html b/index.html
+index d3764b1..ad6caaf 100644
+--- a/index.html
++++ b/index.html
+@@ -199,6 +199,25 @@
+         <option value="dark">夜间</option>
+       </select>
+     </div>
++    <div class="settings-row">
++      <button class="secondary" style="width:100%;font-size:13px;padding:6px;" onclick="showStats()">📊 战绩统计</button>
++    </div>
++    <button class="chat-close" onclick="toggleSettings(false)">✕</button>
++  </div>
++</div>
++
++<!-- 战绩面板 -->
++<div id="statsPanel" class="reconnect-overlay" style="display:none;">
++  <div class="reconnect-box" style="max-width:500px;">
++    <h3>📊 战绩统计</h3>
++    <div id="statsContent"></div>
++    <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">
++      <button class="secondary" onclick="clearStats()">清空记录</button>
++      <button onclick="closeStats()">关闭</button>
++    </div>
++    <button class="chat-close" onclick="closeStats()">✕</button>
++  </div>
++</div>
+     <button class="chat-close" onclick="toggleSettings(false)">✕</button>
+   </div>
+   <div id="logBox"></div>
+diff --git a/js/game.js b/js/game.js
+index 4e85f61..ae9110c 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -486,7 +486,98 @@ function endGame(winner){
+   }
+   if(typeof playEffect==='function') playEffect(iWin?'win':'lose');
+   netBroadcast({t:'sound', from:-1, kind:'effect', key:iWin?'win':'lose'});
++  // 记录战绩（仅主机）
++  recordMatch({
++    round: H.round, landlord: H.landlord, landlordWin, delta: finalDelta,
++    mult: H.mult, bidMax: H.bidMax, spring: isSpring,
++    scores: view.scores.slice(), names: view.names.slice(), time: Date.now()
++  });
++}
++
++/* ---- 战绩统计 ---- */
++let matchHistory = [];
++try{ const h = localStorage.getItem('dou_history'); if(h) matchHistory = JSON.parse(h); }catch(e){}
++function recordMatch(rec){
++  matchHistory.push(rec);
++  try{ localStorage.setItem('dou_history', JSON.stringify(matchHistory)); }catch(e){}
++}
++function getStats(){
++  const total = matchHistory.length;
++  if(total===0) return {total:0};
++  let myWins=0, myLandlord=0, myLandlordWins=0, myFarmer=0, myFarmerWins=0;
++  const scoreChart = []; // 累计积分折线
++  let runningScore = 0;
++  matchHistory.forEach(r=>{
++    const iAmLandlord = (r.landlord===0);
++    const iWin = iAmLandlord ? r.landlordWin : !r.landlordWin;
++    if(iAmLandlord){ myLandlord++; if(r.landlordWin) myLandlordWins++; }
++    else { myFarmer++; if(!r.landlordWin) myFarmerWins++; }
++    if(iWin) myWins++;
++    runningScore += iAmLandlord ? (r.landlordWin? 2*r.delta : -2*r.delta) : (r.landlordWin? -r.delta : r.delta);
++    scoreChart.push(runningScore);
++  });
++  return {
++    total, myWins, myLandlord, myLandlordWins, myFarmer, myFarmerWins,
++    winRate: Math.round(myWins/total*100),
++    landlordWinRate: myLandlord>0?Math.round(myLandlordWins/myLandlord*100):0,
++    farmerWinRate: myFarmer>0?Math.round(myFarmerWins/myFarmer*100):0,
++    scoreChart, finalScore: runningScore
++  };
++}
++function showStats(){
++  const panel=document.getElementById('statsPanel'); if(!panel) return;
++  panel.style.display='flex';
++  const s = getStats();
++  const content=document.getElementById('statsContent');
++  if(s.total===0){
++    content.innerHTML='<p style="text-align:center;color:#888;">暂无战绩记录</p>';
++    return;
++  }
++  content.innerHTML =
++    '<div class="stats-grid">'+
++      '<div class="stat-item"><div class="stat-num">'+s.total+'</div><div class="stat-label">总局数</div></div>'+
++      '<div class="stat-item"><div class="stat-num">'+s.myWins+'</div><div class="stat-label">我的胜场</div></div>'+
++      '<div class="stat-item"><div class="stat-num">'+s.winRate+'%</div><div class="stat-label">胜率</div></div>'+
++      '<div class="stat-item"><div class="stat-num">'+s.myLandlordWins+'/'+s.myLandlord+'</div><div class="stat-label">地主胜率 '+s.landlordWinRate+'%</div></div>'+
++      '<div class="stat-item"><div class="stat-num">'+s.myFarmerWins+'/'+s.myFarmer+'</div><div class="stat-label">农民胜率 '+s.farmerWinRate+'%</div></div>'+
++      '<div class="stat-item"><div class="stat-num" style="color:'+(s.finalScore>=0?'#7fff7f':'#ff7f7f')+'">'+s.finalScore+'</div><div class="stat-label">累计积分</div></div>'+
++    '</div>'+
++    '<h4 style="color:var(--accent);margin:12px 0 6px;">累计积分走势</h4>'+
++    '<canvas id="scoreChart" width="420" height="120" style="background:rgba(0,0,0,.3);border-radius:8px;"></canvas>'+
++    '<h4 style="color:var(--accent);margin:12px 0 6px;">最近对局</h4>'+
++    '<div class="stats-history">'+matchHistory.slice(-10).reverse().map(r=>
++      '<div class="hist-row"><span>第'+r.round+'局</span><span>'+(r.landlordWin?'地主胜':'农民胜')+'</span><span>倍'+r.mult+'</span><span>'+(r.spring?'春天':'')+'</span><span>'+r.scores.join('/')+'</span></div>'
++    ).join('')+'</div>';
++  // 绘制折线图
++  setTimeout(()=>drawScoreChart(s.scoreChart), 50);
++}
++function drawScoreChart(data){
++  const cv=document.getElementById('scoreChart'); if(!cv) return;
++  const ctx=cv.getContext('2d');
++  const w=cv.width, h=cv.height, pad=10;
++  ctx.clearRect(0,0,w,h);
++  if(data.length<2) return;
++  const max=Math.max(...data), min=Math.min(...data);
++  const range=max-min||1;
++  // 零线
++  const zeroY = h-pad - (0-min)/range*(h-2*pad);
++  if(0>=min && 0<=max){
++    ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.beginPath(); ctx.moveTo(pad,zeroY); ctx.lineTo(w-pad,zeroY); ctx.stroke();
++  }
++  // 折线
++  ctx.strokeStyle='#ffd54a'; ctx.lineWidth=2; ctx.beginPath();
++  data.forEach((v,i)=>{
++    const x=pad+i/(data.length-1)*(w-2*pad);
++    const y=h-pad-(v-min)/range*(h-2*pad);
++    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
++  });
++  ctx.stroke();
++  // 填充
++  ctx.lineTo(w-pad,h-pad); ctx.lineTo(pad,h-pad); ctx.closePath();
++  ctx.fillStyle='rgba(255,213,74,.12)'; ctx.fill();
+ }
++function closeStats(){ const p=document.getElementById('statsPanel'); if(p) p.style.display='none'; }
++function clearStats(){ if(confirm('确定清空所有战绩记录？')){ matchHistory=[]; try{localStorage.removeItem('dou_history');}catch(e){} showStats(); } }
+ 
+ /* ============================================================
+    网络消息路由
+-- 
+2.45.1.windows.1
+
+
+
