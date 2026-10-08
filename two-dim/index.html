@@ -1,0 +1,2255 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二向箔 · 二维化模拟</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #scene { display: block; width: 100vw; height: 100vh; }
+    #hud {
+      position: fixed;
+      left: 16px;
+      bottom: 14px;
+      color: #6fa8dc;
+      font: 12px/1.6 Consolas, "Courier New", monospace;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(111, 168, 220, 0.6);
+      pointer-events: none;
+      user-select: none;
+    }
+    #stats {
+      position: fixed;
+      right: 16px;
+      top: 14px;
+      color: #7fe0c0;
+      font: 12px/1.6 Consolas, "Courier New", monospace;
+      text-shadow: 0 0 8px rgba(127, 224, 192, 0.5);
+      pointer-events: none;
+      user-select: none;
+      text-align: right;
+      white-space: pre;
+    }
+    /* 屏幕上的物体切换按钮 */
+    #objects {
+      position: fixed;
+      left: 16px;
+      top: 14px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .objBtn {
+      cursor: pointer;
+      text-align: left;
+      border: 1px solid rgba(90,140,190,0.35);
+      background: rgba(12,26,44,0.55);
+      color: #9fc4e8;
+      padding: 6px 12px;
+      font: 12px/1.2 "Microsoft YaHei", Consolas, monospace;
+      letter-spacing: 1px;
+      border-radius: 2px;
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .objBtn:hover { background: rgba(30,60,100,0.7); color: #e0f2ff; }
+    #objects a.objBtn {
+      text-decoration: none;
+      text-align: center;
+      color: #7fe0c0;
+      border-color: rgba(127,224,192,0.35);
+    }
+    #objects a.objBtn:hover { background: rgba(20,60,50,0.7); color: #dffff2; }
+    .objBtn.active {
+      background: rgba(40,90,150,0.78);
+      color: #ffffff;
+      border-color: rgba(140,210,255,0.9);
+      box-shadow: 0 0 16px rgba(120,200,255,0.6);
+    }
+    /* 观测目标列表的收起/展开 */
+    #objToggle {
+      font-weight: 600;
+      color: #bcd8f4;
+      border-color: rgba(140,200,255,0.55);
+      background: rgba(20,40,70,0.72);
+    }
+    #objectList {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+      max-height: 2600px;
+      opacity: 1;
+      transition: max-height 0.30s ease, opacity 0.22s ease;
+    }
+    #objects.collapsed #objectList {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: radial-gradient(circle at 50% 50%, rgba(8,14,30,0.55), rgba(0,0,0,0.92));
+      transition: opacity 0.6s ease;
+    }
+    #start.hidden { opacity: 0; pointer-events: none; }
+    #start h1 {
+      color: #bfe6ff;
+      font: 200 40px/1.2 "Microsoft YaHei", Consolas, monospace;
+      letter-spacing: 16px;
+      text-indent: 16px;
+      text-shadow: 0 0 26px rgba(90,180,255,0.8);
+    }
+    #start .sub {
+      color: #5d7fa5;
+      font: 13px/1.6 "Microsoft YaHei", Consolas, monospace;
+      letter-spacing: 4px;
+    }
+    #start .objname {
+      color: #8fd0ff;
+      font: 18px/1.3 "Microsoft YaHei", Consolas, monospace;
+      letter-spacing: 6px;
+      text-shadow: 0 0 18px rgba(120,200,255,0.8);
+    }
+    #start .hint {
+      color: #46617f;
+      font: 12px/1.6 "Microsoft YaHei", Consolas, monospace;
+      letter-spacing: 2px;
+    }
+    #startBtn {
+      cursor: pointer;
+      border: 1px solid rgba(120,200,255,0.6);
+      background: rgba(20,50,90,0.35);
+      color: #dff2ff;
+      padding: 12px 44px;
+      letter-spacing: 8px;
+      text-indent: 8px;
+      font: 14px/1 "Microsoft YaHei", Consolas, monospace;
+      border-radius: 2px;
+      box-shadow: 0 0 24px rgba(80,170,255,0.35), inset 0 0 18px rgba(80,170,255,0.15);
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+    #startBtn:hover {
+      background: rgba(40,90,150,0.55);
+      box-shadow: 0 0 44px rgba(120,200,255,0.75), inset 0 0 22px rgba(120,200,255,0.25);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="hud">拖拽旋转 · 滚轮缩放 · 右键平移 · 1-9/按钮 切换物体 · X 透视 · [ ] 变速 · P 暂停 · V 远端 · S 侧视 · R 重放</div>
+  <div id="stats"></div>
+  <div id="objects"></div>
+
+  <div id="start">
+    <h1>二 向 箔</h1>
+    <div class="sub">二维化降维打击模拟</div>
+    <div class="objname" id="objName">类地行星</div>
+    <div class="hint">左上角可切换观测目标 · 底部「数学原理」查看交互讲解</div>
+    <button id="startBtn">点 击 开 始</button>
+  </div>
+
+  <!--
+    使用经典脚本（非 ES Module），保证本地双击 file:// 打开即可运行。
+    注意加载顺序：shaders → Pass → MaskPass/ShaderPass → EffectComposer → RenderPass → UnrealBloomPass
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var canvas = document.getElementById("scene");
+      var statsEl = document.getElementById("stats");
+      var startEl = document.getElementById("start");
+      var startBtn = document.getElementById("startBtn");
+      var objNameEl = document.getElementById("objName");
+      var objectsEl = document.getElementById("objects");
+
+      // 渲染器
+      var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // 场景与深邃宇宙背景色
+      var scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x03040a);
+
+      // 透视相机
+      var camera = new THREE.PerspectiveCamera(
+        55,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        20000
+      );
+      camera.position.set(0, 8, 26);
+      camera.lookAt(0, 0, 0);
+
+      // 坐标轴辅助器
+      scene.add(new THREE.AxesHelper(9));
+
+      // ------------------------------------------------------------------
+      // 星空
+      // ------------------------------------------------------------------
+      (function buildStars() {
+        var starCount = 3000;
+        var starGeo = new THREE.BufferGeometry();
+        var positions = new Float32Array(starCount * 3);
+        for (var i = 0; i < starCount; i++) {
+          var r = 900 + Math.random() * 2500;
+          var theta = Math.random() * Math.PI * 2;
+          var phi = Math.acos(2 * Math.random() - 1);
+          positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+          positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+          positions[i * 3 + 2] = r * Math.cos(phi);
+        }
+        starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        var starMat = new THREE.PointsMaterial({
+          color: 0xffffff,
+          size: 3,
+          sizeAttenuation: true,
+          transparent: true,
+          opacity: 0.85,
+          depthWrite: false
+        });
+        scene.add(new THREE.Points(starGeo, starMat));
+      })();
+
+      // ------------------------------------------------------------------
+      // 3D 值噪声（用于陆地/海洋、恒星米粒、气巨条带、小行星凹凸）
+      // ------------------------------------------------------------------
+      function hash3(i, j, k) {
+        var h = (Math.imul(i, 374761393) +
+                 Math.imul(j, 668265263) +
+                 Math.imul(k, 1274126177)) | 0;
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        h = h ^ (h >>> 16);
+        return (h >>> 0) / 4294967296;
+      }
+      function noise3(x, y, z) {
+        var xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+        var xf = x - xi, yf = y - yi, zf = z - zi;
+        var u = xf * xf * (3 - 2 * xf);
+        var v = yf * yf * (3 - 2 * yf);
+        var w = zf * zf * (3 - 2 * zf);
+        var n000 = hash3(xi, yi, zi),     n100 = hash3(xi + 1, yi, zi);
+        var n010 = hash3(xi, yi + 1, zi), n110 = hash3(xi + 1, yi + 1, zi);
+        var n001 = hash3(xi, yi, zi + 1), n101 = hash3(xi + 1, yi, zi + 1);
+        var n011 = hash3(xi, yi + 1, zi + 1), n111 = hash3(xi + 1, yi + 1, zi + 1);
+        var a = n000 + (n100 - n000) * u;
+        var b = n010 + (n110 - n010) * u;
+        var c = n001 + (n101 - n001) * u;
+        var d = n011 + (n111 - n011) * u;
+        var e = a + (b - a) * v;
+        var f = c + (d - c) * v;
+        return e + (f - e) * w;
+      }
+      function fbm(x, y, z) {
+        var s = 0, amp = 0.5, freq = 1;
+        for (var o = 0; o < 4; o++) {
+          s += amp * noise3(x * freq, y * freq, z * freq);
+          freq *= 2.07;
+          amp *= 0.5;
+        }
+        return s / 0.9375;
+      }
+      function fbm2(x, y, z) {   // 轻量 2 阶，供小行星凹凸使用
+        return (0.5 * noise3(x, y, z) + 0.25 * noise3(x * 2.1 + 5.2, y * 2.1, z * 2.1)) / 0.75;
+      }
+      function mixHex(a, b, k) {
+        var ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+        var br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+        return [
+          (ar + (br - ar) * k) / 255,
+          (ag + (bg - ag) * k) / 255,
+          (ab + (bb - ab) * k) / 255
+        ];
+      }
+      function hexF(h) {
+        return [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
+      }
+      function buildLUT(stops) {
+        var n = 256, out = new Array(n), seg = 0;
+        for (var i = 0; i < n; i++) {
+          var t = i / (n - 1);
+          while (seg < stops.length - 2 && t > stops[seg + 1][0]) seg++;
+          var a = stops[seg], b = stops[seg + 1];
+          var k = (t - a[0]) / (b[0] - a[0]);
+          if (k < 0) k = 0; else if (k > 1) k = 1;
+          out[i] = [
+            a[1][0] + (b[1][0] - a[1][0]) * k,
+            a[1][1] + (b[1][1] - a[1][1]) * k,
+            a[1][2] + (b[1][2] - a[1][2]) * k
+          ];
+        }
+        return out;
+      }
+
+      // ==================================================================
+      //  物体生成：每个物体由若干“层”组成，密度用粒子数加权表达
+      //  所有物体以原点为中心、Z 为跌落轴；radius 为特征尺寸
+      // ==================================================================
+      var BASE_COUNT = 1500000;
+      var currentObject = 0;
+      var currentRadius = 5;
+      var currentExtent = 5;   // 含环等外部结构的最大横向半径，用于相机 framing
+      var currentCount = BASE_COUNT;
+
+      function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
+
+      // 体积均匀地在球壳 [f0,f1] 内采样（返回归一化半径比例）
+      function shellFrac(f0, f1) {
+        return Math.cbrt(f0 * f0 * f0 + Math.random() * (f1 * f1 * f1 - f0 * f0 * f0));
+      }
+      // 球面均匀方向写入 dx,dy,dz
+      function randDir(out) {
+        var th = Math.random() * Math.PI * 2;
+        var cz = 2 * Math.random() - 1;
+        var s = Math.sqrt(1 - cz * cz);
+        out[0] = s * Math.cos(th);
+        out[1] = s * Math.sin(th);
+        out[2] = cz;
+      }
+
+      // ---- 类地行星：分层 + fbm 陆地/海洋 ----
+      var EARTH_STOPS = [
+        [0.00, hexF(0xfff2a0)],
+        [0.16, hexF(0xff7a10)],
+        [0.36, hexF(0xc02000)],
+        [0.62, hexF(0x4a0800)],
+        [0.86, hexF(0x1b0d08)],
+        [1.00, hexF(0x1b0d08)]
+      ];
+      var earthLUT = buildLUT(EARTH_STOPS);
+      function buildEarth(P, C, count, R) {
+        var SEA = 0.50, CRUST0 = 0.88, CRUST1 = 0.99, LN = earthLUT.length;
+        var d = [0, 0, 0];
+        for (var i = 0; i < count; i++) {
+          var radius = R * shellFrac(0, 1);
+          randDir(d);
+          var x = radius * d[0], y = radius * d[1], z = radius * d[2];
+          var i3 = i * 3;
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+
+          var t = radius / R;
+          var c = earthLUT[(t * (LN - 1)) | 0];
+          var r = c[0], g = c[1], b = c[2];
+
+          var w = (t - CRUST0) / (CRUST1 - CRUST0);
+          if (w > 0) {
+            if (w > 1) w = 1;
+            var n = fbm(d[0] * 2.2 + 11.3, d[1] * 2.2 + 4.7, d[2] * 2.2 + 19.1);
+            n = (n - 0.5) * 1.6 + 0.5;
+            if (n < 0) n = 0; else if (n > 1) n = 1;
+            var sc;
+            if (n > SEA) sc = mixHex(0x2f7d32, 0x9c8f4e, (n - SEA) / (1 - SEA));
+            else sc = mixHex(0x08305e, 0x1f7fb0, n / SEA);
+            r += (sc[0] - r) * w; g += (sc[1] - g) * w; b += (sc[2] - b) * w;
+          }
+          C[i3] = r; C[i3 + 1] = g; C[i3 + 2] = b;
+        }
+      }
+
+      // ---- 恒星：核 / 辐射层 / 对流层 / 光球（米粒组织）----
+      function buildStar(P, C, count, R) {
+        // [f0,f1, c0, c1, weight, brightness]
+        var L = [
+          [0.00, 0.25, 0xfff8e0, 0xffd070, 0.22, 1.55],
+          [0.25, 0.60, 0xffc040, 0xff8020, 0.30, 1.30],
+          [0.60, 0.90, 0xff6020, 0xff3010, 0.30, 1.05],
+          [0.90, 1.00, 0xffdc80, 0xffa030, 0.18, 1.15]
+        ];
+        var cum = [], acc = 0, j;
+        for (j = 0; j < L.length; j++) { acc += L[j][4]; cum.push(acc); }
+        var d = [0, 0, 0];
+        for (var i = 0; i < count; i++) {
+          var u = Math.random(), li = 0;
+          while (li < L.length - 1 && u > cum[li]) li++;
+          var ly = L[li];
+          var f = shellFrac(ly[0], ly[1]);
+          var radius = R * f;
+          randDir(d);
+          var i3 = i * 3;
+          P[i3] = radius * d[0]; P[i3 + 1] = radius * d[1]; P[i3 + 2] = radius * d[2];
+
+          var lt = (f - ly[0]) / (ly[1] - ly[0]);
+          if (lt < 0) lt = 0; else if (lt > 1) lt = 1;
+          var col = mixHex(ly[2], ly[3], lt);
+          var br = ly[5];
+          if (li === L.length - 1) {
+            br *= 0.75 + 0.5 * fbm(d[0] * 6 + 3.1, d[1] * 6 + 7.7, d[2] * 6 + 1.3);
+          }
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 气态巨行星：内核 / 金属氢 / 液氢 / 大气带 + 冰环 ----
+      function buildGasGiant(P, C, count, R) {
+        var L = [
+          [0.00, 0.15, 0xffb050, 0xff7030, 0.16, 1.10],
+          [0.15, 0.45, 0x6038b0, 0x3a2090, 0.24, 0.90],
+          [0.45, 0.75, 0x4060d0, 0x2f50b0, 0.24, 0.90],
+          [0.75, 1.00, 0xd8c090, 0xb08050, 0.24, 0.95]
+        ];
+        var cum = [], acc = 0, j;
+        for (j = 0; j < L.length; j++) { acc += L[j][4]; cum.push(acc); }
+        var ringShare = 0.16;
+        var total = acc + ringShare;
+        var d = [0, 0, 0];
+        var rIn = 1.40 * R, rOut = 1.75 * R;
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3;
+          var u = Math.random();
+          if (u > acc / total) {          // 冰环（赤道面薄环）
+            var rr = Math.sqrt(rIn * rIn + Math.random() * (rOut * rOut - rIn * rIn));
+            var ang = Math.random() * Math.PI * 2;
+            P[i3] = rr * Math.cos(ang);
+            P[i3 + 1] = rr * Math.sin(ang);
+            P[i3 + 2] = (Math.random() - 0.5) * 0.05 * R;
+            var rc = mixHex(0xdfe8f0, 0x9fb4c8, (rr - rIn) / (rOut - rIn));
+            C[i3] = rc[0] * 0.9; C[i3 + 1] = rc[1] * 0.9; C[i3 + 2] = rc[2] * 0.9;
+            continue;
+          }
+          var li = 0;
+          while (li < L.length - 1 && u > cum[li]) li++;
+          var ly = L[li];
+          var radius = R * shellFrac(ly[0], ly[1]);
+          randDir(d);
+          P[i3] = radius * d[0]; P[i3 + 1] = radius * d[1]; P[i3 + 2] = radius * d[2];
+
+          var lt = (radius / R - ly[0]) / (ly[1] - ly[0]);
+          if (lt < 0) lt = 0; else if (lt > 1) lt = 1;
+          var col = mixHex(ly[2], ly[3], lt);
+          var br = ly[5];
+          if (li === L.length - 1) {      // 大气纬向条带
+            var band = 0.5 + 0.5 * Math.sin(d[2] * 16.0);
+            col = mixHex(0xe8d2a0, 0x9a6a40, band);
+            br = 0.95;
+          }
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 星际战舰：流线主体 / 桥楼 / 上下引擎舱 / 后掠机翼 / 背鳍 / 炮塔 / 舷窗 / 引擎辉光 ----
+      function buildStarship(P, C, count, R) {
+        var a = R;   // 沿 X 的半长（船首朝 +X）；Y 为垂直方向（默认视角可见）
+        // 组件占比：外壳 .27 | 桥楼 .06 | 机翼 .12 | 引擎舱 .15 | 辉光 .05
+        //           炮塔 .06 | 舷窗 .05 | 背鳍 .06 | 细节 .18
+        var cum = [0.27, 0.33, 0.45, 0.60, 0.65, 0.71, 0.76, 0.82, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x = 0, y = 0, z = 0, col, br = 1.0;
+          if (u < cum[0]) {                     // 主体外壳：两端收窄的流线体
+            x = (Math.random() * 2 - 1) * a;
+            var t = clamp01((x + a) / (2 * a));
+            var prof = Math.pow(Math.sin(Math.PI * t), 0.5);
+            var hy = 0.30 * R * prof, hz = 0.22 * R * prof;
+            var ang = Math.random() * Math.PI * 2;
+            var rr = Math.random() < 0.62 ? 1.0 : Math.sqrt(Math.random());
+            y = Math.sin(ang) * hy * rr;
+            z = Math.cos(ang) * hz * rr;
+            col = mixHex(0xc6ced6, 0x606a74, 0.30 + 0.50 * Math.random());
+            if (Math.abs(y) < 0.015 * R)        // 纵向装甲带
+              col = mixHex(0x323a42, 0x232a31, Math.random());
+          } else if (u < cum[1]) {              // 桥楼（顶部靠船首）
+            x = 0.16 * R + Math.random() * 0.22 * R;
+            y = 0.28 * R + Math.random() * 0.16 * R;
+            z = (Math.random() * 2 - 1) * 0.12 * R;
+            col = mixHex(0x8c98a4, 0x4e5862, Math.random());
+          } else if (u < cum[2]) {              // 后掠机翼（带上反角，侧视可见）
+            var sideW = Math.random() < 0.5 ? -1 : 1;
+            x = -0.10 * R - Math.random() * 0.62 * R;
+            z = sideW * (0.12 * R + Math.random() * 0.55 * R);
+            y = sideW * (0.04 * R + Math.random() * 0.17 * R);
+            col = mixHex(0xbec6d0, 0x55606a, Math.random());
+            br = 0.95;
+          } else if (u < cum[3]) {              // 引擎舱（尾部上下两根圆筒）
+            var sideN = Math.random() < 0.5 ? -1 : 1;
+            var cy = sideN * 0.30 * R;
+            x = -0.50 * R - Math.random() * 0.40 * R;
+            var an = Math.random() * Math.PI * 2;
+            var rad = 0.10 * R;
+            if (Math.random() < 0.68) {         // 筒壁
+              y = cy + Math.cos(an) * rad;
+              z = Math.sin(an) * rad;
+            } else {                            // 筒内
+              var rf = Math.sqrt(Math.random());
+              y = cy + Math.cos(an) * rad * rf;
+              z = Math.sin(an) * rad * rf;
+            }
+            col = mixHex(0x9aa4ae, 0x464f58, Math.random());
+          } else if (u < cum[4]) {              // 引擎辉光（喷口）
+            var sideG = Math.random() < 0.5 ? -1 : 1;
+            x = -0.90 * R - Math.random() * 0.55 * R;
+            var ag = Math.random() * Math.PI * 2;
+            var gr = 0.09 * R * Math.sqrt(Math.random());
+            y = sideG * 0.30 * R + Math.cos(ag) * gr;
+            z = Math.sin(ag) * gr;
+            col = mixHex(0xe6f6ff, 0x36a0ff, Math.random());
+            br = 1.9;
+          } else if (u < cum[5]) {              // 炮塔
+            x = (Math.random() * 2 - 1) * 0.72 * R;
+            var tp = Math.pow(Math.sin(Math.PI * clamp01((x + a) / (2 * a))), 0.5);
+            y = 0.30 * R * tp + 0.02 * R;
+            z = (Math.random() * 2 - 1) * 0.10 * R;
+            col = mixHex(0x6e7882, 0x343d46, Math.random());
+            br = 0.9;
+          } else if (u < cum[6]) {              // 舷窗（自发光）
+            x = (Math.random() * 2 - 1) * 0.80 * R;
+            var wp = Math.pow(Math.sin(Math.PI * clamp01((x + a) / (2 * a))), 0.5);
+            var wa = Math.random() * Math.PI * 2;
+            y = Math.sin(wa) * 0.30 * R * wp * 1.02;
+            z = Math.cos(wa) * 0.22 * R * wp * 1.02;
+            col = mixHex(0xfff0c0, 0x86d2ff, Math.random());
+            br = 1.6;
+          } else if (u < cum[7]) {              // 背鳍 / 腹鳍（竖直薄板）
+            var sideF = Math.random() < 0.5 ? 1 : -1;
+            x = -0.30 * R - Math.random() * 0.55 * R;
+            y = sideF * (0.30 * R + Math.random() * 0.30 * R);
+            z = (Math.random() * 2 - 1) * 0.012 * R;
+            col = mixHex(0x929ca6, 0x4a545e, Math.random());
+            br = 0.95;
+          } else {                              // 细节 / 天线 / 桁架
+            x = (Math.random() * 2 - 1) * a * 0.92;
+            var dp = Math.pow(Math.sin(Math.PI * clamp01((x + a) / (2 * a))), 0.5);
+            y = (Math.random() * 2 - 1) * 0.34 * R * dp;
+            z = (Math.random() * 2 - 1) * 0.24 * R * dp;
+            col = mixHex(0x525c66, 0x2b333b, Math.random());
+            br = 0.85;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // 城市照明：以三颗太阳沿轴的带状光晕近似
+      function cityLight(z, SUNZ, H) {
+        var best = 0;
+        for (var s = 0; s < SUNZ.length; s++) {
+          var dz = (z - SUNZ[s]) / (0.42 * H);
+          var v = Math.exp(-dz * dz);
+          if (v > best) best = v;
+        }
+        return best;
+      }
+
+      // ---- 太空城：圆柱外壳 / 内壁一圈城市（楼房轮廓 + 灯光）/ 三颗核聚变太阳 ----
+      function buildSpaceCity(P, C, count, R) {
+        var H = 1.0 * R;                 // 沿 Z（圆柱轴，也是跌落轴）的半长
+        var rWall = 0.95 * R;            // 外壳半径
+        var cityR = 0.86 * R;            // 城市内壁半径
+        var SUNZ = [-0.55 * H, 0, 0.55 * H];
+        var SUNC = [[0xfff6da, 0xffc25f], [0xfff6da, 0xffb040], [0xfff6da, 0xffc25f]];
+        // 预生成楼房（高度沿径向朝轴）
+        var NB = 200, bld = [];
+        for (var b = 0; b < NB; b++) {
+          var th = (b / NB) * Math.PI * 2 + (Math.random() - 0.5) * 0.028;
+          var hh = 0.06 * R + Math.random() * 0.30 * R;
+          var rb = cityR - Math.random() * 0.03 * R;
+          var rt = rb - hh;
+          var bz = 0.010 * R + Math.random() * 0.045 * R;   // 半厚（沿轴）
+          var z0 = (Math.random() * 2 - 1) * (H - bz - 0.06 * R);
+          var bw = 0.018 * R + Math.random() * 0.040 * R;   // 半宽（切向）
+          bld.push([th, rb, rt, bz, z0, bw]);
+        }
+        var d = [0, 0, 0];
+        // 组件占比：外壳 .30 | 结构环 .08 | 城市地面 .12 | 楼房 .32 | 灯光 .12 | 太阳 .06
+        var cum = [0.30, 0.38, 0.50, 0.82, 0.94, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x = 0, y = 0, z = 0, col, br = 1.0;
+          if (u < cum[0]) {                 // 圆柱外壳
+            var ang = Math.random() * Math.PI * 2;
+            x = Math.cos(ang) * rWall;
+            y = Math.sin(ang) * rWall;
+            z = (Math.random() * 2 - 1) * H;
+            col = mixHex(0xa6bfd2, 0x496172, Math.random());
+            br = 0.85;
+          } else if (u < cum[1]) {          // 周向结构环
+            z = ((Math.floor(Math.random() * 11) / 10) * 2 - 1) * H * 0.97;
+            var ang2 = Math.random() * Math.PI * 2;
+            x = Math.cos(ang2) * rWall;
+            y = Math.sin(ang2) * rWall;
+            col = mixHex(0x6d8ba0, 0x30455a, Math.random());
+            br = 0.92;
+          } else if (u < cum[2]) {          // 城市地面（内壁环带）
+            var ang3 = Math.random() * Math.PI * 2;
+            var rg = cityR * (0.98 + Math.random() * 0.02);
+            x = Math.cos(ang3) * rg;
+            y = Math.sin(ang3) * rg;
+            z = (Math.random() * 2 - 1) * H * 0.92;
+            col = mixHex(0x3d6b39, 0x7c6b45, Math.random());
+            br = 0.78;
+          } else if (u < cum[3]) {          // 楼房轮廓（外表面优先，凸显形体）
+            var bb = bld[(Math.random() * NB) | 0];
+            var th0 = bb[0], rb2 = bb[1], rt2 = bb[2], bz2 = bb[3], z02 = bb[4], bw2 = bb[5];
+            var rr, zz, dth;
+            if (Math.random() < 0.62) {
+              var face = (Math.random() * 5) | 0;
+              if (face === 0) { rr = rt2; zz = z02 + (Math.random() * 2 - 1) * bz2; dth = (Math.random() * 2 - 1) * (bw2 / rb2); }
+              else if (face === 1) { rr = rb2; zz = z02 + (Math.random() * 2 - 1) * bz2; dth = (Math.random() * 2 - 1) * (bw2 / rb2); }
+              else if (face === 2) { rr = rt2 + Math.random() * (rb2 - rt2); zz = z02 + bz2; dth = (Math.random() * 2 - 1) * (bw2 / rb2); }
+              else if (face === 3) { rr = rt2 + Math.random() * (rb2 - rt2); zz = z02 - bz2; dth = (Math.random() * 2 - 1) * (bw2 / rb2); }
+              else { rr = rt2 + Math.random() * (rb2 - rt2); zz = z02 + (Math.random() * 2 - 1) * bz2; dth = (Math.random() < 0.5 ? -1 : 1) * (bw2 / rb2); }
+            } else {
+              rr = rt2 + Math.random() * (rb2 - rt2);
+              zz = z02 + (Math.random() * 2 - 1) * bz2;
+              dth = (Math.random() * 2 - 1) * (bw2 / rb2);
+            }
+            var bAng = th0 + dth;
+            x = Math.cos(bAng) * rr;
+            y = Math.sin(bAng) * rr;
+            z = zz;
+            col = mixHex(0x2b3541, 0x5a6674, Math.random());
+            br = 0.55 + 0.9 * cityLight(z, SUNZ, H);
+          } else if (u < cum[4]) {          // 楼房灯光（朝轴立面的暖光）
+            var bb2 = bld[(Math.random() * NB) | 0];
+            var th1 = bb2[0], rb3 = bb2[1], rt3 = bb2[2], bz3 = bb2[3], z03 = bb2[4], bw3 = bb2[5];
+            var rr2 = rt3 + Math.random() * (rb3 - rt3) * 0.35;
+            var zz2 = z03 + (Math.random() * 2 - 1) * bz3 * 0.95;
+            var dth2 = (Math.random() * 2 - 1) * (bw3 / rb3) * 0.9;
+            var bAng2 = th1 + dth2;
+            x = Math.cos(bAng2) * rr2;
+            y = Math.sin(bAng2) * rr2;
+            z = zz2;
+            col = mixHex(0xffe6a8, 0xff9a4a, Math.random());
+            br = (0.9 + 0.9 * Math.random()) * (0.4 + 0.9 * cityLight(z, SUNZ, H));
+          } else {                          // 三颗核聚变太阳（自发光）
+            var si = (Math.random() * SUNZ.length) | 0;
+            var sp = SUNC[si];
+            var sr = 0.085 * R * Math.cbrt(Math.random());
+            randDir(d);
+            x = d[0] * sr;
+            y = d[1] * sr;
+            z = SUNZ[si] + d[2] * sr;
+            col = mixHex(sp[0], sp[1], Math.random());
+            br = 2.1;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 宇航员：宇航服+透明头盔(露出写实人脸) · 肌肉 · 骨骼 · 内脏 ----
+      // 身体用「半身高」为单位：脚底 y=−1，头顶 y=+1，面朝 +Z；R 为整体缩放
+      function buildAstronaut(P, C, count, R, X) {
+        var d = [0, 0, 0], o = [0, 0, 0];
+
+        // 沿（近竖直）线段的广义圆柱采样，截面为椭圆 ex×ez，surf 为表面占比
+        function segPt(ax, ay, az, bx, by, bz, ra, rb, ex, ez, surf) {
+          var t = Math.random();
+          var r = ra + (rb - ra) * t;
+          var th = Math.random() * Math.PI * 2;
+          var f = Math.random() < surf ? 1.0 : Math.sqrt(Math.random());
+          o[0] = ax + (bx - ax) * t + Math.cos(th) * ex * r * f;
+          o[1] = ay + (by - ay) * t;
+          o[2] = az + (bz - az) * t + Math.sin(th) * ez * r * f;
+        }
+        // 椭球（surf 为表面占比）
+        function ellPt(cx, cy, cz, rx, ry, rz, surf) {
+          randDir(d);
+          var f = Math.random() < surf ? 1.0 : Math.cbrt(Math.random());
+          o[0] = cx + d[0] * rx * f;
+          o[1] = cy + d[1] * ry * f;
+          o[2] = cz + d[2] * rz * f;
+        }
+        // 盒（surf 为六面表面占比）
+        function boxPt(cx, cy, cz, hx, hy, hz, surf) {
+          if (Math.random() < surf) {
+            var f = (Math.random() * 6) | 0;
+            var u2 = Math.random() * 2 - 1, v2 = Math.random() * 2 - 1;
+            if (f === 0) { o[0] = cx + hx; o[1] = cy + u2 * hy; o[2] = cz + v2 * hz; }
+            else if (f === 1) { o[0] = cx - hx; o[1] = cy + u2 * hy; o[2] = cz + v2 * hz; }
+            else if (f === 2) { o[0] = cx + u2 * hx; o[1] = cy + hy; o[2] = cz + v2 * hz; }
+            else if (f === 3) { o[0] = cx + u2 * hx; o[1] = cy - hy; o[2] = cz + v2 * hz; }
+            else if (f === 4) { o[0] = cx + u2 * hx; o[1] = cy + v2 * hy; o[2] = cz + hz; }
+            else { o[0] = cx + u2 * hx; o[1] = cy + v2 * hy; o[2] = cz - hz; }
+          } else {
+            o[0] = cx + (Math.random() * 2 - 1) * hx;
+            o[1] = cy + (Math.random() * 2 - 1) * hy;
+            o[2] = cz + (Math.random() * 2 - 1) * hz;
+          }
+        }
+        // 水平面内的椭圆环（肋骨 / 骨盆），tilt 让环前低后高
+        function ribPt(yc, rx, rz, tilt) {
+          var th = Math.random() * Math.PI * 2;
+          var f = 0.90 + Math.random() * 0.10;
+          var oz = Math.sin(th) * rz * f;
+          o[0] = Math.cos(th) * rx * f;
+          o[2] = oz;
+          o[1] = yc - tilt * (oz / Math.max(rz, 1e-6)) + (Math.random() - 0.5) * 0.014;
+        }
+
+        // 顶层权重：宇航服 .50 | 头盔 .05 | 头部(写实) .07 | 肌肉 .15 | 骨骼 .12 | 内脏 .07 | 脂肪/软组织 .04
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var col, br = 1.0;
+          var sd = Math.random() < 0.5 ? -1 : 1;   // 左右对称采样
+
+          if (u < 0.50) {
+            // ==== 宇航服（贴合人体的写实外形）====
+            var u2 = Math.random();
+            if (u2 < 0.30) {                       // 躯干
+              var r6 = Math.random();
+              if (r6 < 0.35) segPt(0, 0.42, 0, 0, 0.60, 0, 0.150, 0.168, 1.0, 0.60, 0.97);
+              else if (r6 < 0.72) segPt(0, 0.10, 0, 0, 0.42, 0, 0.112, 0.150, 1.0, 0.60, 0.97);
+              else segPt(0, -0.22, 0, 0, 0.10, 0, 0.150, 0.112, 1.0, 0.62, 0.97);
+              col = mixHex(0xf2f5f8, 0xc6d0d8, 0.25 + 0.50 * Math.random());
+              if (o[2] > 0.085 && Math.abs(o[0]) < 0.06 && o[1] > 0.30) {   // 胸前控制面板
+                col = mixHex(0x9fd8ff, 0x5f9fd0, Math.random());
+                br = 1.15;
+              }
+            } else if (u2 < 0.34) {                // 领口环
+              ellPt(0, 0.595, 0, 0.078, 0.045, 0.078, 0.85);
+              col = mixHex(0x9fb0bc, 0x6a7a86, Math.random());
+            } else if (u2 < 0.44) {                // 上臂 / 前臂 / 肘·腕关节
+              var ac = Math.random();
+              if (ac < 0.40) segPt(sd * 0.185, 0.54, 0, sd * 0.265, 0.25, 0.02, 0.048, 0.042, 1.0, 0.92, 0.97);
+              else if (ac < 0.76) segPt(sd * 0.265, 0.25, 0.02, sd * 0.325, -0.05, 0.06, 0.040, 0.032, 1.0, 0.92, 0.97);
+              else if (ac < 0.90) ellPt(sd * 0.265, 0.25, 0.02, 0.044, 0.044, 0.044, 0.85);   // 肘
+              else ellPt(sd * 0.325, -0.05, 0.06, 0.034, 0.034, 0.034, 0.85);                 // 腕
+              col = mixHex(0xeef1f4, 0xbac4cc, Math.random());
+            } else if (u2 < 0.52) {                // 手套（手掌 + 五指）
+              if (Math.random() < 0.35) {
+                ellPt(sd * 0.335, -0.105, 0.085, 0.034, 0.052, 0.019, 0.85);
+              } else {
+                var fg = (Math.random() * 5) | 0;
+                var spread = (fg - 2) * 0.016;
+                var zoff = (fg - 2) * 0.004;
+                segPt(sd * (0.335 + spread), -0.150, 0.085 + zoff,
+                      sd * (0.345 + spread), -0.245 + Math.random() * 0.02, 0.09 + zoff,
+                      0.011, 0.009, 1.0, 1.0, 0.92);
+              }
+              col = mixHex(0x6a747e, 0x454e56, Math.random());
+            } else if (u2 < 0.74) {                // 大腿 / 小腿 / 髋·膝·踝关节
+              var lc = Math.random();
+              if (lc < 0.32) segPt(sd * 0.082, -0.17, 0, sd * 0.098, -0.50, 0.01, 0.076, 0.054, 1.0, 0.95, 0.97);
+              else if (lc < 0.58) segPt(sd * 0.098, -0.50, 0.01, sd * 0.108, -0.87, 0.0, 0.054, 0.038, 1.0, 0.92, 0.97);
+              else if (lc < 0.74) ellPt(sd * 0.082, -0.17, 0, 0.074, 0.070, 0.070, 0.85);      // 髋
+              else if (lc < 0.88) ellPt(sd * 0.098, -0.50, 0.012, 0.056, 0.054, 0.054, 0.85); // 膝
+              else ellPt(sd * 0.108, -0.88, 0.0, 0.040, 0.044, 0.040, 0.85);                  // 踝
+              col = mixHex(0xf0f3f6, 0xc4ced6, Math.random());
+            } else if (u2 < 0.82) {                // 靴子（上缘包住踝部，与小腿相连）
+              boxPt(sd * 0.112, -0.915, 0.05, 0.052, 0.070, 0.112, 0.85);
+              col = mixHex(0x8a949e, 0x555e66, Math.random());
+            } else if (u2 < 0.92) {                // 生命保障背包
+              boxPt(0, 0.20, -0.155, 0.125, 0.27, 0.075, 0.70);
+              col = mixHex(0xd8dde2, 0x98a2aa, Math.random());
+            } else {                               // 肩甲
+              ellPt(sd * 0.185, 0.55, 0, 0.066, 0.062, 0.058, 0.95);
+              col = mixHex(0xdde3e8, 0xaab4bc, Math.random());
+            }
+          } else if (u < 0.55) {
+            // ==== 头盔：后/顶/两侧为壳，正面留出透明面窗露出真人脸 ====
+            var u2b = Math.random();
+            if (u2b < 0.85) {
+              for (var htry0 = 0; htry0 < 10; htry0++) {
+                ellPt(0, 0.79, 0.01, 0.185, 0.195, 0.195, 0.95);
+                if (!(o[2] > 0.075 && Math.abs(o[0]) < 0.098 && o[1] > 0.700 && o[1] < 0.900)) break;
+              }
+              col = mixHex(0xdfeaf2, 0xb4c8d6, Math.random());
+              br = 0.85;
+            } else {                               // 面窗金属边框
+              var ph = Math.random() * Math.PI * 2;
+              ellPt(Math.cos(ph) * 0.105, 0.80 + Math.sin(ph) * 0.105, 0.135, 0.016, 0.016, 0.012, 0.90);
+              col = mixHex(0x9fb0bc, 0x60707c, Math.random());
+            }
+          } else if (u < 0.62) {
+            // ==== 头部（写实真人：皮肤 / 毛发 / 五官）====
+            var h6 = Math.random();
+            var skinC = mixHex(0xecb894, 0xd39c74, 0.15 + 0.40 * Math.random());
+            if (h6 < 0.05) {                       // 颈
+              segPt(0, 0.60, 0, 0, 0.74, 0, 0.052, 0.046, 1.0, 0.90, 0.90);
+              col = mixHex(0xe6b088, 0xc8926a, Math.random());
+            } else if (h6 < 0.60) {                // 头颅
+              ellPt(0, 0.82, 0.005, 0.118, 0.126, 0.126, 0.92);
+              col = skinC;
+            } else if (h6 < 0.79) {                // 下颌 / 下巴
+              ellPt(0, 0.705, 0.03, 0.086, 0.072, 0.092, 0.92);
+              col = skinC;
+            } else if (h6 < 0.87) {                // 鼻
+              ellPt(0, 0.792, 0.120, 0.020, 0.032, 0.026, 0.95);
+              col = skinC;
+            } else if (h6 < 0.91) {                // 耳
+              ellPt(sd * 0.120, 0.805, 0.0, 0.013, 0.028, 0.020, 0.92);
+              col = skinC;
+            } else if (h6 < 0.95) {                // 颧 / 颊
+              ellPt(sd * 0.070, 0.760, 0.085, 0.035, 0.030, 0.030, 0.85);
+              col = skinC;
+            } else if (h6 < 0.98) {                // 头发（露出额头）
+              for (var htry2 = 0; htry2 < 8; htry2++) {
+                ellPt(0, 0.83, 0.005, 0.132, 0.140, 0.136, 0.95);
+                if (!(o[2] > 0.045 && o[1] < 0.905 && o[1] > 0.695)) break;
+              }
+              col = mixHex(0x3a2a20, 0x1d150f, Math.random());
+            } else {                               // 五官：眼白 / 瞳孔 / 眉 / 唇
+              var u22 = Math.random();
+              if (u22 < 0.42) {
+                ellPt(sd * 0.047, 0.815, 0.118, 0.023, 0.014, 0.011, 1.0);
+                col = mixHex(0xf2eee8, 0xdcd6cc, Math.random());
+                br = 0.75;
+              } else if (u22 < 0.66) {
+                ellPt(sd * 0.047, 0.815, 0.128, 0.009, 0.010, 0.007, 1.0);
+                col = mixHex(0x2b2b38, 0x14141c, Math.random());
+              } else if (u22 < 0.84) {
+                ellPt(sd * 0.048, 0.847, 0.116, 0.028, 0.007, 0.009, 1.0);
+                col = mixHex(0x2a2018, 0x181009, Math.random());
+              } else {
+                ellPt(0, 0.735, 0.118, 0.036, 0.010, 0.013, 1.0);
+                col = mixHex(0xc06a6a, 0x984848, Math.random());
+              }
+            }
+          } else if (u < 0.77) {
+            // ==== 肌肉 ====
+            var u3 = Math.random();
+            if (u3 < 0.34) {                       // 胸腹躯干肌
+              if (Math.random() < 0.6) segPt(0, 0.16, 0, 0, 0.56, 0, 0.095, 0.108, 1.0, 0.66, 0.30);
+              else segPt(0, -0.13, 0, 0, 0.16, 0, 0.108, 0.082, 1.0, 0.61, 0.30);
+              col = mixHex(0xb03a34, 0x7c241e, Math.random());
+            } else if (u3 < 0.44) {                // 三角肌
+              ellPt(sd * 0.185, 0.52, 0, 0.044, 0.042, 0.042, 0.35);
+              col = mixHex(0xc4514a, 0x93302a, Math.random());
+            } else if (u3 < 0.54) {                // 肱二/三头肌
+              segPt(sd * 0.20, 0.53, 0, sd * 0.265, 0.25, 0.02, 0.028, 0.024, 1.0, 0.95, 0.30);
+              col = mixHex(0xb03a34, 0x7c241e, Math.random());
+            } else if (u3 < 0.62) {                // 前臂肌群
+              segPt(sd * 0.265, 0.25, 0.02, sd * 0.325, -0.05, 0.06, 0.022, 0.016, 1.0, 0.95, 0.30);
+              col = mixHex(0xa83830, 0x7a221c, Math.random());
+            } else if (u3 < 0.84) {                // 股四头 / 大腿肌
+              segPt(sd * 0.085, -0.16, 0, sd * 0.10, -0.50, 0.01, 0.044, 0.034, 1.0, 0.95, 0.30);
+              col = mixHex(0xb03a34, 0x7c241e, Math.random());
+            } else {                               // 小腿肌
+              segPt(sd * 0.10, -0.49, 0.01, sd * 0.108, -0.86, 0, 0.028, 0.016, 1.0, 0.95, 0.30);
+              col = mixHex(0xa83830, 0x7a221c, Math.random());
+            }
+            br = 0.92;
+          } else if (u < 0.89) {
+            // ==== 骨骼 ====
+            var u4 = Math.random();
+            var ivory = mixHex(0xf2ecdc, 0xd8ceb2, Math.random());
+            if (u4 < 0.14) {                       // 颅骨 + 下颌骨
+              if (Math.random() < 0.78) ellPt(0, 0.80, 0, 0.115, 0.125, 0.125, 0.85);
+              else ellPt(0, 0.71, 0.04, 0.062, 0.045, 0.062, 0.80);
+              col = ivory;
+            } else if (u4 < 0.26) {                // 脊柱（带椎间盘色带）
+              segPt(0, 0.68, -0.055, 0, -0.12, -0.070, 0.020, 0.020, 1.0, 1.0, 0.90);
+              var vs = (o[1] + 0.12) * 12.0;
+              if (vs - Math.floor(vs) < 0.30) col = mixHex(0xcabf9f, 0xb5aa8c, Math.random());
+              else col = ivory;
+            } else if (u4 < 0.52) {                // 肋骨（12 对，中部最宽）
+              var k = (Math.random() * 12) | 0;
+              var rx = 0.095 + 0.030 * Math.sin(Math.PI * k / 11);
+              ribPt(0.54 - k * 0.030, rx, rx * 0.52, 0.022);
+              col = ivory;
+            } else if (u4 < 0.55) {                // 胸骨
+              boxPt(0, 0.36, 0.075, 0.018, 0.14, 0.008, 0.80);
+              col = ivory;
+            } else if (u4 < 0.65) {                // 骨盆环 + 骶骨
+              if (Math.random() < 0.8) ribPt(-0.135, 0.135, 0.080, -0.02);
+              else ellPt(0, -0.11, -0.045, 0.05, 0.04, 0.03, 0.5);
+              col = ivory;
+            } else if (u4 < 0.68) {                // 锁骨
+              segPt(sd * 0.035, 0.565, 0.06, sd * 0.185, 0.545, 0.02, 0.012, 0.012, 1.0, 1.0, 0.90);
+              col = ivory;
+            } else if (u4 < 0.78) {                // 上肢骨
+              var u5 = Math.random();
+              if (u5 < 0.55) segPt(sd * 0.20, 0.51, 0, sd * 0.275, 0.26, 0.02, 0.016, 0.014, 1.0, 1.0, 0.90);      // 肱骨
+              else if (u5 < 0.85) segPt(sd * 0.275, 0.255, 0.02, sd * 0.335, -0.045, 0.06, 0.013, 0.011, 1.0, 1.0, 0.90);  // 尺/桡骨
+              else ellPt(sd * 0.345, -0.095, 0.075, 0.032, 0.032, 0.024, 0.6);                                        // 手骨
+              col = ivory;
+            } else {                               // 下肢骨
+              var u6 = Math.random();
+              if (u6 < 0.45) segPt(sd * 0.085, -0.15, 0, sd * 0.10, -0.50, 0.01, 0.019, 0.015, 1.0, 1.0, 0.90);    // 股骨
+              else if (u6 < 0.85) segPt(sd * 0.10, -0.50, 0.01, sd * 0.112, -0.88, 0, 0.015, 0.011, 1.0, 1.0, 0.90);   // 胫/腓骨
+              else if (u6 < 0.93) ellPt(sd * 0.10, -0.50, 0.05, 0.021, 0.019, 0.015, 0.7);                          // 髌骨
+              else boxPt(sd * 0.115, -0.925, 0.04, 0.038, 0.032, 0.090, 0.7);                                        // 足骨
+              col = ivory;
+            }
+          } else if (u < 0.96) {
+            // ==== 内脏 ====
+            var u7 = Math.random();
+            if (u7 < 0.14) {                       // 脑
+              ellPt(0, 0.80, 0.015, 0.082, 0.082, 0.090, 0.25);
+              col = mixHex(0xd8b8b0, 0xbfa098, Math.random());
+            } else if (u7 < 0.32) {                // 肺（两叶）
+              ellPt(sd * 0.062, 0.42, 0.005, 0.055, 0.10, 0.045, 0.30);
+              col = mixHex(0xd88a8a, 0xb86868, Math.random());
+            } else if (u7 < 0.42) {                // 心脏
+              ellPt(0.028, 0.325, 0.03, 0.042, 0.052, 0.042, 0.30);
+              col = mixHex(0xc22828, 0x8f1c1c, Math.random());
+              br = 1.1;
+            } else if (u7 < 0.54) {                // 肝
+              ellPt(-0.05, 0.20, 0.02, 0.058, 0.040, 0.034, 0.30);
+              col = mixHex(0x8a3a26, 0x6a2a1c, Math.random());
+            } else if (u7 < 0.62) {                // 胃
+              ellPt(0.052, 0.135, 0.03, 0.040, 0.032, 0.028, 0.30);
+              col = mixHex(0xd8a878, 0xb88858, Math.random());
+            } else if (u7 < 0.68) {                // 肾（一对）
+              ellPt(sd * 0.055, 0.10, -0.058, 0.022, 0.034, 0.020, 0.30);
+              col = mixHex(0x9a4a3a, 0x7a362a, Math.random());
+            } else {                               // 肠（螺旋盘绕）
+              var s8 = Math.random();
+              var an8 = s8 * Math.PI * 7.0;
+              var rad8 = 0.055 + 0.035 * Math.sin(s8 * Math.PI * 3.0);
+              randDir(d);
+              var rr8 = 0.020 * (Math.random() < 0.6 ? 1.0 : Math.sqrt(Math.random()));
+              o[0] = Math.cos(an8) * rad8 * 1.1 + d[0] * rr8;
+              o[1] = 0.10 - 0.30 * s8 + d[1] * rr8;
+              o[2] = Math.sin(an8) * rad8 * 0.6 + d[2] * rr8;
+              col = mixHex(0xd89868, 0xc07848, Math.random());
+            }
+          } else {
+            // ==== 脂肪 / 皮下软组织（贴皮肤内侧，避免穿出）====
+            var u9 = Math.random();
+            if (u9 < 0.45) {                       // 躯干
+              if (Math.random() < 0.58) segPt(0, 0.16, 0, 0, 0.57, 0, 0.104, 0.118, 1.0, 0.63, 0.25);
+              else segPt(0, -0.19, 0, 0, 0.16, 0, 0.132, 0.092, 1.0, 0.61, 0.25);
+              col = mixHex(0xe8d8b0, 0xd0bc90, Math.random());
+            } else if (u9 < 0.72) {                // 上肢
+              segPt(sd * 0.20, 0.54, 0, sd * 0.325, -0.05, 0.06, 0.030, 0.018, 1.0, 0.92, 0.25);
+              col = mixHex(0xe8d8b0, 0xd0bc90, Math.random());
+            } else {                               // 下肢
+              segPt(sd * 0.085, -0.16, 0, sd * 0.108, -0.87, 0.005, 0.044, 0.020, 1.0, 0.93, 0.25);
+              col = mixHex(0xe8d8b0, 0xd0bc90, Math.random());
+            }
+            br = 0.88;
+          }
+
+          P[i3] = o[0] * R; P[i3 + 1] = o[1] * R; P[i3 + 2] = o[2] * R;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+          if (X) X[i] = (u < 0.55) ? 0.05 : (u < 0.62 ? 0.35 : 1.0);   // 宇航服/头盔透视时淡出
+        }
+      }
+
+      // ---- 岩质小行星：不规则外形 + 陨石坑 + 金属核 ----
+      function buildAsteroid(P, C, count, R) {
+        var NC = 10, cr = [], k;
+        for (k = 0; k < NC; k++) {
+          var th0 = Math.random() * Math.PI * 2;
+          var cz0 = 2 * Math.random() - 1, s0 = Math.sqrt(1 - cz0 * cz0);
+          cr.push([s0 * Math.cos(th0), s0 * Math.sin(th0), cz0]);
+        }
+        var COS = 0.94;   // 陨石坑角半径约 20°
+        var d = [0, 0, 0];
+        for (var i = 0; i < count; i++) {
+          randDir(d);
+          var base = R * shellFrac(0, 1);
+          var lump = 1.0 + 0.30 * (fbm2(d[0] * 2.4 + 5.1, d[1] * 2.4 + 2.3, d[2] * 2.4 + 8.7) - 0.5) * 2.0;
+          var radius = base * lump;
+          var i3 = i * 3;
+          P[i3] = radius * d[0]; P[i3 + 1] = radius * d[1]; P[i3 + 2] = radius * d[2];
+
+          var t = base / R;
+          var col, br;
+          if (t < 0.2) { col = mixHex(0x9a9aa2, 0x6a6a72, t / 0.2); br = 0.9; }
+          else { col = mixHex(0x6a5b4a, 0x453b30, (t - 0.2) / 0.8); br = 0.95; }
+          if (t > 0.6) {
+            for (k = 0; k < NC; k++) {
+              if (d[0] * cr[k][0] + d[1] * cr[k][1] + d[2] * cr[k][2] > COS) br *= 0.55;
+            }
+          }
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 水滴（强互作用力探测器）：纯净泪滴，银色镜面反射 / 内部致密体（透视可见） ----
+      // 轴沿 X，钝头朝 +X、尖尾朝 −X；泪滴曲线 r(t)=R0·sin t·cos²(t/2)/fmax，x=L·cos t
+      // （t∈[0,π]；最宽处 t=π/3 靠近钝头，钝头呈半球圆润、尖尾以三次方收敛于一点）
+      function buildDroplet(P, C, count, R, X) {
+        var L = R;                        // 沿 X 的半长
+        var R0 = 0.42 * R;                // 最大横截面半径
+        var FMAX = 3 * Math.sqrt(3) / 8;  // max[sin t·cos²(t/2)] ≈ 0.6495
+        // 层：银色镜面壳 .82 | 内部致密体 .18
+        var cum = [0.82, 1.0];
+        function prof(t) { var c = Math.cos(t / 2); return Math.sin(t) * c * c / FMAX; }
+        function dropT() {                // 按截面积 ∝ ρ² 重要性采样 t
+          for (var k = 0; k < 16; k++) {
+            var t = Math.random() * Math.PI;
+            var w = prof(t);
+            if (Math.random() < w * w) return t;
+          }
+          return Math.random() * Math.PI;
+        }
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 银色镜面外壳（环境反射着色）
+            var t = dropT();
+            var rad = R0 * prof(t);
+            var th = Math.random() * Math.PI * 2;
+            var cs = Math.cos(th), sn = Math.sin(th);
+            x = L * Math.cos(t);
+            y = rad * cs;
+            z = rad * sn;
+            var inv = 1 / Math.max(rad, 1e-6);
+            var ny = y * inv;                  // 法向竖直分量 −1..1
+            var nz = z * inv;                  // 法向朝向相机分量 −1..1
+            // 环境：上方反射天光（顶部最亮），下方反射地面（越下越暗）
+            if (ny >= 0) col = mixHex(0x63798c, 0xeef6ff, Math.pow(clamp01(ny), 1.8));
+            else         col = mixHex(0x3a4047, 0x14171a, Math.pow(clamp01(-ny), 0.7));
+            // 地平线亮带（上下环境交界处的强反光）
+            var hb = Math.exp(-(ny * ny) / 0.012);
+            col = [col[0] + 0.30 * hb, col[1] + 0.32 * hb, col[2] + 0.34 * hb];
+            // 正对相机的镜面高光
+            var sp = Math.pow(clamp01(nz), 6) * Math.pow(clamp01(0.75 + 0.35 * ny), 2) * 0.6;
+            col = [col[0] + sp, col[1] + sp, col[2] + sp];
+            br = 0.9 + 0.08 * Math.random();
+            if (X) X[i] = 0.10;                // 透视时镜面壳淡出
+          } else {                             // 内部致密体
+            var t2 = dropT();
+            var rd = R0 * prof(t2) * 0.74 * (Math.random() < 0.5 ? 1.0 : Math.sqrt(Math.random()));
+            var th2 = Math.random() * Math.PI * 2;
+            x = L * Math.cos(t2) * 0.96;
+            y = rd * Math.cos(th2);
+            z = rd * Math.sin(th2);
+            col = mixHex(0x2a3038, 0x5a6672, Math.random());
+            br = 0.6;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 黑洞（引力透镜外观）：中央黑影 / 光子环 / 倾斜吸积盘(远侧被透镜抬成拱) / 次级像拱 / 两极喷流 / 内吸积流 ----
+      function buildBlackhole(P, C, count, R) {
+        var Rring = 0.52 * R;                     // 光子环 / 黑影半径
+        var dIn = 0.74 * R, dOut = 1.85 * R;      // 吸积盘内 / 外半径
+        var incl = 1.30, cI = Math.cos(incl), sI = Math.sin(incl);  // 盘面倾角
+        var d = [0, 0, 0];
+        // 层：黑影 .08 | 光子环 .05 | 吸积盘 .50 | 次级像拱 .10 | 两极喷流 .14 | 内吸积流 .13
+        var cum = [0.08, 0.13, 0.63, 0.73, 0.87, 1.0];
+        function temp(tn) {                       // 内白蓝 → 外橙红
+          var c = mixHex(0xffe0a0, 0xff4a18, tn);
+          if (tn < 0.18) c = mixHex(0xffffff, 0xffe0a0, tn / 0.18);
+          return c;
+        }
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 中央黑影（屏幕面暗盘，构成黑洞剪影）
+            var th0 = Math.random() * Math.PI * 2, rp0 = Rring * 0.96 * Math.sqrt(Math.random());
+            x = Math.cos(th0) * rp0; y = Math.sin(th0) * rp0;
+            z = (Math.random() - 0.5) * 0.03 * R;
+            col = mixHex(0x03050a, 0x0b1018, Math.random());
+            br = 0.35;
+          } else if (u < cum[1]) {             // 光子环（亮细环，黑洞的光透镜特征）
+            var th1 = Math.random() * Math.PI * 2, rp1 = Rring * (0.99 + 0.05 * Math.random());
+            x = Math.cos(th1) * rp1; y = Math.sin(th1) * rp1;
+            z = (Math.random() - 0.5) * 0.02 * R;
+            col = mixHex(0xffffff, 0xffe4b4, Math.random());
+            br = 1.9;
+          } else if (u < cum[2]) {             // 吸积盘：倾斜盘面 + 引力透镜把远侧抬到影上方成拱
+            var rr = Math.sqrt(dIn * dIn + Math.random() * (dOut * dOut - dIn * dIn));
+            var ph = Math.random() * Math.PI * 2;
+            var uu = rr * Math.cos(ph), vv = rr * Math.sin(ph);
+            var y0 = -vv * cI, z0 = vv * sI;   // 近侧(vv>0)在前、偏下；远侧(vv<0)在后、偏上
+            var far = vv < 0;
+            var b0 = Math.sqrt(uu * uu + y0 * y0);
+            var w = clamp01(1 - b0 / (2.1 * Rring));      // 越靠近黑影，透镜弯曲越强
+            var lift = 1.05 * R * w * w;
+            x = uu;
+            y = y0 + (far ? lift : -0.15 * lift);         // 远侧上抬成拱，近侧略下压
+            z = z0 + (Math.random() - 0.5) * (0.02 * R + 0.03 * R * rr / dOut);
+            var tn = clamp01((rr - dIn) / (dOut - dIn));
+            col = temp(tn);
+            br = (1.55 - 1.05 * tn) + 0.8 * w + 0.15 * Math.random();   // 强透镜处更亮
+          } else if (u < cum[3]) {             // 次级像：远侧盘的透镜镜像，翻到影下方、较暗
+            var rr2 = Math.sqrt(dIn * dIn + Math.random() * (dOut * dOut - dIn * dIn));
+            var ph2 = Math.random() * Math.PI * 2;
+            var uu2 = rr2 * Math.cos(ph2), vv2 = -Math.abs(rr2 * Math.sin(ph2));
+            var y02 = -vv2 * cI, z02 = vv2 * sI;
+            var bb = Math.sqrt(uu2 * uu2 + y02 * y02);
+            var w2 = clamp01(1 - bb / (2.1 * Rring));
+            var arch = y02 + 1.05 * R * w2 * w2;
+            x = uu2;
+            y = -0.62 * arch;                  // 镜像到下方
+            z = z02 * 0.6 + (Math.random() - 0.5) * 0.03 * R;
+            var tn2 = clamp01((rr2 - dIn) / (dOut - dIn));
+            col = temp(tn2);
+            br = (0.55 - 0.35 * tn2) + 0.3 * w2;
+          } else if (u < cum[4]) {             // 两极喷流（沿 ±Z 的锥）
+            var side = Math.random() < 0.5 ? -1 : 1;
+            var tj = Math.random(), jl = 1.7 * R;
+            z = side * (Rring + tj * jl);
+            var jr = Rring * 0.34 * (1 - tj) * (0.5 + 0.5 * Math.random()) + 0.02 * R;
+            var jth = Math.random() * Math.PI * 2;
+            x = Math.cos(jth) * jr; y = Math.sin(jth) * jr;
+            col = mixHex(0xdff0ff, 0x3a7ad0, Math.random());
+            br = 1.3 * (1 - tj) + 0.2;
+          } else {                             // 内吸积流（贴光子环的强透镜亮环）
+            var th3 = Math.random() * Math.PI * 2, rp3 = Rring * (1.05 + 0.12 * Math.random());
+            x = Math.cos(th3) * rp3; y = Math.sin(th3) * rp3;
+            z = (Math.random() - 0.5) * 0.03 * R;
+            col = mixHex(0xffffff, 0x9fd0ff, Math.random());
+            br = 1.8;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- DNA 双螺旋：两条糖-磷酸骨架(沿 Y 缠绕) + 碱基对(横档) ----
+      function buildDNA(P, C, count, R) {
+        var H = R;                  // 半高（沿 Y）
+        var rb = 0.42 * R;          // 螺旋半径
+        var turns = 2.6;            // 圈数
+        var tube = 0.09 * R;        // 骨架管半径
+        var TWO = Math.PI * 2;
+        var NR = 36;               // 碱基对数量
+        var d = [0, 0, 0];
+        // 层：骨架 A .18 | 骨架 B .18 | 碱基对 .64
+        var cum = [0.18, 0.36, 1.0];
+        var BASE = [0xff5f56, 0xffd060, 0x69d06a, 0x4fb3ff];  // A/T/G/C
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[1]) {                    // 两条骨架（螺旋管）
+            var t = Math.random();
+            var ang = t * turns * TWO + (u < cum[0] ? 0 : Math.PI);
+            randDir(d);
+            var rr = tube * Math.sqrt(Math.random());
+            x = rb * Math.cos(ang) + d[0] * rr;
+            y = (t * 2 - 1) * H + d[1] * rr;
+            z = rb * Math.sin(ang) + d[2] * rr;
+            col = (u < cum[0])
+              ? mixHex(0x3f8fc8, 0x8fd8f8, Math.random())
+              : mixHex(0xd08040, 0xf8c890, Math.random());
+            br = 0.95;
+          } else {                             // 碱基对（横档，按层离散排布）
+            var jr = (Math.random() * NR) | 0;
+            var tt = (jr + 0.5) / NR;
+            var a = tt * turns * TWO;
+            var yy = (tt * 2 - 1) * H;
+            var s = Math.random();             // 0 在 A 链 .. 1 在 B 链
+            var half = rb * (1 - 2 * s);       // 穿过轴心的直线
+            randDir(d);
+            var rj = 0.018 * R * Math.sqrt(Math.random());
+            x = half * Math.cos(a) + d[0] * rj;
+            y = yy + d[1] * rj;
+            z = half * Math.sin(a) + d[2] * rj;
+            col = mixHex(BASE[jr % 4], 0xffffff, 0.12 * Math.random());
+            br = 0.92;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 细胞：细胞膜 / 细胞核(核膜·染色质·核仁) / 线粒体 / 内质网 / 高尔基体 / 核糖体 / 细胞质 ----
+      function buildCell(P, C, count, R, X) {
+        var memR = R;
+        var d = [0, 0, 0];
+        function crossN(a, b) {
+          var r = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+          var l = Math.sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]) || 1;
+          return [r[0] / l, r[1] / l, r[2] / l];
+        }
+        // 预生成线粒体（中心 cen + 长轴 ax + 正交基 bx、cx）
+        var mito = [];
+        for (var mm = 0; mm < 6; mm++) {
+          randDir(d);
+          var mr = (0.32 + 0.42 * Math.random()) * R * 0.8;
+          var cen = [d[0] * mr, d[1] * mr, d[2] * mr];
+          var ax = [0, 0, 0]; randDir(ax);
+          var up = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+          var bx = crossN(ax, up);
+          var cx = crossN(ax, bx);
+          mito.push([cen, ax, bx, cx]);
+        }
+        var nc = [0.20 * R, 0.06 * R, -0.04 * R];     // 细胞核中心
+        var rn = 0.44 * R;                            // 核半径
+        var gcen = [-0.34 * R, -0.14 * R, 0.12 * R];  // 高尔基体中心
+        // 层：细胞膜 .12 | 细胞核 .28 | 线粒体 .20 | 内质网 .13 | 高尔基体 .08 | 核糖体 .09 | 细胞质 .10
+        var cum = [0.12, 0.40, 0.60, 0.73, 0.81, 0.90, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 细胞膜（半透明壳，轻微起伏）
+            randDir(d);
+            var rm = memR * (0.985 + 0.02 * Math.random());
+            var wob = 1 + 0.03 * Math.sin(d[0] * 5) * Math.cos(d[1] * 4);
+            x = d[0] * rm * wob; y = d[1] * rm * wob; z = d[2] * rm * wob;
+            col = mixHex(0x4fb8a6, 0x9fe6d8, Math.random());
+            br = 0.95;
+            if (X) X[i] = 0.12;                // 透视时膜淡出，露出细胞器
+          } else if (u < cum[1]) {             // 细胞核
+            var sub = Math.random();
+            if (sub < 0.34) {                  // 核膜壳
+              randDir(d);
+              var rk = rn * (0.97 + 0.03 * Math.random());
+              x = nc[0] + d[0] * rk; y = nc[1] + d[1] * rk; z = nc[2] + d[2] * rk;
+              col = mixHex(0x5a4ac0, 0x9a8ae0, Math.random());
+              br = 0.95;
+            } else if (sub < 0.82) {           // 染色质丝团
+              randDir(d);
+              var rc = rn * 0.9 * Math.cbrt(Math.random());
+              x = nc[0] + d[0] * rc; y = nc[1] + d[1] * rc; z = nc[2] + d[2] * rc;
+              col = mixHex(0x8070d0, 0xb4a6ec, Math.random());
+              br = 0.82;
+            } else {                           // 核仁
+              randDir(d);
+              var rl = rn * 0.30 * Math.cbrt(Math.random());
+              x = nc[0] + d[0] * rl; y = nc[1] + d[1] * rl; z = nc[2] + d[2] * rl;
+              col = mixHex(0x3a2a90, 0x5a48c0, Math.random());
+              br = 1.05;
+            }
+          } else if (u < cum[2]) {             // 线粒体（椭球 + 内部嵴波纹）
+            var m = mito[(Math.random() * mito.length) | 0];
+            var la = (Math.random() * 2 - 1) * 0.20 * R;
+            var csec = 0.085 * R * Math.sqrt(Math.random());
+            var ca = Math.random() * Math.PI * 2;
+            var ex = Math.cos(ca) * csec, ey = Math.sin(ca) * csec;
+            var cen = m[0], ax = m[1], bx = m[2], cx = m[3];
+            x = cen[0] + ax[0] * la + bx[0] * ex + cx[0] * ey;
+            y = cen[1] + ax[1] * la + bx[1] * ex + cx[1] * ey;
+            z = cen[2] + ax[2] * la + bx[2] * ex + cx[2] * ey;
+            var wav = 0.5 + 0.5 * Math.sin(la * 42);
+            col = mixHex(0xd8543a, 0xff9a68, wav);
+            br = 0.95;
+          } else if (u < cum[3]) {             // 内质网（核周围折叠片层）
+            randDir(d);
+            var rr3 = rn * (1.05 + 0.35 * Math.random());
+            x = nc[0] + d[0] * rr3;
+            y = nc[1] + d[1] * rr3 * 0.16;
+            z = nc[2] + d[2] * rr3;
+            col = mixHex(0x3fae9a, 0x8fe0cc, Math.random());
+            br = 0.85;
+          } else if (u < cum[4]) {             // 高尔基体（5 层扁盘叠置）
+            var gk = (Math.random() * 5) | 0;
+            var goff = (gk - 2) * 0.055 * R;
+            randDir(d);
+            var grd = (0.09 + 0.12 * Math.random()) * R * Math.sqrt(Math.random());
+            x = gcen[0] + d[0] * grd;
+            y = gcen[1] + goff + d[1] * grd * 0.22;
+            z = gcen[2] + d[2] * grd;
+            col = mixHex(0xf07eb0, 0xffc0dc, Math.random());
+            br = 0.9;
+          } else if (u < cum[5]) {             // 核糖体（散布小点）
+            randDir(d);
+            var rr5 = memR * 0.92 * Math.cbrt(Math.random());
+            x = d[0] * rr5; y = d[1] * rr5; z = d[2] * rr5;
+            col = mixHex(0x2a3340, 0x4a5a6a, Math.random());
+            br = 0.7;
+          } else {                             // 细胞质（暗淡填充）
+            randDir(d);
+            var rr6 = memR * 0.95 * Math.cbrt(Math.random());
+            x = d[0] * rr6; y = d[1] * rr6; z = d[2] * rr6;
+            col = mixHex(0x1e3c44, 0x2f5860, Math.random());
+            br = 0.5;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 空间站（圆环站）：XY 面圆环 + 辐条 + 中央枢纽/桁架 + 太阳能帆板 + 舷窗灯 ----
+      function buildStation(P, C, count, R) {
+        var ringR = 0.82 * R, tube = 0.075 * R, spokes = 6, TWO = Math.PI * 2;
+        // 层：圆环 .28 | 辐条 .13 | 枢纽/桁架 .16 | 太阳能帆板 .34 | 舷窗灯 .09
+        var cum = [0.28, 0.41, 0.57, 0.91, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 圆环（XY 平面环面）
+            var phi = Math.random() * TWO, psy = Math.random() * TWO;
+            var rr = tube * Math.sqrt(Math.random());
+            var nx = Math.cos(phi), ny = Math.sin(phi);
+            x = ringR * nx + rr * Math.cos(psy) * nx;
+            y = ringR * ny + rr * Math.cos(psy) * ny;
+            z = rr * Math.sin(psy);
+            col = mixHex(0x9aa4ad, 0xdfe6ec, Math.random());
+            br = 0.95;
+          } else if (u < cum[1]) {             // 辐条（枢纽 → 圆环）
+            var si = (Math.random() * spokes) | 0;
+            var sa = si * TWO / spokes + (Math.random() - 0.5) * 0.06;
+            var tt = 0.12 + Math.random() * (ringR - 0.12);
+            var w = 0.022 * R, aa = Math.random() * TWO, wo = w * Math.sqrt(Math.random());
+            x = Math.cos(sa) * tt + wo * Math.cos(aa) * Math.cos(sa);
+            y = Math.sin(sa) * tt + wo * Math.cos(aa) * Math.sin(sa);
+            z = wo * Math.sin(aa);
+            col = mixHex(0x8a949c, 0xc8d0d8, Math.random());
+            br = 0.9;
+          } else if (u < cum[2]) {             // 中央枢纽 + 沿 X 的桁架
+            var tt2 = Math.random();
+            var xx = (tt2 - 0.5) * 1.15 * R;
+            var rr2 = 0.10 * R * Math.sqrt(Math.random());
+            var aa2 = Math.random() * TWO;
+            x = xx; y = rr2 * Math.cos(aa2); z = rr2 * Math.sin(aa2);
+            col = mixHex(0xb8c0c8, 0xeef3f7, Math.random());
+            br = 0.95;
+          } else if (u < cum[3]) {             // 太阳能帆板（XY 面内的两片大板，带栅格）
+            var side = Math.random() < 0.5 ? -1 : 1;
+            x = side * (0.52 * R + (Math.random() - 0.5) * 0.015 * R);
+            y = (Math.random() - 0.5) * 1.35 * R;
+            z = (Math.random() - 0.5) * 0.025 * R;
+            var gx = (Math.abs(y) / (0.14 * R)) % 1;
+            col = mixHex(0x14224e, 0x3f66b0, Math.random());
+            if (Math.min(gx, 1 - gx) < 0.06) col = mixHex(0x0a1230, 0x1a2c60, Math.random());
+            br = 0.95;
+          } else {                             // 舷窗 / 航行灯（自发光）
+            if (Math.random() < 0.55) {        // 环上灯
+              var phl = Math.random() * TWO;
+              x = ringR * Math.cos(phl); y = ringR * Math.sin(phl);
+              z = (Math.random() - 0.5) * 0.02 * R;
+            } else {                           // 枢纽灯
+              x = (Math.random() - 0.5) * 0.9 * R;
+              y = (Math.random() - 0.5) * 0.12 * R;
+              z = (Math.random() - 0.5) * 0.12 * R;
+            }
+            col = mixHex(0x9fe8ff, 0xffd28a, Math.random());
+            br = 1.6;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 红岸基地 / 雷达峰：山体 + 山顶抛物面雷达天线(开口斜指天空) + 支架塔/馈源 + 基地建筑群 ----
+      function buildRedCoast(P, C, count, R) {
+        var d = [0, 0, 0], TWO = Math.PI * 2;
+        var peakY = 0.12 * R, baseY = -R, baseR = 0.95 * R;
+        var dishC = [0, 0.62 * R, 0], dishD = 0.55 * R, focalK = 0.55 * dishD;
+        // 天线朝向：法向 n 斜指上方偏 −X；盘面基 e1=(0,0,1)、e2=n×e1
+        var nx = -0.5145, ny = 0.8575, nz = 0;
+        var e1x = 0, e1y = 0, e1z = 1;
+        var e2x = 0.8575, e2y = 0.5145, e2z = 0;
+        // 层：山体 .40 | 雷达天线 .22 | 支架塔/馈源 .12 | 基地建筑 .16 | 细节灯 .10
+        var cum = [0.40, 0.62, 0.74, 0.90, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 山体（下部锥面 + 圆润山顶）
+            var capR = 0.16 * R;               // 山顶圆穹半径
+            var summitY = peakY - capR;        // 山肩高度
+            if (Math.random() < 0.85) {        // 锥形山体
+              var h = Math.pow(Math.random(), 0.8);
+              var yy = baseY + (summitY - baseY) * h;
+              var rmax = capR + (baseR - capR) * Math.pow(1 - h, 1.15) * (1 - 0.09 * Math.sin(h * 10));
+              randDir(d);
+              var hor = Math.sqrt(d[0] * d[0] + d[2] * d[2]) || 1;
+              var rr = rmax * (0.82 + 0.18 * Math.random());
+              x = d[0] / hor * rr; z = d[2] / hor * rr;
+              y = yy + (Math.random() - 0.5) * 0.04 * R;
+              col = mixHex(0x47563f, 0x8a8e74, h);
+              if (Math.random() < 0.3) col = mixHex(0x6a6a62, 0x9a9a90, Math.random());
+            } else {                           // 山顶圆穹（半球面，无尖顶）
+              randDir(d);
+              var tcap = Math.abs(d[1]);
+              var hr = capR * Math.sqrt(Math.max(0, 1 - tcap * tcap));
+              var ha = Math.random() * 6.2832;
+              x = Math.cos(ha) * hr; z = Math.sin(ha) * hr;
+              y = summitY + tcap * capR;
+              col = mixHex(0x5a6a52, 0x9a9e80, Math.random());
+            }
+            br = 0.92;
+          } else if (u < cum[1]) {             // 抛物面天线（凹面朝斜上方）
+            var rp = dishD * Math.sqrt(Math.random());
+            var a = Math.random() * TWO;
+            var uu = rp * Math.cos(a), vv = rp * Math.sin(a);
+            var depth = (uu * uu + vv * vv) / (4 * focalK);
+            x = dishC[0] + uu * e1x + vv * e2x + depth * nx;
+            y = dishC[1] + uu * e1y + vv * e2y + depth * ny;
+            z = dishC[2] + uu * e1z + vv * e2z + depth * nz;
+            col = mixHex(0xc6ccd2, 0xeef3f7, Math.random());
+            br = 0.95;
+          } else if (u < cum[2]) {             // 支架塔 / 馈源 / 支撑杆
+            var sub = Math.random();
+            var fx = dishC[0] + focalK * nx, fy = dishC[1] + focalK * ny, fz = dishC[2];
+            if (sub < 0.5) {                   // 塔身（山顶 → 天线）
+              var tt = Math.random();
+              y = peakY + (dishC[1] - peakY) * tt;
+              var trad = (0.16 - 0.06 * tt) * R, aa2 = Math.random() * TWO;
+              var rr2 = trad * (0.9 + 0.1 * Math.random());
+              x = Math.cos(aa2) * rr2; z = Math.sin(aa2) * rr2;
+              col = mixHex(0x8a949c, 0xc0c8d0, Math.random());
+              br = 0.9;
+            } else if (sub < 0.78) {           // 馈源（焦点处小簇）
+              randDir(d);
+              var fr = 0.05 * R * Math.sqrt(Math.random());
+              x = fx + d[0] * fr; y = fy + d[1] * fr; z = fz + d[2] * fr;
+              col = mixHex(0x707880, 0xa8b0b8, Math.random());
+              br = 1.0;
+            } else {                           // 支撑杆（盘缘 → 馈源）
+              var si = (Math.random() * 4) | 0, sAng = si * TWO / 4;
+              var ru = dishD * Math.cos(sAng), rv = dishD * Math.sin(sAng);
+              var rdpt = (ru * ru + rv * rv) / (4 * focalK);
+              var rxx = dishC[0] + ru * e1x + rv * e2x + rdpt * nx;
+              var ryy = dishC[1] + ru * e1y + rv * e2y + rdpt * ny;
+              var rzz = dishC[2] + ru * e1z + rv * e2z + rdpt * nz;
+              var ts = Math.random();
+              x = rxx + (fx - rxx) * ts + (Math.random() - 0.5) * 0.01 * R;
+              y = ryy + (fy - ryy) * ts + (Math.random() - 0.5) * 0.01 * R;
+              z = rzz + (fz - rzz) * ts + (Math.random() - 0.5) * 0.01 * R;
+              col = mixHex(0x9aa4ad, 0xd0d8e0, Math.random());
+              br = 0.95;
+            }
+          } else if (u < cum[3]) {             // 基地建筑群
+            var bi = (Math.random() * 8) | 0;
+            var bang = bi * TWO / 8 + 0.2, brad = (0.30 + 0.45 * Math.random()) * R;
+            var bw = (0.06 + 0.08 * Math.random()) * R;
+            var bd = (0.06 + 0.08 * Math.random()) * R;
+            var bh = (0.05 + 0.16 * Math.random()) * R;
+            x = Math.cos(bang) * brad + (Math.random() - 0.5) * bw;
+            z = Math.sin(bang) * brad + (Math.random() - 0.5) * bd;
+            y = baseY + Math.random() * bh;
+            col = mixHex(0x6a7076, 0xa8aeb4, Math.random());
+            br = 0.9;
+            if (Math.random() < 0.12) { col = mixHex(0xffd48a, 0xffe8b0, Math.random()); br = 1.3; }  // 窗灯
+          } else {                             // 细节灯（天线边缘 / 塔顶红色警示灯）
+            if (Math.random() < 0.5) {         // 盘缘灯
+              var ph = Math.random() * TWO;
+              x = dishC[0] + dishD * Math.cos(ph) * e1x + dishD * Math.sin(ph) * e2x;
+              y = dishC[1] + dishD * Math.cos(ph) * e1y + dishD * Math.sin(ph) * e2y;
+              z = dishC[2] + dishD * Math.cos(ph) * e1z + dishD * Math.sin(ph) * e2z;
+              col = mixHex(0xff5a4a, 0xffb0a0, Math.random());
+            } else {                           // 塔顶/馈源灯
+              randDir(d);
+              var lr = 0.05 * R;
+              x = dishC[0] + focalK * nx + d[0] * lr;
+              y = dishC[1] + focalK * ny + d[1] * lr;
+              z = dishC[2] + d[2] * lr;
+              col = mixHex(0x9fe8ff, 0xffe8b0, Math.random());
+            }
+            br = 1.6;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 摩天大楼 / 城市：地面基座 + 高低错落的楼群(带窗格与亮灯) + 楼顶天线/警示灯 + 街道灯 ----
+      function buildCity(P, C, count, R) {
+        var baseY = -R;
+        function boxPt(cx, cy, cz, hw, hd, hh, o) {       // 采样立方体表面点
+          var f = (Math.random() * 6) | 0, a = Math.random() * 2 - 1, b = Math.random() * 2 - 1;
+          if (f === 0)      { o[0] = cx + hw; o[1] = cy + a * hh; o[2] = cz + b * hd; }
+          else if (f === 1) { o[0] = cx - hw; o[1] = cy + a * hh; o[2] = cz + b * hd; }
+          else if (f === 2) { o[0] = cx + a * hw; o[1] = cy + hh; o[2] = cz + b * hd; }
+          else if (f === 3) { o[0] = cx + a * hw; o[1] = cy - hh; o[2] = cz + b * hd; }
+          else if (f === 4) { o[0] = cx + a * hw; o[1] = cy + b * hh; o[2] = cz + hd; }
+          else              { o[0] = cx + a * hw; o[1] = cy + b * hh; o[2] = cz - hd; }
+        }
+        // 预生成楼群（越靠中心越高）
+        var towers = [], G = 4;
+        for (var gx = 0; gx < G; gx++) for (var gz = 0; gz < G; gz++) {
+          var cx = (gx / (G - 1) - 0.5) * 1.7 * R + (Math.random() - 0.5) * 0.18 * R;
+          var cz = (gz / (G - 1) - 0.5) * 1.7 * R + (Math.random() - 0.5) * 0.18 * R;
+          if (Math.sqrt(cx * cx + cz * cz) > 1.05 * R) continue;
+          var w = (0.10 + 0.10 * Math.random()) * R;
+          var dp = (0.10 + 0.10 * Math.random()) * R;
+          var dc = Math.sqrt(cx * cx + cz * cz) / R;
+          var hgt = (0.28 + 0.62 * Math.random()) * R * (1.25 - 0.5 * dc);
+          towers.push([cx, baseY, cz, w, dp, hgt]);
+        }
+        var o = [0, 0, 0];
+        // 层：地面 .10 | 楼群 .72 | 楼顶天线/警示灯 .10 | 街道灯 .08
+        var cum = [0.10, 0.82, 0.92, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 地面基座
+            x = (Math.random() * 2 - 1) * 1.5 * R;
+            z = (Math.random() * 2 - 1) * 1.5 * R;
+            y = baseY - Math.random() * 0.03 * R;
+            col = mixHex(0x1e2228, 0x33383f, Math.random());
+            br = 0.8;
+          } else if (u < cum[1]) {             // 楼群（表面 + 窗格）
+            var tw = towers[(Math.random() * towers.length) | 0];
+            var hw = tw[3] * 0.5, hd = tw[4] * 0.5, hh = tw[5] * 0.5;
+            boxPt(tw[0], tw[1] + hh, tw[2], hw, hd, hh, o);
+            x = o[0]; y = o[1]; z = o[2];
+            col = mixHex(0x565c64, 0x8a919a, Math.random());
+            var fu = (Math.abs(x) / (0.045 * R)) % 1;
+            var fv = (y / (0.04 * R)) % 1;
+            if (Math.min(fu, 1 - fu) > 0.28 && Math.min(fv, 1 - fv) > 0.32) {
+              col = mixHex(0x22303e, 0x4a6788, Math.random());      // 玻璃幕墙
+              if (Math.random() < 0.16) { col = mixHex(0xffcf88, 0xffe6b0, Math.random()); br = 1.35; }
+            }
+            br = br;
+          } else if (u < cum[2]) {             // 楼顶天线 / 警示灯
+            var tw2 = towers[(Math.random() * towers.length) | 0];
+            var topY = tw2[1] + tw2[5];
+            if (Math.random() < 0.6) {         // 天线（细杆）
+              x = tw2[0] + (Math.random() - 0.5) * 0.02 * R;
+              z = tw2[2] + (Math.random() - 0.5) * 0.02 * R;
+              y = topY + Math.random() * 0.10 * R;
+              col = mixHex(0x9aa4ad, 0xd0d8e0, Math.random());
+              br = 0.95;
+            } else {                           // 红色航空警示灯
+              x = tw2[0]; z = tw2[2]; y = topY + 0.01 * R;
+              col = mixHex(0xff5a4a, 0xffb0a0, Math.random());
+              br = 1.7;
+            }
+          } else {                             // 街道灯（沿网格的暖色亮点）
+            var lane = (((Math.random() * 7) | 0) - 3) * 0.4 * R;
+            var along = (Math.random() * 2 - 1) * 1.4 * R;
+            if (Math.random() < 0.5) { x = lane; z = along; } else { x = along; z = lane; }
+            y = baseY + 0.02 * R;
+            col = mixHex(0xffd48a, 0xfff0c0, Math.random());
+            br = 1.4;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 客机：机身(机头/尾锥) + 后掠主翼 + 尾翼(平/垂) + 发动机吊舱 + 舷窗 + 航行灯 ----
+      function buildAirliner(P, C, count, R) {
+        var d = [0, 0, 0], o = [0, 0, 0];
+        function seg(a, b, r0, r1, oo) {      // 锥柱表面采样
+          var t = Math.random();
+          var cx = a[0] + (b[0] - a[0]) * t, cy = a[1] + (b[1] - a[1]) * t, cz = a[2] + (b[2] - a[2]) * t;
+          var rr = r0 + (r1 - r0) * t;
+          randDir(d);
+          var ax = b[0] - a[0], ay = b[1] - a[1], az = b[2] - a[2];
+          var al = Math.sqrt(ax * ax + ay * ay + az * az) || 1; ax /= al; ay /= al; az /= al;
+          var dot = d[0] * ax + d[1] * ay + d[2] * az;
+          var px = d[0] - dot * ax, py = d[1] - dot * ay, pz = d[2] - dot * az;
+          var pl = Math.sqrt(px * px + py * py + pz * pz) || 1; px /= pl; py /= pl; pz /= pl;
+          var sf = Math.random() < 0.78 ? 1 : Math.sqrt(Math.random());
+          oo[0] = cx + px * rr * sf; oo[1] = cy + py * rr * sf; oo[2] = cz + pz * rr * sf;
+        }
+        // 层：机身 .30 | 机翼/尾翼 .36 | 发动机 .12 | 舷窗 .14 | 航行灯等细节 .08
+        var cum = [0.30, 0.66, 0.78, 0.92, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 机身（含机头、尾锥）
+            var rsub = Math.random();
+            if (rsub < 0.62) { seg([-0.92 * R, 0, 0], [0.78 * R, 0, 0], 0.105 * R, 0.125 * R, o); }
+            else if (rsub < 0.82) { seg([0.78 * R, 0, 0], [R, 0, 0], 0.125 * R, 0.02 * R, o); }       // 机头
+            else { seg([-0.92 * R, 0, 0], [-R, 0, 0], 0.105 * R, 0.03 * R, o); }                       // 尾锥
+            x = o[0]; y = o[1]; z = o[2];
+            col = y >= 0 ? mixHex(0xd8dee6, 0xf2f6fa, Math.random()) : mixHex(0x2f6ab0, 0x5a92d0, Math.random());
+          } else if (u < cum[1]) {             // 主翼 / 平尾 / 垂尾（XY 平面内的薄翼）
+            var msub = Math.random(), side = Math.random() < 0.5 ? -1 : 1, s = Math.random();
+            var spanX, spanY, ch, cpos;
+            if (msub < 0.66) {                 // 后掠主翼
+              spanX = -0.34 * R * s; spanY = side * (0.13 * R + 0.72 * R * s);
+              ch = (0.42 - 0.22 * s) * R;
+            } else if (msub < 0.86) {          // 平尾
+              spanX = -0.80 * R - 0.16 * R * s; spanY = side * (0.10 * R + 0.26 * R * s);
+              ch = (0.24 - 0.12 * s) * R;
+            } else {                           // 垂尾（仅向上）
+              spanX = -0.82 * R - 0.14 * R * s; spanY = 0.10 * R + 0.42 * R * s;
+              ch = (0.30 - 0.14 * s) * R;
+            }
+            cpos = (Math.random() * 2 - 1) * ch * 0.5;
+            x = spanX + cpos; y = spanY; z = (Math.random() - 0.5) * 0.028 * R;
+            col = msub < 0.86 ? mixHex(0xbfc8d2, 0xe8eef4, Math.random()) : mixHex(0x2f6ab0, 0x5a92d0, Math.random());
+          } else if (u < cum[2]) {             // 发动机吊舱（翼下的锥柱）
+            var eside = Math.random() < 0.5 ? -1 : 1;
+            seg([-0.06 * R, eside * 0.34 * R, 0], [0.12 * R, eside * 0.34 * R, 0], 0.052 * R, 0.05 * R, o);
+            x = o[0]; y = o[1]; z = o[2];
+            col = mixHex(0x8a949c, 0xc8d2da, Math.random());
+            br = 0.95;
+          } else if (u < cum[3]) {             // 舷窗（机身侧面一排）
+            var wrow = Math.random();
+            var wx = -0.75 * R + Math.random() * 1.45 * R;
+            y = (wrow < 0.5 ? 0.062 * R : -0.062 * R) + (Math.random() - 0.5) * 0.01 * R;
+            z = (Math.random() < 0.5 ? 1 : -1) * 0.11 * R * Math.sqrt(Math.random());
+            x = wx;
+            if (wrow < 0.5) { col = mixHex(0x1a2028, 0x2a3440, Math.random()); }                 // 侧面窗
+            else { col = mixHex(0x2a3440, 0x8fb4e0, Math.random()); }                            // 朝向相机的一侧窗（部分反光）
+            br = 0.9;
+          } else {                             // 航行灯 / 机头雷达 / 涂装条
+            var dsub = Math.random();
+            if (dsub < 0.4) { x = 0.34 * R; y = 0.48 * R; z = 0.0; col = mixHex(0xff5a4a, 0xffb0a0, Math.random()); br = 1.7; }   // 翼尖红灯
+            else if (dsub < 0.7) { x = R * 0.995; y = 0; z = (Math.random() - 0.5) * 0.04 * R; col = mixHex(0x9fe8ff, 0xd0f4ff, Math.random()); br = 1.6; } // 机头灯
+            else { var xx = -0.75 * R + Math.random() * 1.4 * R; x = xx; y = 0; z = (Math.random() < 0.5 ? 1 : -1) * 0.115 * R; col = mixHex(0x2f6ab0, 0x5a92d0, Math.random()); br = 0.9; } // 涂装条
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 高铁：流线车头/车身/车尾 + 侧窗 + 涂装条 + 转向架车轮 + 轨道(钢轨/轨枕/道砟) ----
+      function buildTrain(P, C, count, R) {
+        var d = [0, 0, 0], o = [0, 0, 0];
+        function seg(a, b, r0, r1, oo) {
+          var t = Math.random();
+          var cx = a[0] + (b[0] - a[0]) * t, cy = a[1] + (b[1] - a[1]) * t, cz = a[2] + (b[2] - a[2]) * t;
+          var rr = r0 + (r1 - r0) * t;
+          randDir(d);
+          var ax = b[0] - a[0], ay = b[1] - a[1], az = b[2] - a[2];
+          var al = Math.sqrt(ax * ax + ay * ay + az * az) || 1; ax /= al; ay /= al; az /= al;
+          var dot = d[0] * ax + d[1] * ay + d[2] * az;
+          var px = d[0] - dot * ax, py = d[1] - dot * ay, pz = d[2] - dot * az;
+          var pl = Math.sqrt(px * px + py * py + pz * pz) || 1; px /= pl; py /= pl; pz /= pl;
+          var sf = Math.random() < 0.8 ? 1 : Math.sqrt(Math.random());
+          oo[0] = cx + px * rr * sf; oo[1] = cy + py * rr * sf; oo[2] = cz + pz * rr * sf;
+        }
+        // 层：车身 .42 | 侧窗 .12 | 涂装条 .08 | 转向架/车轮 .10 | 轨道 .28
+        var cum = [0.42, 0.54, 0.62, 0.72, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 车身（流线车头 + 车尾）
+            var bsub = Math.random();
+            if (bsub < 0.66) seg([-1.5 * R, 0, 0], [1.5 * R, 0, 0], 0.155 * R, 0.155 * R, o);
+            else if (bsub < 0.84) seg([1.5 * R, 0, 0], [1.85 * R, 0, 0], 0.155 * R, 0.02 * R, o);      // 流线车头
+            else seg([-1.5 * R, 0, 0], [-1.85 * R, 0, 0], 0.155 * R, 0.06 * R, o);                      // 车尾
+            x = o[0]; y = o[1]; z = o[2];
+            col = y < -0.05 * R ? mixHex(0xc2cad2, 0xdfe6ec, Math.random()) : mixHex(0xe6ecf2, 0xf8fbfe, Math.random());
+          } else if (u < cum[1]) {             // 侧窗（长排）
+            x = -1.45 * R + Math.random() * 2.90 * R;
+            y = 0.05 * R + (Math.random() - 0.5) * 0.02 * R;
+            z = (Math.random() < 0.5 ? 1 : -1) * 0.155 * R;
+            col = mixHex(0x121820, 0x2a3a4a, Math.random());
+            br = 0.85;
+          } else if (u < cum[2]) {             // 涂装条（蓝色腰带）
+            x = -1.5 * R + Math.random() * 3.0 * R;
+            y = -0.03 * R + (Math.random() - 0.5) * 0.02 * R;
+            z = (Math.random() < 0.5 ? 1 : -1) * 0.158 * R;
+            col = mixHex(0x2a6cc0, 0x5a92d0, Math.random());
+            br = 0.95;
+          } else if (u < cum[3]) {             // 转向架 / 车轮
+            var bpos = [-1.2, -0.75, -0.3, 0.3, 0.75, 1.2][(Math.random() * 6) | 0];
+            x = bpos * R + (Math.random() - 0.5) * 0.14 * R;
+            z = (Math.random() - 0.5) * 0.20 * R;
+            y = -0.17 * R + (Math.random() - 0.5) * 0.03 * R;
+            col = mixHex(0x2a2f36, 0x4a525a, Math.random());
+            br = 0.8;
+          } else {                             // 轨道（钢轨 / 轨枕 / 道砟）
+            var tsub = Math.random();
+            if (tsub < 0.48) {                 // 钢轨
+              var side = Math.random() < 0.5 ? -1 : 1;
+              x = (-2.3 + Math.random() * 4.6) * R;
+              z = side * 0.11 * R + (Math.random() - 0.5) * 0.01 * R;
+              y = -0.235 * R;
+              col = mixHex(0x8a949c, 0xc8d2da, Math.random());
+              br = 0.9;
+            } else if (tsub < 0.74) {          // 轨枕（离散横木）
+              x = Math.round((Math.random() * 4.6 - 2.3) * R / (0.12 * R)) * 0.12 * R;
+              z = (Math.random() - 0.5) * 0.6 * R;
+              y = -0.245 * R;
+              col = mixHex(0x4a3f34, 0x6a5a48, Math.random());
+              br = 0.8;
+            } else {                           // 道砟路基
+              x = (-2.4 + Math.random() * 4.8) * R;
+              z = (Math.random() - 0.5) * 0.9 * R;
+              y = -0.255 * R - Math.random() * 0.012 * R;
+              col = mixHex(0x3a3a38, 0x55554f, Math.random());
+              br = 0.7;
+            }
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 彗星：不规则彗核 + 彗发辉光 + 直离子尾(蓝) + 弯曲尘埃尾(黄白) + 外围微粒 ----
+      function buildComet(P, C, count, R) {
+        var d = [0, 0, 0];
+        var cx0 = 0.35 * R;                   // 彗核位置（尾朝 −X）
+        // 层：彗核 .06 | 彗发 .18 | 离子尾 .30 | 尘埃尾 .34 | 外围微粒 .12
+        var cum = [0.06, 0.24, 0.54, 0.88, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 彗核（不规则小岩石）
+            randDir(d);
+            var nrad = 0.11 * R * (0.8 + 0.4 * Math.random());
+            x = cx0 + d[0] * nrad; y = d[1] * nrad; z = d[2] * nrad;
+            col = mixHex(0x55554e, 0x8a8a80, Math.random());
+            br = 0.9;
+          } else if (u < cum[1]) {             // 彗发（近核最亮，向外淡）
+            randDir(d);
+            var cf = Math.pow(Math.random(), 0.6);
+            var crad = 0.27 * R * cf;
+            x = cx0 + d[0] * crad; y = d[1] * crad; z = d[2] * crad;
+            col = mixHex(0x4a9ad0, 0xf0fbff, 1 - cf);
+            br = 2.4 * (1 - 0.8 * cf);
+          } else if (u < cum[2]) {             // 离子尾（直、细长、蓝白，柔边，末端淡出）
+            var s = Math.random();
+            x = cx0 - 1.7 * R * s;
+            var sp = 0.02 * R + 0.09 * R * s;
+            var rr = sp * Math.random() * Math.random();
+            var ang = Math.random() * 6.2832;
+            y = Math.cos(ang) * rr;
+            z = Math.sin(ang) * rr;
+            col = mixHex(0xe6f7ff, 0x3a7ac0, s);
+            br = 2.0 * Math.pow(1 - s, 1.3);
+          } else if (u < cum[3]) {             // 尘埃尾（细长、弯、黄白，柔边向下偏，末端淡出）
+            var s2 = Math.random();
+            x = cx0 - 1.5 * R * s2;
+            var curve = 0.45 * R * s2 * s2;
+            var sp2 = 0.05 * R + 0.24 * R * s2;
+            var rr2 = sp2 * (0.5 * Math.random() + 0.5 * Math.random());
+            var ang2 = Math.random() * 6.2832;
+            y = -curve + Math.sin(ang2) * rr2 * 0.8;
+            z = Math.cos(ang2) * rr2 * 0.8;
+            col = mixHex(0xffe8c0, 0xa89470, s2);
+            br = 1.5 * Math.pow(1 - s2, 1.2);
+          } else {                             // 外围尘埃微粒 / 弥散辉光
+            randDir(d);
+            var g = Math.pow(Math.random(), 0.5);
+            var grad = 0.55 * R * g;
+            x = cx0 - Math.random() * 0.5 * R + d[0] * grad * 0.7;
+            y = d[1] * grad; z = d[2] * grad;
+            col = mixHex(0x9fd0ff, 0x3a7ac0, Math.random());
+            br = 1.1 * (1 - g) * (1 - g);
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 树：递归分枝的树干/枝 + 枝端树叶簇 + 树根 + 零星果实 ----
+      function buildTree(P, C, count, R) {
+        var d = [0, 0, 0], o = [0, 0, 0];
+        var segs = [], tips = [];
+        function grow(x, y, z, dx, dy, dz, len, rad, depth) {
+          if (depth > 4 || len < 0.05 * R) { tips.push([x, y, z]); return; }
+          var ex = x + dx * len, ey = y + dy * len, ez = z + dz * len;
+          segs.push([x, y, z, ex, ey, ez, rad, rad * 0.7]);
+          if (depth >= 3) tips.push([ex, ey, ez]);
+          var nb = depth < 2 ? 2 + ((Math.random() * 2) | 0) : 2;
+          for (var k = 0; k < nb; k++) {
+            var ndx = dx + (Math.random() - 0.5) * 1.2;
+            var ndy = dy + (Math.random() - 0.5) * 0.5 + 0.30;
+            var ndz = dz + (Math.random() - 0.5) * 1.2;
+            var nl = Math.sqrt(ndx * ndx + ndy * ndy + ndz * ndz) || 1;
+            ndx /= nl; ndy /= nl; ndz /= nl;
+            grow(ex, ey, ez, ndx, ndy, ndz, len * (0.62 + 0.12 * Math.random()), rad * 0.66, depth + 1);
+          }
+        }
+        grow(0, -R, 0, 0, 1, 0, 0.48 * R, 0.095 * R, 0);
+        var roots = [];
+        for (var r0 = 0; r0 < 5; r0++) {
+          var ra = Math.random() * 6.2832;
+          roots.push([0, -R, 0, Math.cos(ra) * 0.28 * R, -R - 0.02 * R, Math.sin(ra) * 0.28 * R, 0.06 * R, 0.02 * R]);
+        }
+        function segPt(s, oo) {           // 沿枝干锥柱表面采样
+          var t = Math.random();
+          var rr = s[6] + (s[7] - s[6]) * t;
+          var cx = s[0] + (s[3] - s[0]) * t, cy = s[1] + (s[4] - s[1]) * t, cz = s[2] + (s[5] - s[2]) * t;
+          randDir(d);
+          var ax = s[3] - s[0], ay = s[4] - s[1], az = s[5] - s[2];
+          var al = Math.sqrt(ax * ax + ay * ay + az * az) || 1; ax /= al; ay /= al; az /= al;
+          var dot = d[0] * ax + d[1] * ay + d[2] * az;
+          var px = d[0] - dot * ax, py = d[1] - dot * ay, pz = d[2] - dot * az;
+          var pl = Math.sqrt(px * px + py * py + pz * pz) || 1; px /= pl; py /= pl; pz /= pl;
+          var sf = Math.random() < 0.8 ? 1 : Math.sqrt(Math.random());
+          oo[0] = cx + px * rr * sf; oo[1] = cy + py * rr * sf; oo[2] = cz + pz * rr * sf;
+        }
+        // 层：枝干 .40 | 树叶 .50 | 树根 .06 | 果实 .04
+        var cum = [0.40, 0.90, 0.96, 1.0];
+        for (var i = 0; i < count; i++) {
+          var i3 = i * 3, u = Math.random();
+          var x, y, z, col, br = 1.0;
+          if (u < cum[0]) {                    // 树干 / 枝
+            var s = segs[(Math.random() * segs.length) | 0];
+            segPt(s, o); x = o[0]; y = o[1]; z = o[2];
+            col = mixHex(0x4a3524, 0x8a6a48, Math.random());
+            br = 0.9;
+          } else if (u < cum[1]) {             // 树叶簇（枝端球状叶团）
+            var tp = tips[(Math.random() * tips.length) | 0];
+            randDir(d);
+            var lr = 0.13 * R * Math.sqrt(Math.random());
+            x = tp[0] + d[0] * lr; y = tp[1] + d[1] * lr; z = tp[2] + d[2] * lr;
+            col = Math.random() < 0.15 ? mixHex(0xb8b040, 0xdcC860, Math.random())
+                                       : mixHex(0x2f7a2e, 0x8fd050, Math.random());
+            br = 0.95;
+          } else if (u < cum[2]) {             // 树根
+            var rt = roots[(Math.random() * roots.length) | 0];
+            segPt(rt, o); x = o[0]; y = o[1]; z = o[2];
+            col = mixHex(0x3a2a1c, 0x5a4030, Math.random());
+            br = 0.85;
+          } else {                             // 果实（红点）
+            var tp2 = tips[(Math.random() * tips.length) | 0];
+            randDir(d);
+            var fr = 0.03 * R * Math.random();
+            x = tp2[0] + d[0] * fr; y = tp2[1] + d[1] * fr; z = tp2[2] + d[2] * fr;
+            col = mixHex(0xd03020, 0xf06040, Math.random());
+            br = 1.1;
+          }
+          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          C[i3] = col[0] * br; C[i3 + 1] = col[1] * br; C[i3 + 2] = col[2] * br;
+        }
+      }
+
+      // ---- 物体注册表（左上角按钮 + 数字键 1-9 切换）----
+      var OBJECTS = [
+        { name: "类地行星",   radius: 5.0, count: BASE_COUNT, build: buildEarth },
+        { name: "恒星",       radius: 5.0, count: BASE_COUNT, build: buildStar },
+        { name: "气态巨行星", radius: 5.0, count: BASE_COUNT, build: buildGasGiant },
+        { name: "星际战舰",   radius: 6.0, count: BASE_COUNT, build: buildStarship },
+        { name: "太空城",     radius: 5.5, count: BASE_COUNT, build: buildSpaceCity },
+        { name: "宇航员",     radius: 2.2, count: 1500000,    build: buildAstronaut },
+        { name: "岩质小行星", radius: 3.5, count: 1000000,    build: buildAsteroid },
+        { name: "水滴",       radius: 3.2, count: 1200000,    build: buildDroplet },
+        { name: "黑洞",       radius: 5.0, count: 1500000,    build: buildBlackhole },
+        { name: "DNA双螺旋",  radius: 4.0, count: 1200000,    build: buildDNA },
+        { name: "细胞",       radius: 5.0, count: 1500000,    build: buildCell },
+        { name: "空间站",     radius: 5.0, count: 1500000,    build: buildStation },
+        { name: "红岸基地",   radius: 5.0, count: 1500000,    build: buildRedCoast },
+        { name: "城市",       radius: 5.0, count: 1500000,    build: buildCity },
+        { name: "客机",       radius: 5.0, count: 1500000,    build: buildAirliner },
+        { name: "高铁",       radius: 4.5, count: 1500000,    build: buildTrain },
+        { name: "彗星",       radius: 5.0, count: 1200000,    build: buildComet },
+        { name: "树",         radius: 5.0, count: 1500000,    build: buildTree }
+      ];
+
+      // ================================================================
+      //  顶点着色器（与物体无关，通用）
+      // ================================================================
+      var VERTEX_SHADER = [
+        "uniform float u_time;",
+        "uniform float u_startZ;",
+        "uniform float u_endZ;",
+        "uniform float u_speed;",
+        "uniform float u_band;",
+        "uniform float u_exp;",
+        "uniform float u_radius;",
+        "uniform float u_size;",
+        "uniform float u_scale;",
+        "",
+        "attribute vec3 aColor;",
+        "attribute float aXray;",
+        "",
+        "varying vec3  vColor;",
+        "varying float vSince;",
+        "varying float vSeed;",
+        "varying float vXray;",
+        "",
+        "void main() {",
+        "  vec3  p  = position;",
+        "",
+        "  // ---- 1. 碰撞检测 ----",
+        "  float planeZ = u_startZ - u_speed * u_time;",
+        "  planeZ = max(planeZ, u_endZ);",
+        "  float swept = p.z - planeZ;",
+        "  float q = smoothstep(0.0, u_band, swept);",
+        "  vSince = swept / u_band;",
+        "",
+        "  // ---- 2. 角向 ----",
+        "  vec2  p0   = p.xy;",
+        "  float rho0 = length(p0);",
+        "  vec2  dir  = rho0 > 1e-5 ? p0 / rho0 : vec2(0.0);",
+        "",
+        "  // ---- 3. 面积膨胀（质量守恒） ----",
+        "  float growth = exp(u_exp * q);",
+        "  float R2 = u_radius * u_radius;",
+        "  float R3 = u_radius * R2;",
+        "  float frac;",
+        "  if (rho0 <= u_radius) {",
+        "    // 主体（球）：面积均匀映射为实心盘",
+        "    //   cdf(ρ) = (R³ - (R²-ρ²)^1.5) / R³, 目标半径 ∝ sqrt(cdf)",
+        "    float inner = max(R2 - rho0 * rho0, 0.0);",
+        "    float cdf = (R3 - pow(inner, 1.5)) / R3;",
+        "    frac = sqrt(clamp(cdf, 0.0, 1.0));",
+        "  } else {",
+        "    // 主体之外的结构（如行星环）：线性外延，保持相对位置，形成盘外的环",
+        "    frac = 1.0 + (rho0 - u_radius) / u_radius;",
+        "  }",
+        "  float rho2 = u_radius * growth * frac;",
+        "  float r2   = mix(rho0, rho2, q);",
+        "",
+        "  // ---- 4. 组装 ----",
+        "  vec2  xy2 = dir * r2;",
+        "  float z2  = mix(p.z, planeZ, q);",
+        "",
+        "  vColor = aColor;",
+        "  vSeed  = fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);",
+        "  vXray  = aXray;",
+        "",
+        "  vec4 mv = modelViewMatrix * vec4(xy2, z2, 1.0);",
+        "  gl_Position = projectionMatrix * mv;",
+        "  gl_PointSize = u_size * (u_scale / -mv.z);",
+        "  gl_PointSize = max(gl_PointSize, 1.6);",
+        "}"
+      ].join("\n");
+
+      // ================================================================
+      //  片元着色器
+      // ================================================================
+      var FRAGMENT_SHADER = [
+        "precision highp float;",
+        "",
+        "uniform float u_cool;",
+        "uniform float u_xray;",
+        "",
+        "varying vec3  vColor;",
+        "varying float vSince;",
+        "varying float vSeed;",
+        "varying float vXray;",
+        "",
+        "void main() {",
+        "  vec2 c = gl_PointCoord - vec2(0.5);",
+        "  float d = length(c);",
+        "  float a = smoothstep(0.5, 0.30, d);",
+        "  if (a < 0.5) discard;",
+        "",
+        "  float heat = vSince > 0.0 ? exp(-vSince * vSince * u_cool) : 0.0;",
+        "  heat = clamp(heat, 0.0, 1.0);",
+        "  float cooled = clamp(vSince, 0.0, 1.0);",
+        "",
+        "  // 冷却后保留物体原本的配色（不再整体偏蓝），仅做明暗抖动形成星点",
+        "  vec3 galaxy = vColor * mix(1.0, 0.60 + 0.60 * vSeed, cooled);",
+        "  // 凝固后限制亮度 <1，避免持续辉光（只有跌落边界才发光）",
+        "  galaxy = mix(galaxy, min(galaxy, vec3(0.92)), cooled);",
+        "",
+        "  vec3 hot = vec3(3.5, 3.5, 3.7);",
+        "  vec3 col = mix(galaxy, hot, heat);",
+        "",
+        "  // 透视（X 光）模式：压低单点强度 + 半透明叠加；aXray 让外壳更透明以露出内部",
+        "  float xk = mix(1.0, vXray, u_xray);",
+        "  col = mix(col, col * 0.45 * xk, u_xray);",
+        "  float alpha = mix(1.0, 0.028, u_xray) * a * xk;",
+        "",
+        "  gl_FragColor = vec4(col, alpha);",
+        "}"
+      ].join("\n");
+
+      var uniforms = {
+        u_time:   { value: 0 },
+        u_startZ: { value: currentRadius + 6.0 },
+        u_endZ:   { value: -(currentRadius + 10.0) },
+        u_speed:  { value: 2.5 },
+        u_band:   { value: 1.6 },
+        u_exp:    { value: 3.5 },
+        u_radius: { value: currentRadius },
+        u_size:   { value: 0.09 },
+        u_scale:  { value: window.innerHeight * renderer.getPixelRatio() * 0.5 },
+        u_cool:   { value: 0.6 },
+        u_xray:   { value: 0 }
+      };
+
+      var earthGeo = new THREE.BufferGeometry();
+      var earthMat = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: VERTEX_SHADER,
+        fragmentShader: FRAGMENT_SHADER,
+        transparent: false,
+        depthWrite: true,
+        depthTest: true
+      });
+
+      var earth = new THREE.Points(earthGeo, earthMat);
+      earth.frustumCulled = false;
+      scene.add(earth);
+
+      // ------------------------------------------------------------------
+      // 后期处理：EffectComposer + UnrealBloomPass
+      // ------------------------------------------------------------------
+      function createRenderTarget() {
+        var size = new THREE.Vector2();
+        renderer.getDrawingBufferSize(size);
+        return new THREE.WebGLRenderTarget(size.x, size.y, {
+          type: THREE.HalfFloatType,
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          format: THREE.RGBAFormat
+        });
+      }
+
+      var composer = new THREE.EffectComposer(renderer, createRenderTarget());
+      composer.addPass(new THREE.RenderPass(scene, camera));
+
+      var bloomPass = new THREE.UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.0,   // strength
+        0.5,   // radius
+        1.0    // threshold
+      );
+      composer.addPass(bloomPass);
+
+      (function applyInitialSize() {
+        var pr = renderer.getPixelRatio();
+        composer.setSize(window.innerWidth * pr, window.innerHeight * pr);
+      })();
+
+      // ------------------------------------------------------------------
+      // 轨道控制器
+      // ------------------------------------------------------------------
+      var controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enablePan = true;
+      controls.minDistance = 2;
+      controls.maxDistance = 9000;
+      controls.target.set(0, 0, 0);
+
+      // 观察模式：auto 自动运镜 / remote 远端俯视 / side 侧视 / manual 手动
+      var viewMode = "auto";
+      var VIEW_LABEL = { auto: "自动", remote: "远端俯视", side: "侧视", manual: "手动" };
+      controls.addEventListener("start", function () { viewMode = "manual"; });
+
+      function diskRadius() { return currentExtent * Math.exp(uniforms.u_exp.value); }
+      function diskCenterZ() { return uniforms.u_endZ.value * 0.5; }
+
+      function updateAutoCamera(t) {
+        if (viewMode !== "auto") return;
+        var totalT =
+          (uniforms.u_startZ.value - uniforms.u_endZ.value) / uniforms.u_speed.value;
+        var p = (t - 3.0) / (totalT + 1.0);
+        p = p < 0 ? 0 : (p > 1 ? 1 : p);
+        var e = p * p * (3 - 2 * p);
+        var startDist = currentExtent * 6.0;
+        var endDist = currentExtent * Math.exp(uniforms.u_exp.value) * 2.2;
+        var dist = startDist + (endDist - startDist) * e;
+        var dir = camera.position.clone().sub(controls.target);
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0.3, 1);
+        dir.normalize();
+        camera.position.copy(controls.target).addScaledVector(dir, dist);
+      }
+
+      // 切换观察视角（再次按同一键 → 回到自动运镜）
+      function setView(mode) {
+        if (viewMode === mode) mode = "auto";
+        viewMode = mode;
+
+        var dist = diskRadius() * 2.6;
+        if (mode === "remote") {
+          camera.position.set(0, dist * 0.34, dist * 0.94);
+          controls.target.set(0, 0, diskCenterZ());
+        } else if (mode === "side") {
+          var az = 0.45, el = 0.14;
+          var ce = Math.cos(el);
+          camera.position.set(
+            Math.cos(az) * ce * dist,
+            Math.sin(el) * dist,
+            Math.sin(az) * ce * dist
+          );
+          controls.target.set(0, 0, diskCenterZ());
+        } else {
+          controls.target.set(0, 0, 0);
+        }
+        controls.update();
+      }
+
+      // 透视（X 光）模式：半透明 + 叠加混合，让内部结构可见（所有物体通用）
+      var xray = false;
+      function setXray(on) {
+        xray = on;
+        uniforms.u_xray.value = on ? 1 : 0;
+        earthMat.transparent = on;
+        earthMat.depthWrite = !on;
+        earthMat.depthTest = !on;
+        earthMat.blending = on ? THREE.AdditiveBlending : THREE.NormalBlending;
+        earthMat.needsUpdate = true;
+        bloomPass.strength = on ? 0.25 : 1.0;   // 透视时抑制辉光，避免叠加刷白
+      }
+      function toggleXray() { setXray(!xray); }
+
+      // 自适应窗口大小
+      window.addEventListener("resize", function () {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        var pr = renderer.getPixelRatio();
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        composer.setSize(w * pr, h * pr);
+        uniforms.u_scale.value = h * pr * 0.5;
+      });
+
+      // ------------------------------------------------------------------
+      // 播放控制
+      // ------------------------------------------------------------------
+      var clock = new THREE.Clock();
+      var elapsed = 0;
+      var timeScale = 1.0;
+      var started = false;
+      var paused = false;
+
+      function start() {
+        if (started) return;
+        started = true;
+        paused = false;
+        startEl.classList.add("hidden");
+        clock.getDelta();
+      }
+      startBtn.addEventListener("click", start);
+
+      function resetToStart() {
+        elapsed = 0;
+        timeScale = 1.0;
+        paused = false;
+        started = false;
+        viewMode = "auto";
+        camera.position.set(0, currentExtent * 1.6, currentExtent * 5.2);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        startEl.classList.remove("hidden");
+        clock.getDelta();
+      }
+
+      // ------------------------------------------------------------------
+      // 物体切换
+      // ------------------------------------------------------------------
+      function rebuildGeometry() {
+        var obj = OBJECTS[currentObject];
+        var count = obj.count;
+        var pos = new Float32Array(count * 3);
+        var col = new Float32Array(count * 3);
+        var xray = new Float32Array(count);
+        for (var xi = 0; xi < count; xi++) xray[xi] = 1.0;   // 透视衰减：1=正常，越小越透明
+        obj.build(pos, col, count, obj.radius, xray);
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("aColor", new THREE.BufferAttribute(col, 3));
+        geo.setAttribute("aXray", new THREE.BufferAttribute(xray, 1));
+        if (earth.geometry) earth.geometry.dispose();
+        earth.geometry = geo;
+
+        currentRadius = obj.radius;
+        currentCount = count;
+
+        // 计算最大横向半径（含行星环等外部结构），用于相机 framing
+        var maxRho = 0;
+        for (var i = 0; i < count; i++) {
+          var px = pos[i * 3], py = pos[i * 3 + 1];
+          var rr = Math.sqrt(px * px + py * py);
+          if (rr > maxRho) maxRho = rr;
+        }
+        currentExtent = maxRho > 1e-6 ? maxRho : obj.radius;
+
+        uniforms.u_radius.value = obj.radius;
+        uniforms.u_startZ.value = obj.radius + 6.0;
+        uniforms.u_endZ.value = -(obj.radius + 10.0);
+      }
+
+      function setObject(index) {
+        currentObject = index;
+        rebuildGeometry();
+        updateObjectButtons();
+        objNameEl.textContent = OBJECTS[index].name;
+        resetToStart();
+      }
+
+      // 屏幕上的切换按钮
+      var objectButtons = [];
+      var objListEl = document.createElement("div");
+      objListEl.id = "objectList";
+      var objToggle = document.createElement("button");
+      objToggle.id = "objToggle";
+      objToggle.className = "objBtn";
+      objToggle.textContent = "▾ 观测目标 · 点击收起";
+      objToggle.addEventListener("click", function () {
+        objectsEl.classList.toggle("collapsed");
+        objToggle.textContent = objectsEl.classList.contains("collapsed")
+          ? "▸ 观测目标 · 点击展开" : "▾ 观测目标 · 点击收起";
+      });
+      objectsEl.appendChild(objToggle);
+      objectsEl.appendChild(objListEl);
+      (function buildObjectButtons() {
+        for (var oi = 0; oi < OBJECTS.length; oi++) {
+          (function (idx) {
+            var b = document.createElement("button");
+            b.className = "objBtn";
+            b.textContent = (idx + 1) + " · " + OBJECTS[idx].name;
+            b.addEventListener("click", function () { setObject(idx); });
+            objListEl.appendChild(b);
+            objectButtons.push(b);
+          })(oi);
+        }
+      })();
+      function updateObjectButtons() {
+        for (var k = 0; k < objectButtons.length; k++) {
+          objectButtons[k].classList.toggle("active", k === currentObject);
+        }
+      }
+
+      // 数学原理交互演示页入口
+      (function addMathLink() {
+        var a = document.createElement("a");
+        a.className = "objBtn";
+        a.href = "二维化数学原理.html";
+        a.textContent = "» 数学原理 · 交互演示";
+        objListEl.appendChild(a);
+      })();
+
+      // 二向箔展示页入口
+      (function addFoilLink() {
+        var a = document.createElement("a");
+        a.className = "objBtn";
+        a.href = "二向箔.html";
+        a.textContent = "» 二向箔 · 展示";
+        objListEl.appendChild(a);
+      })();
+
+      // 键盘
+      window.addEventListener("keydown", function (e) {
+        if (e.key >= "1" && e.key <= "9") {
+          var idx = parseInt(e.key, 10) - 1;
+          if (idx >= 0 && idx < OBJECTS.length) setObject(idx);
+          return;
+        }
+        if (!started && (e.key === " " || e.key === "Enter")) { start(); return; }
+        switch (e.key) {
+          case "r": case "R": resetToStart(); break;
+          case "[": timeScale = Math.max(0.05, timeScale / 2); break;
+          case "]": timeScale = Math.min(4.0, timeScale * 2); break;
+          case "p": case "P": paused = !paused; break;
+          case "v": case "V": setView("remote"); break;
+          case "s": case "S": setView("side"); break;
+          case "x": case "X": toggleXray(); break;
+        }
+      });
+
+      // 初始化：生成第一个物体
+      setObject(0);
+
+      // ------------------------------------------------------------------
+      // 渲染循环
+      // ------------------------------------------------------------------
+      var frames = 0;
+      var lastFpsTime = performance.now();
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        var dt = Math.min(clock.getDelta(), 0.1);
+        if (started && !paused) elapsed += dt * timeScale;
+
+        uniforms.u_time.value = elapsed;
+
+        updateAutoCamera(elapsed);
+        controls.update();
+        composer.render();
+
+        frames++;
+        if (now - lastFpsTime >= 500) {
+          var fps = Math.round((frames * 1000) / (now - lastFpsTime));
+          var planeZ = Math.max(
+            uniforms.u_startZ.value - uniforms.u_speed.value * elapsed,
+            uniforms.u_endZ.value
+          );
+          statsEl.textContent =
+            OBJECTS[currentObject].name +
+            "\n粒子数 " + currentCount.toLocaleString() +
+            "\nFPS " + fps +
+            "\n跌落面 Z " + planeZ.toFixed(2) +
+            "\n时间 ×" + timeScale.toFixed(2) + (paused ? " (暂停)" : "") +
+            "\n视角 " + VIEW_LABEL[viewMode] +
+            "\n透视 " + (xray ? "开" : "关");
+          frames = 0;
+          lastFpsTime = now;
+        }
+      }
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>

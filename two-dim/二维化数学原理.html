@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二向箔 · 数学原理（交互演示）</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: #03040a; color: #9fc4e8; }
+    body {
+      font: 14px/1.75 "Microsoft YaHei", Consolas, monospace;
+      padding: 0 0 70px;
+    }
+    header { max-width: 980px; margin: 0 auto; padding: 30px 24px 6px; }
+    header h1 {
+      color: #bfe6ff;
+      font-weight: 200;
+      font-size: 28px;
+      letter-spacing: 8px;
+      text-shadow: 0 0 24px rgba(90, 180, 255, 0.7);
+    }
+    header .sub { color: #5d7fa5; font-size: 12px; letter-spacing: 3px; margin-top: 6px; }
+    header .links { margin-top: 12px; font-size: 13px; }
+    header .links a {
+      color: #6fa8dc; text-decoration: none;
+      border-bottom: 1px dashed rgba(111, 168, 220, 0.5);
+      margin-right: 18px;
+    }
+    header .links a:hover { color: #e0f2ff; }
+    main { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+    .card {
+      border: 1px solid rgba(90, 140, 190, 0.35);
+      background: rgba(12, 26, 44, 0.55);
+      border-radius: 4px;
+      padding: 18px 22px;
+      margin: 24px 0;
+    }
+    .card h2 {
+      color: #bfe6ff; font-size: 17px; font-weight: 400;
+      letter-spacing: 2px; margin-bottom: 4px;
+    }
+    .card h2 .no { color: #7fe0c0; margin-right: 10px; font-family: Consolas, monospace; }
+    .card p { color: #7d9cbc; font-size: 13px; margin: 8px 0; }
+    .card p b { color: #cfe6ff; font-weight: 400; }
+    code {
+      font-family: Consolas, monospace;
+      background: rgba(30, 60, 100, 0.4);
+      padding: 1px 5px; border-radius: 2px; color: #cfe6ff;
+    }
+    .formula {
+      font: 13px/1.7 Consolas, monospace;
+      color: #a8d8f0;
+      background: rgba(10, 22, 40, 0.5);
+      border-left: 2px solid #3f7fbf;
+      padding: 8px 14px; margin: 10px 0;
+      overflow-x: auto;
+    }
+    canvas {
+      display: block; width: 100%;
+      background: rgba(3, 6, 14, 0.6);
+      border: 1px solid rgba(90, 140, 190, 0.2);
+      border-radius: 2px;
+    }
+    .ctrl {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      align-items: center; margin: 12px 0 10px;
+    }
+    .ctrl label { font-size: 12px; color: #8fb4d8; letter-spacing: 1px; white-space: nowrap; }
+    .ctrl input[type="range"] { width: 170px; accent-color: #4f9fd8; }
+    .ctrl .val { font: 12px Consolas, monospace; color: #7fe0c0; min-width: 70px; }
+    .ctrl .mode { display: flex; gap: 5px; flex-wrap: wrap; }
+    .ctrl .mode button, .btn {
+      cursor: pointer;
+      font: 12px "Microsoft YaHei", Consolas, monospace;
+      padding: 5px 12px; border-radius: 2px;
+      border: 1px solid rgba(90, 140, 190, 0.35);
+      background: rgba(12, 26, 44, 0.55); color: #9fc4e8;
+    }
+    .ctrl .mode button.on {
+      background: rgba(40, 90, 150, 0.78); color: #fff;
+      border-color: rgba(140, 210, 255, 0.9);
+    }
+    .btn { border-color: rgba(120, 200, 255, 0.6); background: rgba(20, 50, 90, 0.35); color: #dff2ff; letter-spacing: 2px; }
+    .btn:hover, .ctrl .mode button:hover { background: rgba(40, 90, 150, 0.55); color: #eaf6ff; }
+    .legend {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 11px; color: #8fb4d8; margin-top: 10px;
+    }
+    .legend i {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 2px; margin-right: 5px; vertical-align: -1px;
+    }
+    footer {
+      max-width: 980px; margin: 30px auto 0; padding: 0 24px;
+      font-size: 12px; color: #46617f; letter-spacing: 1px;
+    }
+    footer a { color: #6fa8dc; text-decoration: none; border-bottom: 1px dashed rgba(111, 168, 220, 0.5); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>二维化 · 数学原理</h1>
+    <div class="sub">交互演示 —— 拖动滑块，或直接拖动曲线 / 圆盘上的标记点</div>
+    <div class="links">
+      <a href="index.html">← 返回二维化模拟</a>
+      <a href="二维化投影原理.md">严格推导：《二维化投影原理》</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ 01 mix ============ -->
+    <section class="card">
+      <h2><span class="no">01</span>mix 线性插值 —— 一根进度条</h2>
+      <p><code>mix(a, b, q) = a + (b − a)·q</code>：从 a 到 b 走了百分之多少。
+      二维化中每个粒子有<b>两根进度条同时推进</b>——离轴距离 ρ 与高度 z；
+      q = 0 时停在原地，q = 1 时完全到位。</p>
+      <div class="formula">半径  r2 = mix(ρ0, ρ2, q)
+高度  z2 = mix(z0, planeZ, q)</div>
+      <div class="ctrl">
+        <label>降维进度 q</label>
+        <input type="range" id="mixQ" min="0" max="1" step="0.01" value="0.35" />
+        <span class="val" id="mixQv"></span>
+      </div>
+      <canvas id="cvMix" style="height: 160px"></canvas>
+    </section>
+
+    <!-- ============ 02 smoothstep ============ -->
+    <section class="card">
+      <h2><span class="no">02</span>smoothstep —— 电梯式缓入缓出</h2>
+      <p>若 q 直接取 0/1（硬切），粒子会瞬间跳到二维。<code>smoothstep(t) = 3t² − 2t³</code>
+      两端斜率为 0，像电梯起步 / 停靠一样柔和，给压扁过程一个厚度为
+      <code>u_band</code> 的缓冲带。<b>拖动曲线上的白点</b>感受两端的变化速度。</p>
+      <canvas id="cvSmooth" style="height: 250px; cursor: ew-resize"></canvas>
+    </section>
+
+    <!-- ============ 03 exp ============ -->
+    <section class="card">
+      <h2><span class="no">03</span>指数膨胀 —— 复利式摊开</h2>
+      <p><code>growth = exp(u_exp · q)</code>：半径不是匀速变大，而是按固定倍率连续翻倍
+      （复利、滚雪球）。面积 ∝ 半径²，所以面积放大 <code>exp(2·u_exp)</code> ——
+      这就是二维化「把体积重排成面积」时面积暴涨的来源。</p>
+      <div class="ctrl">
+        <label>膨胀指数 u_exp</label>
+        <input type="range" id="expU" min="0.5" max="6" step="0.1" value="3.5" />
+        <span class="val" id="expUv"></span>
+        <label>降维进度 q</label>
+        <input type="range" id="expQ" min="0" max="1" step="0.01" value="0.6" />
+        <span class="val" id="expQv"></span>
+      </div>
+      <canvas id="cvExp" style="height: 250px"></canvas>
+    </section>
+
+    <!-- ============ 04 CDF 重映射 ============ -->
+    <section class="card">
+      <h2><span class="no">04</span>CDF 重映射 —— 按排名发座位（核心）</h2>
+      <p>球投影到盘上「中心浓、边缘淡」（投影密度 ∝ 弦长 <code>2√(R²−ρ²)</code>）。
+      <b>左图</b>是球的真实投影（按 ρ₀ 分五条色带）；
+      <b>右图</b>是映射后的盘。切换三种映射对比：</p>
+      <p>
+        · <b>线性</b> = 不映射：盘继承投影的不均匀（内圈 9.2%，均匀应为 6.25%）<br />
+        · <b>幂曲线</b> √ρ：中心被掏空（内圈不足 1%），粒子被甩向边缘<br />
+        · <b>√cdf（本项目）</b>：按累积占比「发座位」——第 k% 的粒子坐到面积占比 k% 的半径上，处处均匀
+      </p>
+      <div class="formula">cdf(ρ0) = (R³ − (R²−ρ0²)^1.5) / R³     ← 球内投影半径 ≤ ρ0 的粒子占比
+r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_out)²</div>
+      <div class="ctrl">
+        <div class="mode" id="cdfMode">
+          <button data-m="linear">线性（不映射）</button>
+          <button data-m="power">幂曲线 √ρ</button>
+          <button data-m="cdf" class="on">√cdf（本项目）</button>
+        </div>
+        <label>降维进度 q</label>
+        <input type="range" id="cdfQ" min="0" max="1" step="0.01" value="1" />
+        <span class="val" id="cdfQv"></span>
+      </div>
+      <canvas id="cvCDF" style="height: 330px"></canvas>
+      <div class="legend">
+        <span><i style="background:#ff5f56"></i>0 – 0.25R（9%）</span>
+        <span><i style="background:#ffb040"></i>0.25 – 0.5R（26%）</span>
+        <span><i style="background:#ffe066"></i>0.5 – 0.75R（36%）</span>
+        <span><i style="background:#69d06a"></i>0.75 – 0.95R（21%）</span>
+        <span><i style="background:#4fb3ff"></i>0.95 – R（8%）</span>
+      </div>
+      <p style="margin-top:12px">下图画出三种「ρ₀ → r」映射函数，<b>拖动白点</b>查看换算数字：</p>
+      <canvas id="cvCDFCurve" style="height: 210px; cursor: ew-resize"></canvas>
+    </section>
+
+    <!-- ============ 05 线性外延 ============ -->
+    <section class="card">
+      <h2><span class="no">05</span>线性外延 —— 等比放大照片（行星环）</h2>
+      <p>主体之外的结构（ρ₀ &gt; R，如行星环）不参与均衡化，直接乘同一个
+      <code>growth</code>：<code>ρ2 = growth · ρ0</code>。像把整张照片<b>等比放大</b>——
+      环始终留在盘外、相对位置不变，不会与盘缘挤成一团；且在 ρ₀ = R 处与主体映射无缝衔接。</p>
+      <div class="ctrl">
+        <label>降维进度 q</label>
+        <input type="range" id="ringQ" min="0" max="1" step="0.01" value="1" />
+        <span class="val" id="ringQv"></span>
+        <label>膨胀 growth</label>
+        <input type="range" id="ringG" min="1" max="3" step="0.05" value="1.6" />
+        <span class="val" id="ringGv"></span>
+      </div>
+      <canvas id="cvRing" style="height: 330px"></canvas>
+    </section>
+
+    <!-- ============ 06 高斯冷却 ============ -->
+    <section class="card">
+      <h2><span class="no">06</span>高斯衰减 —— 淬火冷却</h2>
+      <p><code>heat = exp(−vSince² · u_cool)</code> 是一条钟形曲线：粒子刚被跌落面扫过
+      （vSince ≈ 0）时 heat ≈ 1，输出 HDR 纯白触发辉光；稍微离开边界便迅速衰减。
+      像铁匠淬火——只有<b>刚入水的那一条</b>最亮。u_cool 越大，亮边越窄。
+      <b>拖动曲线上的白点</b>，下方色带展示对应亮度。</p>
+      <div class="ctrl">
+        <label>冷却速度 u_cool</label>
+        <input type="range" id="coolU" min="0.1" max="3" step="0.05" value="0.6" />
+        <span class="val" id="coolUv"></span>
+      </div>
+      <canvas id="cvCool" style="height: 250px; cursor: ew-resize"></canvas>
+    </section>
+
+    <!-- ============ 07 综合演示 ============ -->
+    <section class="card">
+      <h2><span class="no">07</span>综合演示 —— 全流程迷你二维化</h2>
+      <p>把前面所有数学装在一起：跌落面自上而下推进（侧视图中白色虚线），每个粒子按
+      <code>q</code> 塌缩高度、按 √cdf 膨胀半径；被刚扫过的粒子发白光（高斯冷却），
+      行星环走线性外延。左：<b>侧视 X–Z</b> 看压扁；右：<b>俯视 X–Y</b> 看摊开成盘。</p>
+      <div class="ctrl">
+        <button class="btn" id="simPlay">播放</button>
+        <button class="btn" id="simReset">重置</button>
+        <label>时间</label>
+        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
+        <span class="val" id="simTv"></span>
+        <label>u_exp</label>
+        <input type="range" id="simE" min="1" max="5" step="0.1" value="3.5" />
+        <span class="val" id="simEv"></span>
+      </div>
+      <canvas id="cvSim" style="height: 420px"></canvas>
+    </section>
+  </main>
+
+  <footer>
+    严格推导与完整参数表见《二维化投影原理.md》 · 交互演示由 Canvas 2D 实现，可离线运行 ·
+    <a href="index.html">返回二维化模拟</a>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // ---------- 公共工具 ----------
+      function $(id) { return document.getElementById(id); }
+      function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+      function mix(a, b, k) { return a + (b - a) * k; }
+      function ss(e0, e1, x) {
+        var t = clamp((x - e0) / (e1 - e0), 0, 1);
+        return t * t * (3 - 2 * t);
+      }
+      function mixRGB(a, b, k) {
+        return "rgb(" + Math.round(clamp(a[0] + (b[0] - a[0]) * k, 0, 255)) + "," +
+                        Math.round(clamp(a[1] + (b[1] - a[1]) * k, 0, 255)) + "," +
+                        Math.round(clamp(a[2] + (b[2] - a[2]) * k, 0, 255)) + ")";
+      }
+      var R_ALL = [];
+      function reg(f) { R_ALL.push(f); f(); }
+      window.addEventListener("resize", function () {
+        for (var i = 0; i < R_ALL.length; i++) R_ALL[i]();
+      });
+      function fit(cv) {
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var w = cv.clientWidth || 300, h = cv.clientHeight || 150;
+        var bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+        if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+        var ctx = cv.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return ctx;
+      }
+      function line(c, x1, y1, x2, y2) {
+        c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+      }
+      function dot(c, x, y, col, r) {
+        c.fillStyle = col; c.beginPath(); c.arc(x, y, r || 3, 0, 6.2832); c.fill();
+      }
+      function txt(c, s, x, y, col, align, font) {
+        c.fillStyle = col || "#8fb4d8";
+        c.font = font || '12px Consolas,"Microsoft YaHei",monospace';
+        c.textAlign = align || "left";
+        c.fillText(s, x, y);
+        c.textAlign = "left";
+      }
+      function dashOn(c) { c.save(); c.setLineDash([5, 4]); }
+      function dashOff(c) { c.restore(); }
+      // 让 canvas 可拖动：回调收到 CSS 像素 x
+      function dragX(cv, cb) {
+        var down = false;
+        function mv(e) {
+          var r = cv.getBoundingClientRect();
+          cb(e.clientX - r.left);
+        }
+        cv.style.touchAction = "none";
+        cv.addEventListener("pointerdown", function (e) {
+          down = true; cv.setPointerCapture(e.pointerId); mv(e); e.preventDefault();
+        });
+        cv.addEventListener("pointermove", function (e) { if (down) mv(e); });
+        cv.addEventListener("pointerup", function () { down = false; });
+        cv.addEventListener("pointercancel", function () { down = false; });
+      }
+
+      var BAND_RGB = [
+        [255, 95, 86], [255, 176, 64], [255, 224, 102],
+        [105, 208, 106], [79, 179, 255]
+      ];
+      var RING_RGB = [207, 228, 242];
+      var WHITE = [255, 255, 255];
+      // 在单位球内均匀采样一点，返回 {x,y,z,rho,cdf,...}
+      function sampleSpherePt() {
+        var th = Math.random() * Math.PI * 2;
+        var cz = 2 * Math.random() - 1, s = Math.sqrt(1 - cz * cz);
+        var rad = Math.cbrt(Math.random());
+        var x = s * Math.cos(th) * rad, y = s * Math.sin(th) * rad, z = cz * rad;
+        var rho = Math.sqrt(x * x + y * y);
+        return {
+          x: x, y: y, z: z, rho: rho,
+          dx: rho > 1e-6 ? x / rho : 0, dy: rho > 1e-6 ? y / rho : 0,
+          cdf: 1 - Math.pow(Math.max(1 - rho * rho, 0), 1.5)
+        };
+      }
+      function bandOf(r) { return r < 0.25 ? 0 : r < 0.5 ? 1 : r < 0.75 ? 2 : r < 0.95 ? 3 : 4; }
+
+      // ================= 01 mix =================
+      (function () {
+        var cv = $("cvMix");
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var q = +$("mixQ").value;
+          $("mixQv").textContent = q.toFixed(2);
+
+          var x0 = 60, x1 = w - 60, y = 46;
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(120,170,220,.4)";
+          line(ctx, x0, y, x1, y);
+          dot(ctx, x0, y, "#8fb4d8", 4); dot(ctx, x1, y, "#8fb4d8", 4);
+          txt(ctx, "a（原位）", x0, y + 22, "#8fb4d8", "center");
+          txt(ctx, "b（目标）", x1, y + 22, "#8fb4d8", "center");
+          var xm = mix(x0, x1, q);
+          dot(ctx, xm, y, "#7fe0c0", 5);
+          txt(ctx, "q = " + q.toFixed(2), xm, y - 16, "#7fe0c0", "center");
+
+          function bar(by, name, va, vb) {
+            var bx = 60, bw = w - 120, bh = 15;
+            ctx.fillStyle = "rgba(30,60,100,.35)";
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = "rgba(127,224,192,.75)";
+            ctx.fillRect(bx, by, bw * q, bh);
+            ctx.strokeStyle = "rgba(90,140,190,.35)";
+            ctx.strokeRect(bx, by, bw, bh);
+            txt(ctx, name + "：mix(" + va.toFixed(1) + ", " + vb.toFixed(1) + ", q) = " +
+              mix(va, vb, q).toFixed(2), bx, by - 4, "#a8d8f0");
+          }
+          bar(92, "半径", 3.0, 20.1);
+          bar(134, "高度", 2.0, -8.0);
+        }
+        $("mixQ").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 02 smoothstep =================
+      (function () {
+        var cv = $("cvSmooth"), m = { l: 48, r: 18, t: 18, b: 36 }, t = 0.45;
+        function X(w, p) { return m.l + (w - m.l - m.r) * p; }
+        function Y(h, v) { return m.t + (h - m.t - m.b) * (1 - v); }
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(90,140,190,.18)";
+          for (var g = 0; g <= 2; g++) {
+            var yy = Y(h, g / 2);
+            line(ctx, m.l, yy, w - m.r, yy);
+            txt(ctx, (g / 2).toFixed(1), m.l - 8, yy + 4, "#57739a", "right");
+          }
+          for (g = 0; g <= 4; g++) {
+            var xx = X(w, g / 4);
+            line(ctx, xx, m.t, xx, h - m.b);
+            txt(ctx, (g / 4).toFixed(2), xx, h - m.b + 18, "#57739a", "center");
+          }
+          txt(ctx, "swept / u_band（粒子离开跌落面的距离）", m.l, h - 6, "#57739a");
+          txt(ctx, "q", m.l - 34, m.t + 8, "#57739a");
+
+          ctx.save(); ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = "rgba(143,180,216,.55)";
+          line(ctx, X(w, 0), Y(h, 0), X(w, 1), Y(h, 1));
+          ctx.restore();
+          txt(ctx, "线性（硬切）", X(w, 0.72), Y(h, 0.76) - 10, "rgba(143,180,216,.8)");
+
+          ctx.strokeStyle = "#7fe0c0"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (var i = 0; i <= 80; i++) {
+            var tt = i / 80, v = tt * tt * (3 - 2 * tt);
+            var px = X(w, tt), py = Y(h, v);
+            if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          }
+          ctx.stroke();
+          txt(ctx, "smoothstep = 3t² − 2t³（两端斜率 0）", X(w, 0.32), Y(h, 0.34) - 12, "#7fe0c0");
+
+          var mx = X(w, t), mv = t * t * (3 - 2 * t), my = Y(h, mv);
+          ctx.save(); ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = "rgba(127,224,192,.5)";
+          line(ctx, mx, m.t, mx, h - m.b);
+          ctx.restore();
+          dot(ctx, mx, my, "#ffffff", 4.5);
+          txt(ctx, "t = " + t.toFixed(2) + "  →  q = " + mv.toFixed(3), mx + 8, m.t + 16, "#dff2ff");
+        }
+        dragX(cv, function (px) {
+          t = clamp((px - m.l) / (cv.clientWidth - m.l - m.r), 0, 1);
+          render();
+        });
+        reg(render);
+      })();
+
+      // ================= 03 exp =================
+      (function () {
+        var cv = $("cvExp"), m = { l: 56, r: 18, t: 18, b: 36 };
+        function X(w, p) { return m.l + (w - m.l - m.r) * p; }
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var ue = +$("expU").value, q = +$("expQ").value;
+          $("expUv").textContent = ue.toFixed(1);
+          $("expQv").textContent = q.toFixed(2);
+          var ymax = Math.exp(ue);
+          function Y(v) { return m.t + (h - m.t - m.b) * (1 - clamp(v / ymax, 0, 1.0)); }
+
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(90,140,190,.18)";
+          for (var g = 0; g <= 2; g++) {
+            var vy = ymax * g / 2, yy = Y(vy);
+            line(ctx, m.l, yy, w - m.r, yy);
+            txt(ctx, "×" + (vy >= 10 ? vy.toFixed(0) : vy.toFixed(1)), m.l - 8, yy + 4, "#57739a", "right");
+          }
+          for (g = 0; g <= 4; g++) {
+            var xx = X(w, g / 4);
+            line(ctx, xx, m.t, xx, h - m.b);
+            txt(ctx, (g / 4).toFixed(2), xx, h - m.b + 18, "#57739a", "center");
+          }
+          txt(ctx, "q（降维进度）", m.l, h - 6, "#57739a");
+          txt(ctx, "半径/面积\n倍数", m.l - 40, m.t + 14, "#57739a");
+
+          // 面积 exp(2u q)（橙色，冲出图表即裁剪）
+          ctx.save(); ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = "rgba(255,176,64,.8)";
+          ctx.beginPath();
+          var clipped = false, lx = 0, ly = 0;
+          for (var i = 0; i <= 80; i++) {
+            var qq = i / 80, v = Math.exp(2 * ue * qq);
+            var px = X(w, qq), py = Y(v);
+            if (v > ymax) {
+              if (!clipped) { ctx.lineTo(px, m.t); clipped = true; }
+              break;
+            }
+            if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          }
+          ctx.stroke();
+          ctx.restore();
+          txt(ctx, "面积 = growth² = exp(2·u_exp·q)（超出图表）", X(w, 0.04), m.t + 16, "rgba(255,176,64,.9)");
+
+          // 半径 exp(u q)
+          ctx.strokeStyle = "#7fe0c0"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (i = 0; i <= 80; i++) {
+            var qq2 = i / 80, v2 = Math.exp(ue * qq2);
+            var px2 = X(w, qq2), py2 = Y(v2);
+            if (i) ctx.lineTo(px2, py2); else ctx.moveTo(px2, py2);
+          }
+          ctx.stroke();
+          txt(ctx, "半径 growth = exp(u_exp·q)", X(w, 0.34), Y(Math.exp(ue * 0.62)) + 26, "#7fe0c0");
+
+          var gq = Math.exp(ue * q);
+          dot(ctx, X(w, q), Y(gq), "#ffffff", 4.5);
+          txt(ctx, "当前：半径 ×" + gq.toFixed(2) + "，面积 ×" + (gq * gq).toFixed(0) +
+            "    q=1 时：半径 ×" + ymax.toFixed(1) + "，面积 ×" + (ymax * ymax).toFixed(0),
+            m.l + 10, m.t + 16 + 18, "#dff2ff");
+        }
+        $("expU").addEventListener("input", render);
+        $("expQ").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 04 CDF 重映射 =================
+      (function () {
+        var N = 2600, pts = [], i;
+        for (i = 0; i < N; i++) {
+          var p = sampleSpherePt();
+          p.band = bandOf(p.rho);
+          pts.push(p);
+        }
+        var mode = "cdf", q = 1, rhoM = 0.5;
+        function rt(p) {
+          if (mode === "linear") return p.rho;
+          if (mode === "power") return Math.sqrt(p.rho);
+          return Math.sqrt(p.cdf);
+        }
+        var MODE_NAME = { linear: "线性（不映射）", power: "幂曲线 √ρ", cdf: "√cdf（本项目）" };
+
+        function render() {
+          var ctx = fit($("cvCDF")), cv = $("cvCDF");
+          var w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          q = +$("cdfQ").value;
+          $("cdfQv").textContent = q.toFixed(2);
+          var ps = Math.min(h - 64, (w - 110) / 2);
+          var c1x = w * 0.27, c2x = w * 0.75, cy = (h - 30) / 2 + 6;
+          var rad = ps / 2;
+
+          // 面板底：虚线圆
+          function ring(cx, r, col, lw) {
+            ctx.strokeStyle = col; ctx.lineWidth = lw || 1;
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.stroke();
+          }
+          dashOn(ctx); ring(c1x, rad, "rgba(90,140,190,.4)"); ring(c2x, rad, "rgba(90,140,190,.4)");
+          ring(c2x, rad * 0.5, "rgba(127,224,192,.35)");
+          dashOff(ctx);
+          txt(ctx, "0.5·r_out（面积 25%）", c2x + rad * 0.5, cy - rad * 0.5 - 6, "rgba(127,224,192,.7)", "center");
+
+          // 左：球的投影
+          for (i = 0; i < N; i++) {
+            var p2 = pts[i];
+            ctx.fillStyle = ["#ff5f56", "#ffb040", "#ffe066", "#69d06a", "#4fb3ff"][p2.band];
+            ctx.fillRect(c1x + p2.x * rad - 1, cy - p2.y * rad - 1, 2, 2);
+          }
+          // 右：映射后的盘
+          var inner = 0;
+          for (i = 0; i < N; i++) {
+            var p3 = pts[i];
+            var r = mix(p3.rho, rt(p3), q);
+            if (rt(p3) < 0.25) inner++;
+            ctx.fillStyle = ["#ff5f56", "#ffb040", "#ffe066", "#69d06a", "#4fb3ff"][p3.band];
+            ctx.fillRect(c2x + p3.dx * r * rad - 1, cy - p3.dy * r * rad - 1, 2, 2);
+          }
+          txt(ctx, "球的投影（俯视跌落轴）——中心浓、边缘淡", c1x, h - 34, "#a8d8f0", "center");
+          txt(ctx, "映射后的二维盘（" + MODE_NAME[mode] + "）", c2x, h - 34, "#a8d8f0", "center");
+          var share = (inner / N * 100);
+          txt(ctx, "内圈 r<0.25R 粒子占比：" + share.toFixed(2) + "%（均匀盘应为 6.25%）",
+            w / 2, h - 12, Math.abs(share - 6.25) < 0.8 ? "#7fe0c0" : "#ffb040", "center");
+          txt(ctx, "左：保持原样", c1x, 20, "#57739a", "center");
+          txt(ctx, "右：mix(ρ0, r, q)，q=" + q.toFixed(2), c2x, 20, "#57739a", "center");
+        }
+
+        function renderCurve() {
+          var cv = $("cvCDFCurve"), ctx = fit(cv);
+          var w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var m = { l: 52, r: 18, t: 16, b: 32 };
+          function X(p) { return m.l + (w - m.l - m.r) * p; }
+          function Y(v) { return m.t + (h - m.t - m.b) * (1 - clamp(v, 0, 1)); }
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(90,140,190,.18)";
+          for (var g = 0; g <= 2; g++) {
+            var yy = Y(g / 2);
+            line(ctx, m.l, yy, w - m.r, yy);
+            txt(ctx, (g / 2).toFixed(1), m.l - 8, yy + 4, "#57739a", "right");
+          }
+          for (g = 0; g <= 4; g++) {
+            var xx = X(g / 4);
+            line(ctx, xx, m.t, xx, h - m.b);
+            txt(ctx, (g / 4).toFixed(2), xx, h - m.b + 16, "#57739a", "center");
+          }
+          txt(ctx, "ρ0 / R（原投影半径）", m.l, h - 6, "#57739a");
+          txt(ctx, "r / r_out", m.l - 36, m.t + 8, "#57739a");
+
+          function curve(f, col, dash, name) {
+            ctx.save();
+            if (dash) ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = col; ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (var i2 = 0; i2 <= 80; i2++) {
+              var x = i2 / 80, px = X(x), py = Y(f(x));
+              if (i2) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+            }
+            ctx.stroke(); ctx.restore();
+            txt(ctx, name, X(f.inv), Y(f(f.inv)) - 10, col, "center");
+          }
+          var lin = function (x) { return x; }; lin.inv = 0.85;
+          var pow = function (x) { return Math.sqrt(x); }; pow.inv = 0.30;
+          var cdfF = function (x) { return Math.sqrt(1 - Math.pow(Math.max(1 - x * x, 0), 1.5)); };
+          cdfF.inv = 0.62;
+          curve(lin, "rgba(143,180,216,.7)", true, "线性");
+          curve(pow, "rgba(255,176,64,.85)", true, "√ρ");
+          curve(cdfF, "#7fe0c0", false, "√cdf");
+
+          var mx = X(rhoM);
+          ctx.save(); ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = "rgba(255,255,255,.45)";
+          line(ctx, mx, m.t, mx, h - m.b);
+          line(ctx, m.l, Y(cdfF(rhoM)), mx, Y(cdfF(rhoM)));
+          ctx.restore();
+          dot(ctx, mx, Y(cdfF(rhoM)), "#ffffff", 4.5);
+          var cvv = 1 - Math.pow(Math.max(1 - rhoM * rhoM, 0), 1.5);
+          txt(ctx, "ρ0 = " + rhoM.toFixed(2) + "R → cdf = " + (cvv * 100).toFixed(0) +
+            "% → √cdf = " + Math.sqrt(cvv).toFixed(2) + "R（线性 " + rhoM.toFixed(2) +
+            " / √ρ " + Math.sqrt(rhoM).toFixed(2) + "）",
+            m.l + 8, m.t + 16, "#dff2ff");
+        }
+
+        function renderAll() { render(); renderCurve(); }
+        $("cdfQ").addEventListener("input", renderAll);
+        var btns = $("cdfMode").querySelectorAll("button");
+        for (var b = 0; b < btns.length; b++) {
+          (function (btn) {
+            btn.addEventListener("click", function () {
+              mode = btn.getAttribute("data-m");
+              for (var k = 0; k < btns.length; k++)
+                btns[k].classList.toggle("on", btns[k] === btn);
+              renderAll();
+            });
+          })(btns[b]);
+        }
+        dragX($("cvCDFCurve"), function (px) {
+          var cvv = $("cvCDFCurve");
+          rhoM = clamp((px - 52) / (cvv.clientWidth - 52 - 18), 0, 1);
+          renderCurve();
+        });
+        reg(renderAll);
+      })();
+
+      // ================= 05 线性外延 =================
+      (function () {
+        var N = 1500, pts = [], i;
+        for (i = 0; i < N; i++) {
+          var p = sampleSpherePt();
+          p.band = bandOf(p.rho);
+          pts.push(p);
+        }
+        var RN = 460;
+        for (i = 0; i < RN; i++) {
+          var ang = Math.random() * Math.PI * 2;
+          var r = Math.sqrt(mix(1.35 * 1.35, 1.7 * 1.7, Math.random()));
+          pts.push({ rho: r, dx: Math.cos(ang), dy: Math.sin(ang), cdf: 0, band: -1 });
+        }
+        function render() {
+          var cv = $("cvRing"), ctx = fit(cv);
+          var w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var q = +$("ringQ").value, gr = +$("ringG").value;
+          $("ringQv").textContent = q.toFixed(2);
+          $("ringGv").textContent = "×" + gr.toFixed(2);
+          var ps = Math.min(h - 60, w - 90);
+          var cx = w / 2, cy = (h - 26) / 2 + 4;
+          var xmax = 1.85 * gr;
+          var rad = ps / 2 / xmax * 1.0;   // 世界单位→像素（ xmax 映射到 ps/2 ）
+          rad = ps / 2 / xmax;
+
+          dashOn(ctx);
+          ctx.strokeStyle = "rgba(127,224,192,.6)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(cx, cy, gr * rad, 0, 6.2832); ctx.stroke();
+          ctx.strokeStyle = "rgba(207,228,242,.35)";
+          ctx.beginPath(); ctx.arc(cx, cy, 1.7 * gr * rad, 0, 6.2832); ctx.stroke();
+          dashOff(ctx);
+          txt(ctx, "盘缘 = R·growth = " + gr.toFixed(2) + "R", cx + gr * rad * 0.72, cy - gr * rad * 0.72 - 8, "rgba(127,224,192,.8)");
+          txt(ctx, "环外缘 = 1.7R·growth = " + (1.7 * gr).toFixed(2) + "R", cx - 1.7 * gr * rad * 0.5, cy - 1.7 * gr * rad * 0.87 - 8, "rgba(207,228,242,.8)", "center");
+
+          for (i = 0; i < pts.length; i++) {
+            var p2 = pts[i];
+            var rt2 = p2.band < 0 ? gr * p2.rho : gr * Math.sqrt(p2.cdf);
+            var r = mix(p2.rho, rt2, q);
+            ctx.fillStyle = p2.band < 0 ? "#cfe4f2" :
+              ["#ff5f56", "#ffb040", "#ffe066", "#69d06a", "#4fb3ff"][p2.band];
+            ctx.fillRect(cx + p2.dx * r * rad - 1, cy - p2.dy * r * rad - 1, 2, 2);
+          }
+          txt(ctx, "盘外结构（环）线性外延 ρ2 = growth·ρ0，主体走 √cdf —— 环永远在盘外",
+            cx, h - 10, "#a8d8f0", "center");
+        }
+        $("ringQ").addEventListener("input", render);
+        $("ringG").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 06 高斯冷却 =================
+      (function () {
+        var cv = $("cvCool"), mk = 0.8;
+        function heat(t, uc) { return Math.exp(-t * t * uc); }
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var uc = +$("coolU").value;
+          $("coolUv").textContent = uc.toFixed(2);
+          var m = { l: 48, r: 18, t: 18, b: 76 };
+          function X(t) { return m.l + (w - m.l - m.r) * (t / 3); }
+          function Y(v) { return m.t + (h - m.t - m.b) * (1 - clamp(v, 0, 1)); }
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(90,140,190,.18)";
+          for (var g = 0; g <= 2; g++) {
+            var yy = Y(g / 2);
+            line(ctx, m.l, yy, w - m.r, yy);
+            txt(ctx, (g / 2).toFixed(1), m.l - 8, yy + 4, "#57739a", "right");
+          }
+          for (g = 0; g <= 3; g++) {
+            var xx = X(g);
+            line(ctx, xx, m.t, xx, h - m.b);
+            txt(ctx, String(g), xx, h - m.b + 16, "#57739a", "center");
+          }
+          txt(ctx, "vSince（离开跌落面的距离 / u_band）", m.l, h - m.b + 32, "#57739a");
+          txt(ctx, "heat", m.l - 34, m.t + 8, "#57739a");
+
+          ctx.strokeStyle = "#7fe0c0"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (var i = 0; i <= 90; i++) {
+            var t = i / 30, v = heat(t, uc);
+            var px = X(t), py = Y(v);
+            if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          }
+          ctx.stroke();
+
+          // 亮度色带
+          var sy = h - 46, sh2 = 20;
+          for (var x = m.l; x <= w - m.r; x += 2) {
+            var t2 = (x - m.l) / (w - m.l - m.r) * 3;
+            var v2 = heat(t2, uc);
+            ctx.fillStyle = mixRGB([64, 84, 116], WHITE, v2);
+            ctx.fillRect(x, sy, 2, sh2);
+          }
+          ctx.strokeStyle = "rgba(90,140,190,.35)";
+          ctx.strokeRect(m.l, sy, w - m.l - m.r, sh2);
+          txt(ctx, "跌落面（刚被扫过，白热）", m.l, sy + sh2 + 16, "#dff2ff");
+          txt(ctx, "外侧（冷却凝固）", w - m.r, sy + sh2 + 16, "#57739a", "right");
+
+          var mx = X(mk), mv = heat(mk, uc), my = Y(mv);
+          ctx.save(); ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = "rgba(255,255,255,.45)";
+          line(ctx, mx, m.t, mx, sy + sh2);
+          ctx.restore();
+          dot(ctx, mx, my, "#ffffff", 4.5);
+          txt(ctx, "vSince = " + mk.toFixed(2) + " → heat = " + mv.toFixed(3), mx + 8, m.t + 16, "#dff2ff");
+        }
+        $("coolU").addEventListener("input", render);
+        dragX(cv, function (px) {
+          var w = cv.clientWidth;
+          mk = clamp((px - 48) / (w - 48 - 18), 0, 1) * 3;
+          render();
+        });
+        reg(render);
+      })();
+
+      // ================= 07 综合演示 =================
+      (function () {
+        var R = 1, BAND = 0.34, SZ0 = 1.18, SZ1 = -1.18, COOL = 0.6;
+        var N = 2600, RN = 620, TOT = N + RN;
+        var px = new Float32Array(TOT), py = new Float32Array(TOT), pz = new Float32Array(TOT);
+        var prho = new Float32Array(TOT), pdx = new Float32Array(TOT), pdy = new Float32Array(TOT);
+        var pcdf = new Float32Array(TOT), pband = new Int8Array(TOT);
+        var i;
+        for (i = 0; i < N; i++) {
+          var p = sampleSpherePt();
+          px[i] = p.x; py[i] = p.y; pz[i] = p.z;
+          prho[i] = p.rho; pdx[i] = p.dx; pdy[i] = p.dy; pcdf[i] = p.cdf;
+          pband[i] = bandOf(p.rho);
+        }
+        for (i = N; i < TOT; i++) {
+          var ang = Math.random() * Math.PI * 2;
+          var r = Math.sqrt(mix(1.35 * 1.35, 1.7 * 1.7, Math.random()));
+          px[i] = r * Math.cos(ang); py[i] = r * Math.sin(ang);
+          pz[i] = (Math.random() - 0.5) * 0.05;
+          prho[i] = r; pdx[i] = Math.cos(ang); pdy[i] = Math.sin(ang);
+          pcdf[i] = 0; pband[i] = -1;
+        }
+
+        var t = 0, playing = false, lastTS = 0;
+        var cv = $("cvSim");
+
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var ue = +$("simE").value;
+          $("simTv").textContent = t.toFixed(2);
+          $("simEv").textContent = ue.toFixed(1);
+          var s = Math.min((w - 100) / 2, h - 76);
+          var Lx = 34, Ly = 34, Rx = Lx + s + 32, Ry = 34;
+          var planeZ = mix(SZ0, SZ1, t);
+          var maxq = ss(0, BAND, R - planeZ);
+          var growthMax = Math.exp(ue * maxq);
+          var xmax = 1.3 * Math.max(1, growthMax);
+
+          for (i = 0; i < TOT; i++) {
+            var z0 = pz[i], rho0 = prho[i];
+            var swept = z0 - planeZ;
+            var q = ss(0, BAND, swept);
+            var vs = swept / BAND;
+            var heat = vs > 0 ? Math.exp(-vs * vs * COOL) : 0;
+            var growth = Math.exp(ue * q);
+            var frac = rho0 <= R ? Math.sqrt(pcdf[i]) : rho0;   // 主体 √cdf / 环线性
+            var rho2 = R * growth * frac;
+            var r2 = mix(rho0, rho2, q);
+            var x2 = pdx[i] * r2, y2 = pdy[i] * r2;
+            var z2 = mix(z0, planeZ, q);
+
+            var base = pband[i] < 0 ? RING_RGB : BAND_RGB[pband[i]];
+            ctx.fillStyle = mixRGB(base, WHITE, heat);
+
+            // 侧视 X–Z
+            var sx = Lx + s / 2 + (x2 / xmax) * (s / 2);
+            var sy = Ly + (1.36 - z2) / 2.72 * s;
+            ctx.fillRect(sx - 1, sy - 1, 2, 2);
+            // 俯视 X–Y
+            var tx = Rx + s / 2 + (x2 / xmax) * (s / 2);
+            var ty = Ry + s / 2 - (y2 / xmax) * (s / 2);
+            ctx.fillRect(tx - 1, ty - 1, 2, 2);
+          }
+
+          // 侧视：跌落面
+          var zy = Ly + (1.36 - planeZ) / 2.72 * s;
+          ctx.save(); ctx.setLineDash([6, 5]);
+          ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 1;
+          line(ctx, Lx, zy, Lx + s, zy);
+          ctx.restore();
+          txt(ctx, "跌落面 planeZ = " + planeZ.toFixed(2), Lx + 6, zy - 6, "rgba(255,255,255,.8)");
+
+          txt(ctx, "侧视 X–Z（压扁）", Lx + s / 2, Ly - 12, "#a8d8f0", "center");
+          txt(ctx, "俯视 X–Y（二维盘）", Rx + s / 2, Ry - 12, "#a8d8f0", "center");
+          txt(ctx, "t = " + t.toFixed(2) + " · 膨胀当前 ×" + growthMax.toFixed(2) +
+            " · 最终盘半径 ≈ " + Math.exp(ue).toFixed(1) + "R", w / 2, h - 10, "#7fe0c0", "center");
+        }
+
+        function frame(ts) {
+          if (playing) {
+            if (lastTS) t = Math.min(1, t + (ts - lastTS) / 1000 * 0.1);
+            $("simT").value = t;
+            render();
+            if (t >= 1) { playing = false; $("simPlay").textContent = "播放"; }
+          }
+          lastTS = ts;
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+
+        $("simPlay").addEventListener("click", function () {
+          if (!playing && t >= 1) t = 0;
+          playing = !playing;
+          this.textContent = playing ? "暂停" : "播放";
+        });
+        $("simReset").addEventListener("click", function () {
+          t = 0; playing = false;
+          $("simPlay").textContent = "播放";
+          $("simT").value = 0;
+          render();
+        });
+        $("simT").addEventListener("input", function () {
+          playing = false; $("simPlay").textContent = "播放";
+          t = +this.value; render();
+        });
+        $("simE").addEventListener("input", render);
+        reg(render);
+      })();
+    })();
+  </script>
+</body>
+</html>
