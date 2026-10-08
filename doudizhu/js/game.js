@@ -596,6 +596,7 @@ function startTurnTimer(){
           hostPlay(H.turn, [cardKey(minCard)]);
         }
       }
+      return;  // hostPass/hostPlay 会重启计时器，避免覆盖新计时器的 lastTickLeft
     }
     lastTickLeft = left;
   }, 1000);
@@ -632,6 +633,7 @@ function hostPlay(senderIdx, keys){
   if(H.lastPlay && H.lastPlayer!==senderIdx && !canBeat(type, H.lastPlay)) return rejectPlay(senderIdx,'管不上');
   H.hands[senderIdx] = H.hands[senderIdx].filter(c=>!keys.includes(cardKey(c)));
   if(senderIdx===0) myHand = H.hands[0].slice();
+  else netSend(senderIdx, {t:'hand', hand:H.hands[senderIdx].map(cardKey)});
   if(view.showCards && senderIdx===H.landlord) view.showCards = H.hands[H.landlord].map(cardKey);
   H.lastPlay = type; H.lastPlayer = senderIdx; H.passCount=0;
   view.lastPlay = type; view.lastPlayer = senderIdx;
@@ -706,7 +708,7 @@ function endGame(winner){
   const iWin = iAmLandlord ? landlordWin : !landlordWin;
   if(typeof playEffect==='function') playEffect(iWin?'win':'lose');
   // 广播胜负结果，客户端按自己身份播放对应音效
-  netBroadcast({t:'sound', from:-1, kind:'result', landlord:H.landlord, landlordWin:landlordWin});
+  netBroadcast({t:'sound', from:-1, kind:'result', key:{landlord:H.landlord, landlordWin:landlordWin}});
   // 记录战绩（仅主机）
   recordMatch({
     round: H.round, landlord: H.landlord, landlordWin, delta: finalDelta,
@@ -872,6 +874,7 @@ function onNetMessage(m, slot){
     if(m.t==='assign'){ myIdx=m.you; view.names[myIdx]='我'; genders[myIdx]=myGender; log('已分配座次：玩家'+(myIdx+1)); }
     else if(m.t==='deal'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
     else if(m.t==='bottom'){ myHand = sortHand(myHand.concat(m.cards.map(keyToCard))); view.myHand=myHand; }
+    else if(m.t==='hand'){ selected.clear(); myHand = m.hand.map(keyToCard).sort((a,b)=>b.val-a.val); view.myHand=myHand; }
     else if(m.t==='bidReq'){ showBidUI(m.curMax); }
     else if(m.t==='grabReq'){ showGrabUI(m.mult); }
     else if(m.t==='showReq'){ showShowUI(m.mult); }

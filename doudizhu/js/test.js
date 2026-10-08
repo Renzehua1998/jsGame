@@ -561,6 +561,33 @@
     }
     return simReportSound(1)==='l1' && simReportSound(2)==='l2' && simReportSound(3)===null;
   })());
+  // 客户端出牌后主机回传更新手牌（修复：客户端手牌不减少）
+  ok('出牌-主机回传客户端手牌', (function(){
+    const hands = [['3','4','5'],['6','7','8'],['9','10','J']];
+    const sent = [];
+    function simHostPlay(senderIdx, keys){
+      hands[senderIdx] = hands[senderIdx].filter(c=>!keys.includes(c));
+      if(senderIdx===0) return 'local';
+      sent.push({t:'hand', to:senderIdx, hand:hands[senderIdx].slice()});
+      return 'netSend';
+    }
+    simHostPlay(1, ['6','7']);
+    return sent.length===1 && sent[0].to===1 && sent[0].hand.length===1 && sent[0].hand[0]==='8';
+  })());
+  // 胜负音效result消息：key为对象，客户端按身份判断（修复：key未定义导致客户端崩溃）
+  ok('音效-result消息key为对象不崩溃', (function(){
+    function simOnSound(kind, key, myIdx){
+      if(kind==='result'){
+        if(!key) return 'safe';
+        const iAmLandlord=(key.landlord===myIdx);
+        return iAmLandlord?key.landlordWin:!key.landlordWin;
+      }
+      return 'other';
+    }
+    const r1 = simOnSound('result', {landlord:1,landlordWin:false}, 2);
+    const r2 = simOnSound('result', undefined, 2);
+    return r1===true && r2==='safe';
+  })());
 
   /* ============================================================
      汇总

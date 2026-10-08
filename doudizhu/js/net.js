@@ -58,7 +58,10 @@ function log(msg){
   if(!b) return;
   const line=document.createElement('div');
   line.textContent = '['+new Date().toLocaleTimeString()+'] '+msg;
-  b.appendChild(line); b.scrollTop=b.scrollHeight;
+  b.appendChild(line);
+  // 限制日志条数，避免长时间运行内存无限增长
+  while(b.children && b.children.length>200){ b.removeChild(b.children[0]); }
+  b.scrollTop=b.scrollHeight;
 }
 
 function waitIce(pc, timeout=8000){

@@ -175,7 +175,7 @@ function onChatMsg(from, phrase, gender){
 /* 收到出牌声音消息（主机广播）：按出牌人性别播放（含自己出牌，因客户端出牌由主机触发广播） */
 function onSoundMsg(from, kind, key, gender){
   if(kind==='effect'){ playEffect(key); return; }   // 音效（time/spring/win/lose/11/13/14）
-  if(kind==='result'){
+  if(kind==='result' && key){
     // 胜负音效：各客户端按自己身份播放
     const iAmLandlord = (key.landlord===myIdx);
     const iWin = iAmLandlord ? key.landlordWin : !key.landlordWin;
