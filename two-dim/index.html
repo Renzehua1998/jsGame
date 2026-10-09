@@ -329,42 +329,45 @@
         out[2] = cz;
       }
 
-      // ---- 类地行星：分层 + fbm 陆地/海洋 ----
-      var EARTH_STOPS = [
-        [0.00, hexF(0xfff2a0)],
-        [0.16, hexF(0xff7a10)],
-        [0.36, hexF(0xc02000)],
-        [0.62, hexF(0x4a0800)],
-        [0.86, hexF(0x1b0d08)],
-        [1.00, hexF(0x1b0d08)]
-      ];
-      var earthLUT = buildLUT(EARTH_STOPS);
+      // ---- 类地行星：内核 / 外核 / 地幔 / 地壳(海陆)——与恒星、气巨一致的分层实现 ----
       function buildEarth(P, C, count, R) {
-        var SEA = 0.50, CRUST0 = 0.88, CRUST1 = 0.99, LN = earthLUT.length;
+        var SEA = 0.50;
+        // [f0, f1, c0, c1, weight, brightness]  由内到外，分层越清晰二维化后越像同心环
+        var L = [
+          [0.00, 0.16, 0xfff6d8, 0xffd24a, 0.14, 1.35],  // 内核（炽白黄，自发光）
+          [0.16, 0.38, 0xffa020, 0xff5010, 0.20, 1.15],  // 外核（炽橙）
+          [0.38, 0.72, 0xd04010, 0x8a2a10, 0.26, 0.95],  // 下地幔（橙红）
+          [0.72, 0.86, 0x6a3a20, 0x3a2418, 0.14, 0.85],  // 上地幔（暗棕）
+          [0.86, 1.00, 0x2f7d32, 0x1f7fb0, 0.26, 1.00]   // 地壳（fbm 海陆）
+        ];
+        var cum = [], acc = 0, j;
+        for (j = 0; j < L.length; j++) { acc += L[j][4]; cum.push(acc); }
         var d = [0, 0, 0];
         for (var i = 0; i < count; i++) {
-          var radius = R * shellFrac(0, 1);
+          var u = Math.random(), li = 0;
+          while (li < L.length - 1 && u > cum[li]) li++;
+          var ly = L[li];
+          var f = shellFrac(ly[0], ly[1]);
+          var radius = R * f;
           randDir(d);
-          var x = radius * d[0], y = radius * d[1], z = radius * d[2];
           var i3 = i * 3;
-          P[i3] = x; P[i3 + 1] = y; P[i3 + 2] = z;
+          P[i3] = radius * d[0]; P[i3 + 1] = radius * d[1]; P[i3 + 2] = radius * d[2];
 
-          var t = radius / R;
-          var c = earthLUT[(t * (LN - 1)) | 0];
-          var r = c[0], g = c[1], b = c[2];
-
-          var w = (t - CRUST0) / (CRUST1 - CRUST0);
-          if (w > 0) {
-            if (w > 1) w = 1;
+          var lt = (f - ly[0]) / (ly[1] - ly[0]);
+          if (lt < 0) lt = 0; else if (lt > 1) lt = 1;
+          var col = mixHex(ly[2], ly[3], lt);
+          var r = col[0], g = col[1], b = col[2];
+          if (li === L.length - 1) {                     // 最外层：fbm 生成陆地/海洋
             var n = fbm(d[0] * 2.2 + 11.3, d[1] * 2.2 + 4.7, d[2] * 2.2 + 19.1);
             n = (n - 0.5) * 1.6 + 0.5;
             if (n < 0) n = 0; else if (n > 1) n = 1;
             var sc;
             if (n > SEA) sc = mixHex(0x2f7d32, 0x9c8f4e, (n - SEA) / (1 - SEA));
             else sc = mixHex(0x08305e, 0x1f7fb0, n / SEA);
-            r += (sc[0] - r) * w; g += (sc[1] - g) * w; b += (sc[2] - b) * w;
+            r = sc[0]; g = sc[1]; b = sc[2];
           }
-          C[i3] = r; C[i3 + 1] = g; C[i3 + 2] = b;
+          var br = ly[5];
+          C[i3] = r * br; C[i3 + 1] = g * br; C[i3 + 2] = b * br;
         }
       }
 
