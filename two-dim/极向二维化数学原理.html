@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二向箔 · 极向二维化原理（同心展开 · 交互演示）</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: #03040a; color: #9fc4e8; }
+    body {
+      font: 14px/1.75 "Microsoft YaHei", Consolas, monospace;
+      padding: 0 0 70px;
+    }
+    header { max-width: 980px; margin: 0 auto; padding: 30px 24px 6px; }
+    header h1 {
+      color: #bfe6ff;
+      font-weight: 200;
+      font-size: 28px;
+      letter-spacing: 8px;
+      text-shadow: 0 0 24px rgba(90, 180, 255, 0.7);
+    }
+    header .sub { color: #5d7fa5; font-size: 12px; letter-spacing: 3px; margin-top: 6px; }
+    header .links { margin-top: 12px; font-size: 13px; }
+    header .links a {
+      color: #6fa8dc; text-decoration: none;
+      border-bottom: 1px dashed rgba(111, 168, 220, 0.5);
+      margin-right: 18px;
+    }
+    header .links a:hover { color: #e0f2ff; }
+    main { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+    .card {
+      border: 1px solid rgba(90, 140, 190, 0.35);
+      background: rgba(12, 26, 44, 0.55);
+      border-radius: 4px;
+      padding: 18px 22px;
+      margin: 24px 0;
+    }
+    .card h2 {
+      color: #bfe6ff; font-size: 17px; font-weight: 400;
+      letter-spacing: 2px; margin-bottom: 4px;
+    }
+    .card h2 .no { color: #7fe0c0; margin-right: 10px; font-family: Consolas, monospace; }
+    .card p { color: #7d9cbc; font-size: 13px; margin: 8px 0; }
+    .card p b { color: #cfe6ff; font-weight: 400; }
+    code {
+      font-family: Consolas, monospace;
+      background: rgba(30, 60, 100, 0.4);
+      padding: 1px 5px; border-radius: 2px; color: #cfe6ff;
+    }
+    .formula {
+      font: 13px/1.7 Consolas, monospace;
+      color: #a8d8f0;
+      background: rgba(10, 22, 40, 0.5);
+      border-left: 2px solid #3f7fbf;
+      padding: 8px 14px; margin: 10px 0;
+      overflow-x: auto;
+    }
+    .quote {
+      border-left: 2px solid rgba(127, 224, 192, 0.6);
+      background: rgba(14, 34, 30, 0.35);
+      color: #9ecfc0;
+      font-size: 12.5px;
+      padding: 8px 14px; margin: 10px 0;
+    }
+    canvas {
+      display: block; width: 100%;
+      background: rgba(3, 6, 14, 0.6);
+      border: 1px solid rgba(90, 140, 190, 0.2);
+      border-radius: 2px;
+    }
+    .ctrl {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      align-items: center; margin: 12px 0 10px;
+    }
+    .ctrl label { font-size: 12px; color: #8fb4d8; letter-spacing: 1px; white-space: nowrap; }
+    .ctrl input[type="range"] { width: 170px; accent-color: #4f9fd8; }
+    .ctrl .val { font: 12px Consolas, monospace; color: #7fe0c0; min-width: 70px; }
+    .btn {
+      cursor: pointer;
+      font: 12px "Microsoft YaHei", Consolas, monospace;
+      padding: 5px 12px; border-radius: 2px;
+      border: 1px solid rgba(120, 200, 255, 0.6);
+      background: rgba(20, 50, 90, 0.35); color: #dff2ff; letter-spacing: 2px;
+    }
+    .btn:hover { background: rgba(40, 90, 150, 0.55); color: #eaf6ff; }
+    .legend {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 11px; color: #8fb4d8; margin-top: 10px;
+    }
+    .legend i {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 2px; margin-right: 5px; vertical-align: -1px;
+    }
+    footer {
+      max-width: 980px; margin: 30px auto 0; padding: 0 24px;
+      font-size: 12px; color: #46617f; letter-spacing: 1px;
+    }
+    footer a { color: #6fa8dc; text-decoration: none; border-bottom: 1px dashed rgba(111, 168, 220, 0.5); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>极向二维化 · 数学原理</h1>
+    <div class="sub">同心展开（Cathedral-Shrink / 极向序贯投影）—— 与「平铺投影」并列的第二种降维方案 · 交互演示</div>
+    <div class="links">
+      <a href="index.html">← 返回二维化模拟</a>
+      <a href="二维化数学原理.html">平铺投影方案 · 数学原理（对照）</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ 00 核心思想 ============ -->
+    <section class="card">
+      <h2><span class="no">00</span>核心思想 —— 序贯降维与空间挤占（为什么细节不丢失）</h2>
+      <p>两种方案回答的是同一个问题：<b>如何把三维体积无重叠、无遗漏地重排进二维平面</b>。
+      平铺投影（另一页面）用「面积指数膨胀」换取投影密度均衡；本方案（极向同心展开）则
+      <b>彻底放弃投影，改用「降维次序」来编码空间</b>——它来自对原著降维过程的如下直觉：</p>
+      <div class="quote">「先接触二维平面的原子会先二维化，而下一层原子二维化会挤占上一层的空间，
+      把上一层的画面往外推挤，这样周而复始直到降维完成，才能做到所有细节全部不丢失。
+      理论上，地球如果从南极开始二维化到完成，画面的最外一圈是南极，最内一圈是北极，
+      而中间那一圈才是地心。」</div>
+      <p><b>专业化重述</b>——降维以一道沿极轴自南向北推进的<b>相变波前</b>（即箔面本身，接触即降维）：
+      箔面每抵达一层物质，该层原子即时完成「三维 → 二维」的相变；由于二维像平面不具备第三维自由度，
+      <b>已降维物质在平面内占据的径向席位满足不可入性</b>——后继截面完成降维时无法与先前的像重叠，
+      只能把先前已成像的画面<b>沿径向整体外推一个层厚</b>，为新一层让出靠内的席位。
+      该迭代周而复始，等价于按「被箔面接触的先后次序」构造一个<b>保序单射</b>：</p>
+      <div class="formula">次序  s = planeZ − h              ← 箔面位置减去粒子轴向坐标 h（先接触者 s 大）
+半径  r2D = r_disk · min(s, span) / span   ← 次序单调决定极半径（先接触 → 居外圈）</div>
+      <p>由此得到三条直接推论：</p>
+      <p>
+        · <b>无交叉、无重叠（细节零丢失）</b>：次序 s 与极半径 r 一一对应且单调，
+        映射是拓扑同胚的单射——每个原子都有唯一确定的像，任何两层在像空间中永不交织；<br />
+        · <b>环带宽度 ∝ 截面积（体积 → 面积守恒）</b>：由体积守恒，层厚 dh 分得的环带宽
+        dr ∝ A(h) = π(R² − h²)，故<b>赤道环（地心所在层面）最宽、两极环最窄</b>，
+        面密度处处一致；<br />
+        · <b>极限定位</b>：最先扫过的<b>南极层位于像的最外缘</b>（r = r_disk），
+        最后扫过的<b>北极层收缩至圆心</b>（r → 0），<b>地心所在赤道层居中间环带</b>——
+        二维像成为一幅「地球基因年轮」：由外向内依次读出南极大地剖面。
+      </p>
+      <p>正片中按 <code>M</code> 切换到「极向展开」即可看到该方案，<code>N</code> 键可选扫描轴
+      （决定哪一根轴充当「极轴」）。与「平铺投影」方案的逐条对照见 <b>04</b> 节。</p>
+    </section>
+
+    <!-- ============ 01 接触即降维 ============ -->
+    <section class="card">
+      <h2><span class="no">01</span>接触即降维 —— 单面扫掠（波前就是箔面本身）</h2>
+      <p>白色箔面（<code>planeZ</code>）自南极向北极匀速推进，<b>它与哪层物质接触，哪层就即时降维</b>——
+      「先接触二维平面的原子先二维化」直接由接触关系实现，无需任何辅助面。
+      粒子被扫过的量 <code>s = planeZ − h</code> 大于零即已降维，s 越大表示<b>被接触得越早</b>——
+      这个「越早」正是后面极半径的来源。拖动滑块观察箔面自下而上的扫掠：</p>
+      <div class="formula">planeZ（箔面 = 相变波前）：自南(−端)向北(+端)匀速推进
+s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被挤得更靠外）</div>
+      <div class="quote" style="font-size:12px">设计演进：早期版本曾用「镜像扫描面」（显示箔面自北向南、波前取其关于区间中点的镜像
+      hp = u_startZ + u_endZ − planeZ，两者相向而行），以便复用平铺投影的镜头轨迹。
+      但那样「可见的接触次序」（北先）与「降维次序」（南先）相互矛盾，违背「先接触者先二维化」。
+      现已改为接触式单面扫描：箔面轨迹服从物理叙事，镜头跟随物理。</div>
+      <div class="ctrl">
+        <label>箔面推进</label>
+        <input type="range" id="wfT" min="0" max="1" step="0.005" value="0.55" />
+        <span class="val" id="wfTv"></span>
+      </div>
+      <canvas id="cvWave" style="height: 260px"></canvas>
+    </section>
+
+    <!-- ============ 02 次序→半径 ============ -->
+    <section class="card">
+      <h2><span class="no">02</span>次序 → 极半径 —— 年轮圆盘（外圈南极 · 圆心北极 · 中环地心）</h2>
+      <p>把被扫次序直接翻译成极半径：每一层横截面（纬度带）获得一整圈环带，
+      <b>环带宽度 ∝ 该层截面积</b>——赤道环最宽。左：球体侧视按纬度带着色；
+      右：像平面俯视，随箔面推进逐环生成。注意终态的三条定位：
+      <b>最外圈 = 南极</b>（最先接触）、<b>圆心 = 北极</b>（最后接触）、<b>中间宽环 = 地心</b>。</p>
+      <div class="formula">r2D = r_disk · min(planeZ − h, span) / span   （span = 物体沿极轴的总跨度）
+角度 φ = 粒子绕极轴的方位角（保持不变 → 环带内成分与原截面一致）</div>
+      <div class="ctrl">
+        <label>箔面推进</label>
+        <input type="range" id="mapT" min="0" max="1" step="0.005" value="0.55" />
+        <span class="val" id="mapTv"></span>
+      </div>
+      <canvas id="cvMap" style="height: 360px"></canvas>
+      <div class="legend">
+        <span><i style="background:#ff5f56"></i>南极冠（→ 最外圈）</span>
+        <span><i style="background:#ffb040"></i>南中纬</span>
+        <span><i style="background:#ffe066"></i>赤道带（地心 · → 中间宽环）</span>
+        <span><i style="background:#69d06a"></i>北中纬</span>
+        <span><i style="background:#4fb3ff"></i>北极冠（→ 圆心）</span>
+      </div>
+    </section>
+
+    <!-- ============ 03 综合演示 ============ -->
+    <section class="card">
+      <h2><span class="no">03</span>综合演示 —— 跌入、摊开（挤占动力学全流程）</h2>
+      <p>把前面所有数学装在一起：<b>左（侧视）</b>箔面自下而上推进（接触即降维），粒子先轴向塌缩「跌入」箔面
+      （刚跌落的白热边界用高斯冷却着色）；<b>右（俯视）</b>跌入的粒子再横向「摊开」——
+      先到的像被后到的层层向外挤占，圆盘由内向外生长。两段式进度
+      <code>qFall</code>（跌落）与 <code>qSpread</code>（摊开，用 3 倍缓冲带）分离，
+      复现正片「先坠落、再展开」的动效节奏。</p>
+      <div class="ctrl">
+        <button class="btn" id="simPlay">播放</button>
+        <button class="btn" id="simReset">重置</button>
+        <label>时间</label>
+        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
+        <span class="val" id="simTv"></span>
+      </div>
+      <canvas id="cvSim" style="height: 420px"></canvas>
+    </section>
+
+    <!-- ============ 04 平铺投影原理与对照 ============ -->
+    <section class="card">
+      <h2><span class="no">04</span>平铺投影的原理 —— 以及两种方案的对照</h2>
+      <p><b>平铺投影</b>（见<a href="二维化数学原理.html" style="color:#6fa8dc">《二维化数学原理》交互演示</a>）
+      采取与极向完全不同的策略：<b>放弃「次序」，改用「面积膨胀 + 密度均衡」</b>。
+      设粒子原坐标 <code>p = (x0, y0, z0)</code>，跌落面 <code>planeZ</code> 自上而下推进：</p>
+      <div class="formula">降维进度  q = smoothstep(0, u_band, z0 − planeZ)     ← 被扫过即开始
+高度塌缩  z2 = mix(z0, planeZ, q)                   ← 全体粒子同时向箔面跌落
+方向保持  dir = normalize(x0, y0)                   ← 俯视方位角不变（像一张照片）
+面积膨胀  growth = exp(u_exp · q)                   ← 复利式摊开，面积 ∝ growth²
+密度均衡  cdf(ρ0) = (R³ − (R²−ρ0²)^1.5) / R³        ← 球投影「中心浓、边缘淡」的累积占比
+像半径    r = R · growth · √cdf                     ← 按排名发座位 → 处处等密度
+环外结构  r = growth · ρ0（ρ0 &gt; R，如行星环）        ← 线性外延，等比放大不变形</div>
+      <p>平铺投影中，<b>同一方向上的所有层（南极到北极）被沿轴向压叠到同一个像点上</b>——
+      信息没有丢，但被「混合」了：盘上每一点的颜色是整条视线柱内物质的叠加。
+      而极向展开把这条视线柱<b>拉开成一段环带</b>：层与层沿半径排列、互不重叠。
+      拖动滑块对比同一批粒子的两种终态（两盘按各自比例尺显示，均远大于原投影）：</p>
+      <div class="ctrl">
+        <label>降维进度 q</label>
+        <input type="range" id="cmpQ" min="0" max="1" step="0.005" value="1" />
+        <span class="val" id="cmpQv"></span>
+      </div>
+      <canvas id="cvCmp" style="height: 380px"></canvas>
+      <p style="margin-top:10px">注意两图的颜色分布：<b>平铺盘</b>中五种纬度带在每一点混合（视线柱叠加，
+      靠 CDF 均衡保住密度）；<b>极向盘</b>中五种纬度带分离成同心环（外圈南极 → 中环地心 → 圆心北极，
+      靠单射保住细节）。</p>
+      <table style="width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px">
+        <tr style="color:#bfe6ff">
+          <th style="border:1px solid rgba(90,140,190,.35); padding:6px 10px; text-align:left; font-weight:400">对照维度</th>
+          <th style="border:1px solid rgba(90,140,190,.35); padding:6px 10px; text-align:left; font-weight:400">平铺投影</th>
+          <th style="border:1px solid rgba(90,140,190,.35); padding:6px 10px; text-align:left; font-weight:400">极向同心展开（本页）</th>
+        </tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">降维方式</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">全体粒子同时向箔面塌缩（投影）</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">相变波前序贯扫过（层序降维）</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">空间编码</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">方位角 + 投影半径（√cdf 均衡）</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">被扫次序 s → 极半径 r（保序单射）</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">像的扩大</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">指数膨胀 exp(u_exp·q)（复利摊开）</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">挤占外推（体积 → 面积守恒）</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">密度控制</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">CDF 重映射（按排名发座位）</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">环带宽 ∝ 截面积（天然均匀）</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">层间关系</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">各层沿视线柱叠加混合</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">层层展开、互不重叠</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">终态形态</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">等比放大的「全景照片」</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">「基因年轮」：外圈南极 · 圆心北极 · 中环地心</td></tr>
+        <tr><td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px; color:#8fb4d8">细节保真</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">密度均衡 + 面积膨胀（信息叠加）</td>
+            <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">单射同胚（信息分离，零丢失）</td></tr>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    平铺投影方案的严格推导见《二维化数学原理.html》 · 交互演示由 Canvas 2D 实现，可离线运行 ·
+    <a href="index.html">返回二维化模拟</a>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // ---------- 公共工具 ----------
+      function $(id) { return document.getElementById(id); }
+      function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+      function mix(a, b, k) { return a + (b - a) * k; }
+      function ss(e0, e1, x) {
+        var t = clamp((x - e0) / (e1 - e0), 0, 1);
+        return t * t * (3 - 2 * t);
+      }
+      function mixRGB(a, b, k) {
+        return "rgb(" + Math.round(clamp(a[0] + (b[0] - a[0]) * k, 0, 255)) + "," +
+                        Math.round(clamp(a[1] + (b[1] - a[1]) * k, 0, 255)) + "," +
+                        Math.round(clamp(a[2] + (b[2] - a[2]) * k, 0, 255)) + ")";
+      }
+      var R_ALL = [];
+      function reg(f) { R_ALL.push(f); f(); }
+      window.addEventListener("resize", function () {
+        for (var i = 0; i < R_ALL.length; i++) R_ALL[i]();
+      });
+      function fit(cv) {
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var w = cv.clientWidth || 300, h = cv.clientHeight || 150;
+        var bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+        if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+        var ctx = cv.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return ctx;
+      }
+      function line(c, x1, y1, x2, y2) {
+        c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+      }
+      function dot(c, x, y, col, r) {
+        c.fillStyle = col; c.beginPath(); c.arc(x, y, r || 3, 0, 6.2832); c.fill();
+      }
+      function txt(c, s, x, y, col, align, font) {
+        c.fillStyle = col || "#8fb4d8";
+        c.font = font || '12px Consolas,"Microsoft YaHei",monospace';
+        c.textAlign = align || "left";
+        c.fillText(s, x, y);
+        c.textAlign = "left";
+      }
+      function dashOn(c) { c.save(); c.setLineDash([5, 4]); }
+      function dashOff(c) { c.restore(); }
+
+      // ---------- 共享粒子集与常量 ----------
+      var R = 1;                       // 球半径（单位）
+      var SPAN = 2.9;                  // 极轴总跨度（含缓冲带）
+      var DISK_R = 1.45;               // 像盘半径（相对球半径的倍数 ×R）
+      var BAND = 0.30;                 // 跌落缓冲带厚度
+      var COOL = 0.9;                  // 白热冷却速度
+      var BAND_RGB = [
+        [255, 95, 86], [255, 176, 64], [255, 224, 102],
+        [105, 208, 106], [79, 179, 255]
+      ];
+      function bandOf(h) {             // 纬度带：h=-R 南极冠 → +R 北极冠
+        var u = (h / R + 1) / 2;       // 0 南 → 1 北
+        return u < 0.14 ? 0 : u < 0.42 ? 1 : u < 0.58 ? 2 : u < 0.86 ? 3 : 4;
+      }
+      var N = 2600;
+      var px = new Float32Array(N), py = new Float32Array(N), ph = new Float32Array(N);
+      var pphi = new Float32Array(N), pband = new Int8Array(N);
+      (function sample() {
+        for (var i = 0; i < N; i++) {
+          var th = Math.random() * Math.PI * 2;
+          var cz = 2 * Math.random() - 1, s = Math.sqrt(1 - cz * cz);
+          var rad = Math.cbrt(Math.random());
+          var x = s * Math.cos(th) * rad, y = s * Math.sin(th) * rad, z = cz * rad;
+          px[i] = x; py[i] = y; ph[i] = z;
+          pphi[i] = Math.atan2(y, x);
+          pband[i] = bandOf(z);
+        }
+      })();
+
+      // ================= 01 接触即降维 =================
+      (function () {
+        var cv = $("cvWave");
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var t = +$("wfT").value;
+          $("wfTv").textContent = "t = " + t.toFixed(2);
+          var hp = mix(-1.45, 1.45, t) * R;                     // 箔面（=波前）h 坐标：−1.45R → +1.45R
+          var cx = w / 2, cy = h / 2 + 6, rad = Math.min(h / 2 - 34, w / 3);
+
+          // 已扫区域着色（h < planeZ）
+          for (var i = 0; i < N; i++) {
+            var swept = hp - ph[i];
+            var inBand = swept > 0 && swept < BAND;
+            ctx.fillStyle = pband[i] < 0 ? "#cfe4f2" : mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.25);
+            ctx.globalAlpha = swept > 0 ? (inBand ? 1 : 0.55) : 0.9;
+            ctx.fillRect(cx + px[i] * rad - 1, cy - ph[i] * rad - 1, 2, 2);
+          }
+          ctx.globalAlpha = 1;
+
+          // 球轮廓
+          ctx.strokeStyle = "rgba(90,140,190,.35)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 6.2832); ctx.stroke();
+
+          // 箔面 = 波前（白实线，接触即降维）
+          var hy = cy - hp * rad;
+          ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 2;
+          line(ctx, cx - rad * 1.35, hy, cx + rad * 1.35, hy);
+          txt(ctx, "箔面 planeZ = " + hp.toFixed(2) + "R（接触面 · 推进方向 ↑）", cx + rad * 1.4, hy + 4, "rgba(255,255,255,.85)");
+
+          // 南/北标注
+          txt(ctx, "北 N（h = +R，最后接触 → 圆心）", cx, cy - rad - 12, "#4fb3ff", "center");
+          txt(ctx, "南 S（h = −R，最先接触 → 最外圈）", cx, cy + rad + 20, "#ff5f56", "center");
+          txt(ctx, "已接触区域（s > 0，半透明）· 接触缓冲带（全亮，白热边界所在）", cx, h - 10, "#a8d8f0", "center");
+        }
+        $("wfT").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 02 次序→半径 =================
+      (function () {
+        var cv = $("cvMap");
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var t = +$("mapT").value;
+          $("mapTv").textContent = "t = " + t.toFixed(2);
+          var hp = mix(-1.45, 1.45, t) * R;
+
+          var radS = h / 2 - 40;
+          var sx = w * 0.24, sy = h / 2 + 4;         // 左：球侧视
+          var cx = w * 0.68, cy = h / 2 + 4;         // 右：像盘俯视
+          var radD = Math.min(h / 2 - 40, w * 0.24) / DISK_R * (DISK_R / (DISK_R + 0.12));
+
+          // 左：球（已扫的层淡化）
+          var i, p;
+          for (i = 0; i < N; i++) {
+            var swept = hp - ph[i];
+            ctx.globalAlpha = swept > 0 ? 0.28 : 0.95;
+            ctx.fillStyle = mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.2);
+            ctx.fillRect(sx + px[i] * radS - 1, sy - ph[i] * radS - 1, 2, 2);
+          }
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = "rgba(90,140,190,.35)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(sx, sy, radS, 0, 6.2832); ctx.stroke();
+          var hy = sy - hp * radS;
+          ctx.strokeStyle = "#7fe0c0"; ctx.lineWidth = 2;
+          line(ctx, sx - radS * 1.12, hy, sx + radS * 1.12, hy);
+          txt(ctx, "箔面", sx + radS * 1.12 + 6, hy + 4, "#7fe0c0");
+          txt(ctx, "球（侧视，按纬度带着色）", sx, 18, "#a8d8f0", "center");
+
+          // 右：像盘（已扫层 → 环带）
+          for (i = 0; i < N; i++) {
+            p = i;
+            var s2 = hp - ph[p];
+            if (s2 <= 0) continue;
+            var r2 = DISK_R * Math.min(s2, SPAN) / SPAN;
+            // 同层内按截面半径微调，让环带有厚度质感
+            var rr = r2 + (Math.sqrt(px[p] * px[p] + py[p] * py[p]) - 0.62) * 0.10 * (r2 > 0.05 ? 1 : 0);
+            rr = Math.max(rr, 0.004);
+            var qS = ss(0, BAND * 3, s2);            // 摊开进度：粒子从原横向位置滑向极坐标位
+            var lx = mix(px[p], Math.cos(pphi[p]) * rr, qS);
+            var ly = mix(py[p], Math.sin(pphi[p]) * rr, qS);
+            ctx.fillStyle = mixRGB(BAND_RGB[pband[p]], [220, 230, 240], 0.2);
+            ctx.fillRect(cx + lx * radD * DISK_R - 1, cy - ly * radD * DISK_R - 1, 2, 2);
+          }
+          dashOn(ctx);
+          ctx.strokeStyle = "rgba(90,140,190,.4)";
+          ctx.beginPath(); ctx.arc(cx, cy, DISK_R * radD * DISK_R, 0, 6.2832); ctx.stroke();
+          dashOff(ctx);
+          txt(ctx, "像平面（俯视 · 年轮圆盘）", cx, 18, "#a8d8f0", "center");
+          txt(ctx, "最外圈 = 南极", cx + DISK_R * radD * DISK_R * 0.72, cy - DISK_R * radD * DISK_R * 0.72 - 8, "#ff8f86", "center");
+          txt(ctx, "圆心 = 北极", cx + 46, cy + 4, "#4fb3ff");
+          txt(ctx, "中环 = 地心（最宽）", cx - DISK_R * radD * DISK_R * 0.5, cy + DISK_R * radD * DISK_R * 0.62, "#ffe066", "center");
+          txt(ctx, "环带宽度 dr ∝ 截面积 A(h) = π(R²−h²) → 赤道环最宽（体积→面积守恒）", cx, h - 10, "#7fe0c0", "center");
+        }
+        $("mapT").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 03 综合演示 =================
+      (function () {
+        var t = 0, playing = false, lastTS = 0;
+        var cv = $("cvSim");
+
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          $("simTv").textContent = t.toFixed(2);
+          var hp = mix(-1.45, 1.45, t) * R;
+          var diskNow = DISK_R * Math.min(Math.max(hp + 1.45, 0.001), SPAN) / SPAN;
+
+          var s = Math.min((w - 100) / 2, h - 76);
+          var Lx = 40, Ly = 36, Rx = Lx + s + 36, Ry = 36;
+
+          // 侧视范围随球固定；俯视范围随盘生长
+          var xmaxL = 1.7;
+          var xmaxR = Math.max(diskNow * 1.15, 1.15);
+
+          var i;
+          for (i = 0; i < N; i++) {
+            var h0 = ph[i];
+            var swept = hp - h0;
+            var qF = ss(0, BAND, swept);             // 跌入
+            var qS = ss(0, BAND * 3, swept);         // 摊开（更慢）
+            var vs = swept / BAND;
+            var heat = vs > 0 ? Math.exp(-vs * vs * COOL) : 0;
+            var r2 = DISK_R * Math.min(Math.max(swept, 0), SPAN) / SPAN;
+            var rr = Math.max(r2 + (Math.sqrt(px[i] * px[i] + py[i] * py[i]) - 0.62) * 0.10 * (r2 > 0.05 ? 1 : 0), 0.004);
+            var lx = mix(px[i], Math.cos(pphi[i]) * rr, qS);
+            var ly = mix(py[i], Math.sin(pphi[i]) * rr, qS);
+            var z2 = mix(h0, hp, qF);                // 轴向塌到箔面（随箔面北上）
+
+            var base = mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.2);
+            ctx.fillStyle = mixRGB(base, [255, 255, 255], heat);
+
+            // 侧视 X–Z：跌入（未跌落保持原位，跌落后塌到箔面线）
+            var zSide = swept > 0 ? z2 : h0;
+            var sxp = Lx + s / 2 + (lx / xmaxL) * (s / 2);
+            var syp = Ly + (1.7 - zSide) / 3.4 * s;
+            ctx.fillRect(sxp - 1, syp - 1, 2, 2);
+
+            // 俯视 X–Y：摊开
+            var txp = Rx + s / 2 + (lx / xmaxR) * (s / 2);
+            var typ = Ry + s / 2 - (ly / xmaxR) * (s / 2);
+            ctx.fillRect(txp - 1, typ - 1, 2, 2);
+          }
+
+          // 侧视：箔面（接触面，单面扫掠，自下而上）
+          var planeY = Ly + (1.7 - hp) / 3.4 * s;
+          ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 2;
+          line(ctx, Lx, planeY, Lx + s, planeY);
+          txt(ctx, "箔面（接触面）", Lx + 6, planeY - 6, "rgba(255,255,255,.85)");
+
+          txt(ctx, "侧视：跌入（轴向塌缩，白热边界）", Lx + s / 2, Ly - 12, "#a8d8f0", "center");
+          txt(ctx, "俯视：摊开（挤占外推，盘逐环生长）", Rx + s / 2, Ry - 12, "#a8d8f0", "center");
+          txt(ctx, "外圈=南极 · 圆心=北极 · 中环=地心    盘半径 ≈ " + (diskNow * R).toFixed(2) + "R / 目标 " + DISK_R + "R",
+            w / 2, h - 10, "#7fe0c0", "center");
+        }
+
+        function frame(ts) {
+          if (playing) {
+            if (lastTS) t = Math.min(1, t + (ts - lastTS) / 1000 * 0.09);
+            $("simT").value = t;
+            render();
+            if (t >= 1) { playing = false; $("simPlay").textContent = "播放"; }
+          }
+          lastTS = ts;
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+
+        $("simPlay").addEventListener("click", function () {
+          if (!playing && t >= 1) t = 0;
+          playing = !playing;
+          this.textContent = playing ? "暂停" : "播放";
+        });
+        $("simReset").addEventListener("click", function () {
+          t = 0; playing = false;
+          $("simPlay").textContent = "播放";
+          $("simT").value = 0;
+          render();
+        });
+        $("simT").addEventListener("input", function () {
+          playing = false; $("simPlay").textContent = "播放";
+          t = +this.value; render();
+        });
+        reg(render);
+      })();
+
+      // ================= 04 平铺 vs 极向 对照 =================
+      (function () {
+        var cv = $("cvCmp");
+        var EXP = 1.15;                       // 平铺膨胀指数（演示用，q=1 → ×3.16）
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var q = +$("cmpQ").value;
+          $("cmpQv").textContent = q.toFixed(2);
+          var growth = Math.exp(EXP * q);
+
+          var cy = h / 2 + 6;
+          var radL = Math.min(h / 2 - 44, w * 0.21);   // 左盘像素半径（对应 xmaxL）
+          var radR = Math.min(h / 2 - 44, w * 0.21);
+          var cxL = w * 0.26, cxR = w * 0.74;
+          var xmaxL = 3.45;                            // 平铺：growth 最大 ≈ 3.16R
+          var xmaxR = 1.62;                            // 极向：盘 1.45R
+
+          var i, x0, y0, rho0, dx, dy, cdf;
+          for (i = 0; i < N; i++) {
+            x0 = px[i]; y0 = py[i];
+            rho0 = Math.sqrt(x0 * x0 + y0 * y0);
+            dx = rho0 > 1e-6 ? x0 / rho0 : 0;
+            dy = rho0 > 1e-6 ? y0 / rho0 : 0;
+            cdf = 1 - Math.pow(Math.max(1 - rho0 * rho0, 0), 1.5);
+
+            // ---- 左：平铺投影（方向保持 + √cdf 均衡 + 指数膨胀）----
+            var rFlat = rho0 <= R ? growth * Math.sqrt(cdf) : growth * rho0;
+            rFlat = Math.min(rFlat, xmaxL);
+            var rf = mix(rho0, rFlat, q);
+            ctx.fillStyle = mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.2);
+            ctx.fillRect(cxL + dx * rf * (radL / 1.7) - 1,
+                         cy - dy * rf * (radL / 1.7) - 1, 2, 2);
+
+            // ---- 右：极向展开（次序 → 极半径环带）----
+            var hp = mix(-1.45, 1.45, q);
+            var swept = hp - ph[i];
+            if (swept > 0) {
+              var rP = DISK_R * Math.min(swept, SPAN) / SPAN;
+              var rr = Math.max(rP + (rho0 - 0.62) * 0.10 * (rP > 0.05 ? 1 : 0), 0.004);
+              var qS = ss(0, BAND * 3, swept);
+              var pxr = mix(x0, Math.cos(pphi[i]) * rr, qS);
+              var pyr = mix(y0, Math.sin(pphi[i]) * rr, qS);
+              ctx.fillStyle = mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.2);
+              ctx.fillRect(cxR + pxr * (radR / 0.81) - 1, cy - pyr * (radR / 0.81) - 1, 2, 2);
+            }
+          }
+
+          // 参考圈
+          dashOn(ctx);
+          ctx.strokeStyle = "rgba(90,140,190,.4)";
+          ctx.beginPath(); ctx.arc(cxL, cy, R * (radL / 1.7), 0, 6.2832); ctx.stroke();   // 原投影轮廓
+          ctx.beginPath(); ctx.arc(cxR, cy, DISK_R * (radR / 0.81), 0, 6.2832); ctx.stroke();
+          dashOff(ctx);
+
+          txt(ctx, "平铺投影（俯视）", cxL, 18, "#a8d8f0", "center");
+          txt(ctx, "r = growth·√cdf，growth = ×" + growth.toFixed(2), cxL, h - 34, "#a8d8f0", "center");
+          txt(ctx, "层被压叠混合（视线柱叠加）", cxL, h - 16, "#ffb040", "center");
+          txt(ctx, "极向展开（俯视）", cxR, 18, "#a8d8f0", "center");
+          txt(ctx, "盘半径 " + (DISK_R * Math.min(Math.max(hp + 1.45, 0.001), SPAN) / SPAN).toFixed(2) + "R / " + DISK_R + "R", cxR, h - 34, "#a8d8f0", "center");
+          txt(ctx, "层分离成环（外圈南极 · 圆心北极 · 中环地心）", cxR, h - 16, "#7fe0c0", "center");
+        }
+        $("cmpQ").addEventListener("input", render);
+        reg(render);
+      })();
+    })();
+  </script>
+</body>
+</html>

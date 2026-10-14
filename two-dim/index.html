@@ -67,14 +67,23 @@
       border-color: rgba(140,210,255,0.9);
       box-shadow: 0 0 16px rgba(120,200,255,0.6);
     }
-    /* 观测目标列表的收起/展开 */
-    #objToggle {
+    /* 整个控制面板的一键收起：只留面板开关，不影响主画面 */
+    #panelToggle {
       font-weight: 600;
       color: #bcd8f4;
       border-color: rgba(140,200,255,0.55);
       background: rgba(20,40,70,0.72);
     }
-    #objectList {
+    #objects.panelCollapsed > *:not(#panelToggle) { display: none; }
+    /* 观测目标列表 / 降维设置组的收起/展开 */
+    #objToggle, #projToggle {
+      font-weight: 600;
+      color: #bcd8f4;
+      border-color: rgba(140,200,255,0.55);
+      background: rgba(20,40,70,0.72);
+    }
+    #projToggle { margin-top: 6px; }
+    #objectList, #projList {
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -83,10 +92,16 @@
       opacity: 1;
       transition: max-height 0.30s ease, opacity 0.22s ease;
     }
-    #objects.collapsed #objectList {
+    #objectList.collapsed, #projList.collapsed {
       max-height: 0;
       opacity: 0;
       pointer-events: none;
+    }
+    #pageLinks {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
     }
     #start {
       position: fixed;
@@ -145,7 +160,7 @@
 </head>
 <body>
   <canvas id="scene"></canvas>
-  <div id="hud">拖拽旋转 · 滚轮缩放 · 右键平移 · 1-9/按钮 切换物体 · X 透视 · [ ] 变速 · P 暂停 · V 远端 · S 侧视 · R 重放</div>
+  <div id="hud">拖拽旋转 · 滚轮缩放 · 右键平移 · 1-9/按钮 切换物体 · X 透视 · M 降维方式 · N 扫描轴 · [ ] 变速 · P 暂停 · V 远端 · S 侧视 · R 重放</div>
   <div id="stats"></div>
   <div id="objects"></div>
 
@@ -330,7 +345,7 @@
       }
 
       // ---- 类地行星：内核 / 外核 / 地幔 / 地壳(海陆)——与恒星、气巨一致的分层实现 ----
-      function buildEarth(P, C, count, R) {
+      function buildEarth(P, C, count, R, X, OC) {
         var SEA = 0.50;
         // [f0, f1, c0, c1, weight, brightness]  由内到外，分层越清晰二维化后越像同心环
         var L = [
@@ -363,7 +378,10 @@
             if (n < 0) n = 0; else if (n > 1) n = 1;
             var sc;
             if (n > SEA) sc = mixHex(0x2f7d32, 0x9c8f4e, (n - SEA) / (1 - SEA));
-            else sc = mixHex(0x08305e, 0x1f7fb0, n / SEA);
+            else {
+              sc = mixHex(0x08305e, 0x1f7fb0, n / SEA);
+              if (OC) OC[i] = 1;                       // 海洋粒子（极向模式冰晶雪花海洋）
+            }
             r = sc[0]; g = sc[1]; b = sc[2];
           }
           var br = ly[5];
@@ -1791,26 +1809,98 @@
       }
 
       // ---- 物体注册表（左上角按钮 + 数字键 1-9 切换）----
+      // polar = 极向展开模式的推荐扫描轴（长条体用其长轴）
       var OBJECTS = [
-        { name: "类地行星",   radius: 5.0, count: BASE_COUNT, build: buildEarth },
-        { name: "恒星",       radius: 5.0, count: BASE_COUNT, build: buildStar },
-        { name: "气态巨行星", radius: 5.0, count: BASE_COUNT, build: buildGasGiant },
-        { name: "星际战舰",   radius: 6.0, count: BASE_COUNT, build: buildStarship },
-        { name: "太空城",     radius: 5.5, count: BASE_COUNT, build: buildSpaceCity },
-        { name: "宇航员",     radius: 2.2, count: 1500000,    build: buildAstronaut },
-        { name: "岩质小行星", radius: 3.5, count: 1000000,    build: buildAsteroid },
-        { name: "水滴",       radius: 3.2, count: 1200000,    build: buildDroplet },
-        { name: "黑洞",       radius: 5.0, count: 1500000,    build: buildBlackhole },
-        { name: "DNA双螺旋",  radius: 4.0, count: 1200000,    build: buildDNA },
-        { name: "细胞",       radius: 5.0, count: 1500000,    build: buildCell },
-        { name: "空间站",     radius: 5.0, count: 1500000,    build: buildStation },
-        { name: "红岸基地",   radius: 5.0, count: 1500000,    build: buildRedCoast },
-        { name: "城市",       radius: 5.0, count: 1500000,    build: buildCity },
-        { name: "客机",       radius: 5.0, count: 1500000,    build: buildAirliner },
-        { name: "高铁",       radius: 4.5, count: 1500000,    build: buildTrain },
-        { name: "彗星",       radius: 5.0, count: 1200000,    build: buildComet },
-        { name: "树",         radius: 5.0, count: 1500000,    build: buildTree }
+        { name: "类地行星",   radius: 5.0, count: BASE_COUNT, build: buildEarth,    polar: "z" },
+        { name: "恒星",       radius: 5.0, count: BASE_COUNT, build: buildStar,     polar: "z" },
+        { name: "气态巨行星", radius: 5.0, count: BASE_COUNT, build: buildGasGiant, polar: "z" },
+        { name: "星际战舰",   radius: 6.0, count: BASE_COUNT, build: buildStarship, polar: "x" },
+        { name: "太空城",     radius: 5.5, count: BASE_COUNT, build: buildSpaceCity, polar: "z" },
+        { name: "宇航员",     radius: 2.2, count: 1500000,    build: buildAstronaut, polar: "y" },
+        { name: "岩质小行星", radius: 3.5, count: 1000000,    build: buildAsteroid, polar: "z" },
+        { name: "水滴",       radius: 3.2, count: 1200000,    build: buildDroplet,  polar: "x" },
+        { name: "黑洞",       radius: 5.0, count: 1500000,    build: buildBlackhole, polar: "z" },
+        { name: "DNA双螺旋",  radius: 4.0, count: 1200000,    build: buildDNA,      polar: "y" },
+        { name: "细胞",       radius: 5.0, count: 1500000,    build: buildCell,     polar: "z" },
+        { name: "空间站",     radius: 5.0, count: 1500000,    build: buildStation,  polar: "x" },
+        { name: "红岸基地",   radius: 5.0, count: 1500000,    build: buildRedCoast, polar: "z" },
+        { name: "城市",       radius: 5.0, count: 1500000,    build: buildCity,     polar: "z" },
+        { name: "客机",       radius: 5.0, count: 1500000,    build: buildAirliner, polar: "x" },
+        { name: "高铁",       radius: 4.5, count: 1500000,    build: buildTrain,    polar: "x" },
+        { name: "彗星",       radius: 5.0, count: 1200000,    build: buildComet,    polar: "x" },
+        { name: "树",         radius: 5.0, count: 1500000,    build: buildTree,     polar: "z" }
       ];
+
+      // ------------------------------------------------------------------
+      // 降维方式全局配置（平铺投影 / 极向同心展开），localStorage 持久化
+      // ------------------------------------------------------------------
+      var PROJ_LABEL = { plane: "平铺投影", polar: "极向展开" };
+      var AXIS_LABEL = { z: "Z · 极轴", x: "X", y: "Y" };
+      var AXIS_ORDER = ["z", "x", "y"];
+      function loadProjCfg(key, fallback, valid) {
+        try {
+          var v = localStorage.getItem(key);
+          if (v && valid.indexOf(v) >= 0) return v;
+        } catch (e) {}
+        return fallback;
+      }
+      var projMode  = loadProjCfg("twoDim.projectionMode", "plane", ["plane", "polar"]);
+      var polarAxis = loadProjCfg("twoDim.polarAxis", "z", AXIS_ORDER);
+      var snowOn    = loadProjCfg("twoDim.snowOcean", "0", ["0", "1"]) === "1";   // 雪花海洋，默认关
+      var axisSpan  = { x: currentRadius, y: currentRadius, z: currentRadius };   // rebuildGeometry 更新
+      var modeBtn = null, axisBtn = null, snowBtn = null;
+
+      function setSnow(on) {
+        snowOn = !!on;
+        try { localStorage.setItem("twoDim.snowOcean", snowOn ? "1" : "0"); } catch (e) {}
+        applyProjUniforms();
+        updateProjButtons();
+        // 仅当雪花实际可见（地球 + 极向）时才重置演示——中途开启会让环带按当前
+        // 结晶进度瞬间就位（跳位），重放保证「缓缓胀开」的完整动画
+        if (projMode === "polar" && currentObject === 0) resetToStart();
+      }
+      function toggleSnow() { setSnow(!snowOn); }
+
+      function applyProjUniforms() {
+        uniforms.u_mode.value = projMode === "polar" ? 1 : 0;
+        uniforms.u_axis.value = AXIS_ORDER.indexOf(polarAxis);
+        var s = axisSpan[polarAxis] || currentRadius;
+        uniforms.u_pLo.value = -s;
+        uniforms.u_pHi.value = s;
+        // 冰晶雪花海洋：仅地球 + 极向模式 + 用户开启（默认关）
+        uniforms.u_snow.value = (snowOn && projMode === "polar" && currentObject === 0) ? 1 : 0;
+      }
+      function saveProjCfg() {
+        try {
+          localStorage.setItem("twoDim.projectionMode", projMode);
+          localStorage.setItem("twoDim.polarAxis", polarAxis);
+        } catch (e) {}
+      }
+      function setPolarAxis(a, resetView) {
+        if (AXIS_ORDER.indexOf(a) < 0) a = "z";
+        polarAxis = a;
+        applyProjUniforms();
+        saveProjCfg();
+        updateProjButtons();
+        if (resetView) resetToStart();
+      }
+      function setProjMode(m, silent) {
+        projMode = m === "polar" ? "polar" : "plane";
+        if (projMode === "polar") {
+          // 极向模式自动套用当前物体的推荐扫描轴（仍可用 N 手动切换）
+          var rec = OBJECTS[currentObject].polar || "z";
+          if (rec !== polarAxis) polarAxis = rec;
+        }
+        applyProjUniforms();
+        saveProjCfg();
+        updateProjButtons();
+        if (!silent) resetToStart();
+      }
+      function cycleProjMode() { setProjMode(projMode === "plane" ? "polar" : "plane"); }
+      function cyclePolarAxis() {
+        if (projMode !== "polar") return;
+        setPolarAxis(AXIS_ORDER[(AXIS_ORDER.indexOf(polarAxis) + 1) % 3], true);
+      }
 
       // ================================================================
       //  顶点着色器（与物体无关，通用）
@@ -1825,57 +1915,184 @@
         "uniform float u_radius;",
         "uniform float u_size;",
         "uniform float u_scale;",
+        "uniform float u_mode;",   // 降维方式 0=平铺投影 1=极向同心展开
+        "uniform float u_axis;",   // 极向扫描轴 0=Z 1=X 2=Y
+        "uniform float u_pLo;",    // 物体沿扫描轴的最小坐标（南端）
+        "uniform float u_pHi;",    // 物体沿扫描轴的最大坐标（北端）
+        "uniform float u_diskR;",  // 极向模式最终圆盘半径
+        "uniform float u_snow;",       // 冰晶雪花海洋开关（仅地球）
+        "uniform float u_crystallize;",// 结晶进度 0..1（圆盘 → 绽放巨型雪花）
         "",
         "attribute vec3 aColor;",
         "attribute float aXray;",
+        "attribute float aOcean;",     // 海洋粒子标记（1=水圈）
         "",
         "varying vec3  vColor;",
         "varying float vSince;",
         "varying float vSeed;",
         "varying float vXray;",
+        "varying float vIce;",         // 冰晶因子（供片元着色器做冰材质）
+        "",
+        "// ---- 2D 值噪声 + FBM（冰晶雪花分形细节）----",
+        "float hash21(vec2 q) {",
+        "  return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453);",
+        "}",
+        "float vnoise(vec2 q) {",
+        "  vec2 i = floor(q), f = fract(q);",
+        "  vec2 u = f * f * (3.0 - 2.0 * f);",
+        "  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),",
+        "             mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);",
+        "}",
+        "float fbm2(vec2 q) {",
+        "  float v = 0.0, a = 0.5;",
+        "  for (int k = 0; k < 4; k++) { v += a * vnoise(q); q = q * 2.03 + vec2(17.3, 9.1); a *= 0.5; }",
+        "  return v;",
+        "}",
         "",
         "void main() {",
-        "  vec3  p  = position;",
+        "  vec3  p = position;",
+        "  float swept;",
+        "  vec3  target;",
+        "  float ice = 0.0;",   // 冰晶因子（极向模式雪花海洋填充，平铺模式保持 0）",
         "",
-        "  // ---- 1. 碰撞检测 ----",
-        "  float planeZ = u_startZ - u_speed * u_time;",
-        "  planeZ = max(planeZ, u_endZ);",
-        "  float swept = p.z - planeZ;",
-        "  float q = smoothstep(0.0, u_band, swept);",
-        "  vSince = swept / u_band;",
+        "  if (u_mode < 0.5) {",
+        "    // ================= 平铺投影（原有实现） =================",
+        "    // ---- 1. 碰撞检测 ----",
+        "    float planeZ = u_startZ - u_speed * u_time;",
+        "    planeZ = max(planeZ, u_endZ);",
+        "    swept = p.z - planeZ;",
+        "    float q = smoothstep(0.0, u_band, swept);",
         "",
-        "  // ---- 2. 角向 ----",
-        "  vec2  p0   = p.xy;",
-        "  float rho0 = length(p0);",
-        "  vec2  dir  = rho0 > 1e-5 ? p0 / rho0 : vec2(0.0);",
+        "    // ---- 2. 角向 ----",
+        "    vec2  p0   = p.xy;",
+        "    float rho0 = length(p0);",
+        "    vec2  dir  = rho0 > 1e-5 ? p0 / rho0 : vec2(0.0);",
         "",
-        "  // ---- 3. 面积膨胀（质量守恒） ----",
-        "  float growth = exp(u_exp * q);",
-        "  float R2 = u_radius * u_radius;",
-        "  float R3 = u_radius * R2;",
-        "  float frac;",
-        "  if (rho0 <= u_radius) {",
-        "    // 主体（球）：面积均匀映射为实心盘",
-        "    //   cdf(ρ) = (R³ - (R²-ρ²)^1.5) / R³, 目标半径 ∝ sqrt(cdf)",
-        "    float inner = max(R2 - rho0 * rho0, 0.0);",
-        "    float cdf = (R3 - pow(inner, 1.5)) / R3;",
-        "    frac = sqrt(clamp(cdf, 0.0, 1.0));",
+        "    // ---- 3. 面积膨胀（质量守恒） ----",
+        "    float growth = exp(u_exp * q);",
+        "    float R2 = u_radius * u_radius;",
+        "    float R3 = u_radius * R2;",
+        "    float frac;",
+        "    if (rho0 <= u_radius) {",
+        "      // 主体（球）：面积均匀映射为实心盘",
+        "      //   cdf(ρ) = (R³ - (R²-ρ²)^1.5) / R³, 目标半径 ∝ sqrt(cdf)",
+        "      float inner = max(R2 - rho0 * rho0, 0.0);",
+        "      float cdf = (R3 - pow(inner, 1.5)) / R3;",
+        "      frac = sqrt(clamp(cdf, 0.0, 1.0));",
+        "    } else {",
+        "      // 主体之外的结构（如行星环）：线性外延，保持相对位置，形成盘外的环",
+        "      frac = 1.0 + (rho0 - u_radius) / u_radius;",
+        "    }",
+        "    float rho2 = u_radius * growth * frac;",
+        "    float r2   = mix(rho0, rho2, q);",
+        "",
+        "    // ---- 4. 组装 ----",
+        "    target = vec3(dir * r2, mix(p.z, planeZ, q));",
         "  } else {",
-        "    // 主体之外的结构（如行星环）：线性外延，保持相对位置，形成盘外的环",
-        "    frac = 1.0 + (rho0 - u_radius) / u_radius;",
+        "    // ================= 极向同心展开 =================",
+        "    // 接触式单面扫描：箔面自南极(u_endZ)向北极(u_startZ)升起，接触即降维——",
+        "    // 先接触箔面的原子先二维化（南极→最外圈），后至层挤占空间把已成像画面外推",
+        "    float planeZ = min(u_endZ + u_speed * u_time, u_startZ);",
+        "",
+        "    // 按扫描轴取轴向分量 h 与横向 (a,b)",
+        "    float h; vec2 perp;",
+        "    if (u_axis < 0.5)      { h = p.z; perp = p.xy; }",
+        "    else if (u_axis < 1.5) { h = p.x; perp = p.yz; }",
+        "    else                   { h = p.y; perp = p.zx; }",
+        "",
+        "    swept = planeZ - h;",
+        "    float qFall = smoothstep(0.0, u_band, swept);",          // 跌入：轴向先压到箔面",
+        "    float qSpread = smoothstep(0.0, u_band * 3.0, swept);",   // 展开：横向再摊开成极坐标盘",
+
+        "    // 极半径（挤占动力学）：刚接触的落在盘心(rel=0)，随箔面推进被后层不断推向外圈；",
+        "    // 扫描完成(planeZ=u_startZ)时：北端(u_pHi)→圆心、南端(u_pLo)→最外圈 u_diskR",
+        "    float span = max(u_pHi - u_pLo, 1e-4);",
+        "    float rel  = clamp(swept - (u_startZ - u_pHi), 0.0, span);",
+        "    float r2D  = u_diskR * rel / span;",
+        "    // 极小散布：避免未推开时全部叠在同一个数学点上",
+        "    r2D += u_diskR * 0.004 * fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);",
+        "",
+        "    // 极角 = 经度；轴上粒子经度不稳定，用 hash 角兜底",
+        "    float phi = atan(perp.y, perp.x);",
+        "    if (dot(perp, perp) < 1e-10)",
+        "      phi = 6.28318530718 * fract(sin(dot(p, vec3(37.719, 12.9898, 78.233))) * 24634.6345);",
+        "",
+        "    // ---- 巨型冰晶雪花海洋（仅地球·极向模式）----",
+        "    // 先把海洋环带放大（内部核/幔同比压缩、陆地收成薄外环），",
+        "    // 再在放大的海洋带内铺满无数朵六重对称的巨型雪花：",
+        "    // 随 u_crystallize 疯狂延伸、相互咬合，最终连结成一片雪花海洋",
+        "    if (u_snow > 0.5) {",
+        "      float gg = u_crystallize * u_crystallize * (3.0 - 2.0 * u_crystallize);",
+        "      float rn0 = r2D / u_diskR;",
+        "      float rn1;",
+        "      // 环带重映射随结晶进度渐进：海洋带缓缓胀开、内部缓缓收缩，避免瞬间跳位",
+        "      if (rn0 < 0.925)       rn1 = mix(rn0, rn0 * 0.6667, gg);",
+        "      else if (aOcean > 0.5) rn1 = mix(rn0, 0.62 + (rn0 - 0.93) * 4.857, gg);",
+        "      else                    rn1 = mix(rn0, 0.96 + (rn0 - 0.93) * 0.5714, gg);",
+        "      r2D = rn1 * u_diskR;",
+        "      if (aOcean > 0.5 && gg > 0.002 && rn1 > 0.60 && rn1 < 0.98) {",
+        "        // 带内展开为条带：s=弧长、t=径向（均以 diskR 为单位），环向无缝（恰好 cols 格）",
+        "        float bandIn = 0.62, bandW = 0.34, mid = 0.79;",
+        "        float s = phi * mid;",
+        "        float t = rn1 - mid;",
+        "        float cols = 15.0;",
+        "        float cellW = 6.2831853 * mid / cols;",
+        "        vec2 cellUV = vec2(s / cellW, t / bandW + 0.5);",
+        "        vec2 cid = floor(cellUV);",
+        "        // 3×3 邻域找最近晶核（每格一朵带抖动的雪花）",
+        "        float bestD = 1e9;",
+        "        vec2 bestC = vec2(0.0);",
+        "        float bestSeed = 0.0;",
+        "        for (int gy = -1; gy <= 1; gy++) {",
+        "          for (int gx = -1; gx <= 1; gx++) {",
+        "            vec2 nid = cid + vec2(float(gx), float(gy));",
+        "            vec2 h2 = fract(sin(vec2(dot(nid, vec2(127.1, 311.7)), dot(nid, vec2(269.5, 183.3)))) * 43758.5453);",
+        "            vec2 c = nid + 0.5 + (h2 - 0.5) * 0.35;",
+        "            float dd = dot(cellUV - c, cellUV - c);",
+        "            if (dd < bestD) { bestD = dd; bestC = c; bestSeed = h2.x; }",
+        "          }",
+        "        }",
+        "        // 雪花局部极坐标（世界单位）与六重对称折叠",
+        "        vec2 dl = vec2((cellUV.x - bestC.x) * cellW, (cellUV.y - bestC.y) * bandW);",
+        "        float rl = max(length(dl), 1e-4);",
+        "        float a = atan(dl.y, dl.x);",
+        "        float af = abs(mod(a, 1.0471975512) - 0.5235987756);",
+        "        float sz = 0.66 + 0.07 * fract(bestSeed * 13.7);",           // 个体尺寸差异（大到相互咬合）",
+        "        float arm = exp(-af * af * 75.0);",                          // 六条主臂",
+        "        float n = fbm2(vec2(cos(a * 6.0), sin(a * 6.0)) * 1.6 + rl * 3.4 + bestSeed * 11.0);",
+        "        float barb = 0.5 + 0.5 * sin(rl * 34.0 - af * 9.0);",        // 沿臂羽枝",
+        "        // 分形轮廓半径（世界单位）：主臂 > 平盘，fbm 造树枝状边缘；gg 驱动从 0 疯狂生长",
+        "        float edge = gg * sz * cellW * (0.45 + 0.55 * arm * (0.40 + 0.75 * barb * n)",
+        "                     + 0.22 * pow(n, 3.0) * smoothstep(0.35, 0.9, gg));",
+        "        // 结冰掩码；晶核外的海水被拉入雪花（延伸→咬合，整个海洋结晶化）",
+        "        float mask = smoothstep(edge, edge - 0.04, rl);",
+        "        float pullK = 0.40 * gg * smoothstep(edge - 0.05, edge + 0.15, rl);",
+        "        float nr = mix(rl, edge * (0.90 + 0.12 * n), pullK);",
+        "        vec2 dNew = (dl / rl) * nr;",
+        "        phi += (dNew.x - dl.x) / mid;",
+        "        rn1 = clamp(rn1 + (dNew.y - dl.y), 0.605, 0.975);",
+        "        r2D = rn1 * u_diskR;",
+        "        // 冰晶因子：晶体内部亮、晶棱最亮（晶莹剔透），间隙海面结薄冰",
+        "        float rim = smoothstep(edge - 0.18, edge - 0.01, rl) * mask;",
+        "        ice = clamp(mask * (0.72 + 0.28 * rim) + rim * 0.40 + 0.22 * gg * (1.0 - mask), 0.0, 1.0);",
+        "      }",
+        "    }",
+        "    vec2 pp = vec2(cos(phi), sin(phi)) * r2D;",
+        "",
+        "    // 按轴组装：先跌入（轴向压到箔面）再展开（横向摊开为极坐标），",
+        "    // qFall/qSpread 分离出「跌入 → 摊开」的两段式视觉；未跌落时保持立体形状",
+        "    if (u_axis < 0.5)      target = vec3(mix(p.xy, pp, qSpread), mix(p.z, planeZ, qFall));",
+        "    else if (u_axis < 1.5) target = vec3(mix(p.x, planeZ, qFall), mix(p.yz, pp, qSpread));",
+        "    else                   target = vec3(mix(p.x, pp.y, qSpread), mix(p.y, planeZ, qFall), mix(p.z, pp.x, qSpread));",
         "  }",
-        "  float rho2 = u_radius * growth * frac;",
-        "  float r2   = mix(rho0, rho2, q);",
         "",
-        "  // ---- 4. 组装 ----",
-        "  vec2  xy2 = dir * r2;",
-        "  float z2  = mix(p.z, planeZ, q);",
-        "",
+        "  vSince = swept / u_band;",
         "  vColor = aColor;",
         "  vSeed  = fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);",
         "  vXray  = aXray;",
+        "  vIce   = ice;",
         "",
-        "  vec4 mv = modelViewMatrix * vec4(xy2, z2, 1.0);",
+        "  vec4 mv = modelViewMatrix * vec4(target, 1.0);",
         "  gl_Position = projectionMatrix * mv;",
         "  gl_PointSize = u_size * (u_scale / -mv.z);",
         "  gl_PointSize = max(gl_PointSize, 1.6);",
@@ -1895,6 +2112,7 @@
         "varying float vSince;",
         "varying float vSeed;",
         "varying float vXray;",
+        "varying float vIce;",
         "",
         "void main() {",
         "  vec2 c = gl_PointCoord - vec2(0.5);",
@@ -1910,6 +2128,17 @@
         "  vec3 galaxy = vColor * mix(1.0, 0.60 + 0.60 * vSeed, cooled);",
         "  // 凝固后限制亮度 <1，避免持续辉光（只有跌落边界才发光）",
         "  galaxy = mix(galaxy, min(galaxy, vec3(0.92)), cooled);",
+        "",
+        "  // 冰晶雪花材质（极向·海洋）：-220℃ 极寒质感——幽蓝冰影 → 冰体 → 荧光白晶棱",
+        "  // （晶棱亮度 >1 触发 bloom 辉光）；点内六重伪晶面高光营造晶莹剔透感",
+        "  if (vIce > 0.003) {",
+        "    float fa = atan(c.y, c.x) * 3.0 + vSeed * 6.2832;",
+        "    float facet = pow(max(cos(fa), 0.0), 3.0);",
+        "    vec3 ice = mix(vec3(0.20, 0.40, 0.70), vec3(0.72, 0.87, 1.02), smoothstep(0.10, 0.70, vIce));",
+        "    ice += facet * (0.30 + 0.70 * vIce) * vec3(0.50, 0.72, 1.00);",
+        "    ice = mix(ice, vec3(1.30, 1.46, 1.62), smoothstep(0.70, 1.0, vIce));",
+        "    galaxy = mix(galaxy, ice, min(vIce * 1.35, 1.0));",
+        "  }",
         "",
         "  vec3 hot = vec3(3.5, 3.5, 3.7);",
         "  vec3 col = mix(galaxy, hot, heat);",
@@ -1934,7 +2163,14 @@
         u_size:   { value: 0.09 },
         u_scale:  { value: window.innerHeight * renderer.getPixelRatio() * 0.5 },
         u_cool:   { value: 0.6 },
-        u_xray:   { value: 0 }
+        u_xray:   { value: 0 },
+        u_mode:   { value: 0 },
+        u_axis:   { value: 0 },
+        u_pLo:    { value: -currentRadius },
+        u_pHi:    { value: currentRadius },
+        u_diskR:  { value: currentRadius * 8.0 },
+        u_snow:   { value: 0 },
+        u_crystallize: { value: 0 }
       };
 
       var earthGeo = new THREE.BufferGeometry();
@@ -1997,8 +2233,33 @@
       var VIEW_LABEL = { auto: "自动", remote: "远端俯视", side: "侧视", manual: "手动" };
       controls.addEventListener("start", function () { viewMode = "manual"; });
 
-      function diskRadius() { return currentExtent * Math.exp(uniforms.u_exp.value); }
-      function diskCenterZ() { return uniforms.u_endZ.value * 0.5; }
+      // 二维盘特征尺寸：平铺=指数膨胀半径；极向=u_diskR（紧凑年轮盘，雪花长在盘内无需余量）
+      function diskRadius() {
+        return projMode === "polar"
+          ? uniforms.u_diskR.value
+          : currentExtent * Math.exp(uniforms.u_exp.value);
+      }
+      function diskCenterZ() {
+        // 二维像随箔面移动，取扫掠区间中点作固定取景中心
+        // （平铺：像最终停在 u_endZ；极向：像随箔面北上，最终停在 u_startZ）
+        return projMode === "polar"
+          ? (uniforms.u_startZ.value + uniforms.u_endZ.value) * 0.5
+          : uniforms.u_endZ.value * 0.5;
+      }
+      // 二维盘中心与法向（极向模式法向 = 扫描轴）
+      function diskCenter() {
+        var c = diskCenterZ();
+        if (projMode === "polar" && polarAxis === "x") return new THREE.Vector3(c, 0, 0);
+        if (projMode === "polar" && polarAxis === "y") return new THREE.Vector3(0, c, 0);
+        return new THREE.Vector3(0, 0, c);
+      }
+      function diskNormal() {
+        if (projMode === "polar") {
+          if (polarAxis === "x") return new THREE.Vector3(1, 0, 0);
+          if (polarAxis === "y") return new THREE.Vector3(0, 1, 0);
+        }
+        return new THREE.Vector3(0, 0, 1);
+      }
 
       function updateAutoCamera(t) {
         if (viewMode !== "auto") return;
@@ -2008,7 +2269,7 @@
         p = p < 0 ? 0 : (p > 1 ? 1 : p);
         var e = p * p * (3 - 2 * p);
         var startDist = currentExtent * 6.0;
-        var endDist = currentExtent * Math.exp(uniforms.u_exp.value) * 2.2;
+        var endDist = diskRadius() * 2.2;
         var dist = startDist + (endDist - startDist) * e;
         var dir = camera.position.clone().sub(controls.target);
         if (dir.lengthSq() < 1e-6) dir.set(0, 0.3, 1);
@@ -2022,18 +2283,21 @@
         viewMode = mode;
 
         var dist = diskRadius() * 2.6;
+        var center = diskCenter();
+        var n = diskNormal();
+        var up = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+        var side = new THREE.Vector3().crossVectors(up, n).normalize();   // 盘面内方向
         if (mode === "remote") {
-          camera.position.set(0, dist * 0.34, dist * 0.94);
-          controls.target.set(0, 0, diskCenterZ());
+          camera.position.copy(center)
+            .addScaledVector(n, dist * 0.94)
+            .addScaledVector(up, dist * 0.34);
+          controls.target.copy(center);
         } else if (mode === "side") {
-          var az = 0.45, el = 0.14;
-          var ce = Math.cos(el);
-          camera.position.set(
-            Math.cos(az) * ce * dist,
-            Math.sin(el) * dist,
-            Math.sin(az) * ce * dist
-          );
-          controls.target.set(0, 0, diskCenterZ());
+          var el = 0.14;   // 低仰角贴着盘面看流动方向
+          camera.position.copy(center)
+            .addScaledVector(side, Math.cos(el) * dist)
+            .addScaledVector(up, Math.sin(el) * dist);
+          controls.target.copy(center);
         } else {
           controls.target.set(0, 0, 0);
         }
@@ -2107,12 +2371,14 @@
         var col = new Float32Array(count * 3);
         var xray = new Float32Array(count);
         for (var xi = 0; xi < count; xi++) xray[xi] = 1.0;   // 透视衰减：1=正常，越小越透明
-        obj.build(pos, col, count, obj.radius, xray);
+        var oc = new Float32Array(count);                    // 海洋标记（仅地球水圈置 1）
+        obj.build(pos, col, count, obj.radius, xray, oc);
 
         var geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
         geo.setAttribute("aColor", new THREE.BufferAttribute(col, 3));
         geo.setAttribute("aXray", new THREE.BufferAttribute(xray, 1));
+        geo.setAttribute("aOcean", new THREE.BufferAttribute(oc, 1));
         if (earth.geometry) earth.geometry.dispose();
         earth.geometry = geo;
 
@@ -2120,17 +2386,37 @@
         currentCount = count;
 
         // 计算最大横向半径（含行星环等外部结构），用于相机 framing
-        var maxRho = 0;
+        // 并统计三轴各自的最大绝对坐标，供极向展开的扫描轴跨度使用
+        var maxRho = 0, mAx = 0, mAy = 0, mAz = 0;
         for (var i = 0; i < count; i++) {
-          var px = pos[i * 3], py = pos[i * 3 + 1];
+          var px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
           var rr = Math.sqrt(px * px + py * py);
           if (rr > maxRho) maxRho = rr;
+          var axx = Math.abs(px); if (axx > mAx) mAx = axx;
+          var ayy = Math.abs(py); if (ayy > mAy) mAy = ayy;
+          var azz = Math.abs(pz); if (azz > mAz) mAz = azz;
         }
         currentExtent = maxRho > 1e-6 ? maxRho : obj.radius;
+        axisSpan.x = mAx > 1e-6 ? mAx : obj.radius;
+        axisSpan.y = mAy > 1e-6 ? mAy : obj.radius;
+        axisSpan.z = mAz > 1e-6 ? mAz : obj.radius;
 
         uniforms.u_radius.value = obj.radius;
-        uniforms.u_startZ.value = obj.radius + 6.0;
-        uniforms.u_endZ.value = -(obj.radius + 10.0);
+        // 扫描起止须覆盖物体三轴最大跨度（如高铁道砟达 ±2.4R）。极向为接触式单面
+        // 扫描：箔面自 u_endZ（南端下方，只影响入场距离）升至 u_startZ——北端是
+        // 扫描终点，须预留一个过渡带厚度以保证扫描完成时全部粒子 q=1
+        var maxSpan = Math.max(axisSpan.x, axisSpan.y, axisSpan.z, obj.radius);
+        uniforms.u_startZ.value = Math.max(obj.radius + 6.0, maxSpan + uniforms.u_band.value + 0.5);
+        uniforms.u_endZ.value = Math.min(-(obj.radius + 10.0), -maxSpan - 0.5);
+        uniforms.u_diskR.value = obj.radius * 8.0;   // 极向终态盘面（8R，跌落后大幅摊开）
+        if (projMode === "polar") {
+          // 极向模式：切换物体时自动套用其推荐扫描轴
+          var rec = obj.polar || "z";
+          if (rec !== polarAxis) polarAxis = rec;
+        }
+        applyProjUniforms();
+        updateProjButtons();
+        uniforms.u_crystallize.value = 0;
       }
 
       function setObject(index) {
@@ -2143,6 +2429,19 @@
 
       // 屏幕上的切换按钮
       var objectButtons = [];
+
+      // 整个控制面板的一键收起（只留开关按钮，不遮挡主画面）
+      var panelToggle = document.createElement("button");
+      panelToggle.id = "panelToggle";
+      panelToggle.className = "objBtn";
+      panelToggle.textContent = "▾ 控制面板 · 点击收起";
+      panelToggle.addEventListener("click", function () {
+        objectsEl.classList.toggle("panelCollapsed");
+        panelToggle.textContent = objectsEl.classList.contains("panelCollapsed")
+          ? "▸ 控制面板 · 点击展开" : "▾ 控制面板 · 点击收起";
+      });
+      objectsEl.appendChild(panelToggle);
+
       var objListEl = document.createElement("div");
       objListEl.id = "objectList";
       var objToggle = document.createElement("button");
@@ -2150,12 +2449,56 @@
       objToggle.className = "objBtn";
       objToggle.textContent = "▾ 观测目标 · 点击收起";
       objToggle.addEventListener("click", function () {
-        objectsEl.classList.toggle("collapsed");
-        objToggle.textContent = objectsEl.classList.contains("collapsed")
+        objListEl.classList.toggle("collapsed");
+        objToggle.textContent = objListEl.classList.contains("collapsed")
           ? "▸ 观测目标 · 点击展开" : "▾ 观测目标 · 点击收起";
       });
       objectsEl.appendChild(objToggle);
       objectsEl.appendChild(objListEl);
+
+      // 降维设置组（降维方式 / 扫描轴 / 雪花海洋）——独立收起/展开
+      var projListEl = document.createElement("div");
+      projListEl.id = "projList";
+      var projToggle = document.createElement("button");
+      projToggle.id = "projToggle";
+      projToggle.className = "objBtn";
+      projToggle.textContent = "▾ 降维设置 · 点击收起";
+      projToggle.addEventListener("click", function () {
+        projListEl.classList.toggle("collapsed");
+        projToggle.textContent = projListEl.classList.contains("collapsed")
+          ? "▸ 降维设置 · 点击展开" : "▾ 降维设置 · 点击收起";
+      });
+      objectsEl.appendChild(projToggle);
+      (function buildProjButtons() {
+        modeBtn = document.createElement("button");
+        modeBtn.className = "objBtn";
+        modeBtn.addEventListener("click", cycleProjMode);
+        axisBtn = document.createElement("button");
+        axisBtn.className = "objBtn";
+        axisBtn.addEventListener("click", cyclePolarAxis);
+        snowBtn = document.createElement("button");
+        snowBtn.className = "objBtn";
+        snowBtn.addEventListener("click", toggleSnow);
+        projListEl.appendChild(modeBtn);
+        projListEl.appendChild(axisBtn);
+        projListEl.appendChild(snowBtn);
+      })();
+      objectsEl.appendChild(projListEl);
+
+      // 页面链接组——始终可见（收起列表后仍可直达其他页面）
+      var pageLinksEl = document.createElement("div");
+      pageLinksEl.id = "pageLinks";
+      objectsEl.appendChild(pageLinksEl);
+
+      function updateProjButtons() {
+        if (!modeBtn) return;
+        modeBtn.textContent = "降维方式：" + PROJ_LABEL[projMode] + "（M）";
+        var polar = projMode === "polar";
+        axisBtn.style.display = polar ? "" : "none";
+        if (polar) axisBtn.textContent = "扫描轴：" + AXIS_LABEL[polarAxis] + "（N）";
+        snowBtn.textContent = "雪花海洋：" + (snowOn ? "开" : "关") + "（F，仅地球·极向）";
+      }
+
       (function buildObjectButtons() {
         for (var oi = 0; oi < OBJECTS.length; oi++) {
           (function (idx) {
@@ -2179,8 +2522,17 @@
         var a = document.createElement("a");
         a.className = "objBtn";
         a.href = "二维化数学原理.html";
-        a.textContent = "» 数学原理 · 交互演示";
-        objListEl.appendChild(a);
+        a.textContent = "» 数学原理 · 平铺投影";
+        pageLinksEl.appendChild(a);
+      })();
+
+      // 极向原理页入口
+      (function addPolarMathLink() {
+        var a = document.createElement("a");
+        a.className = "objBtn";
+        a.href = "极向二维化数学原理.html";
+        a.textContent = "» 数学原理 · 极向展开";
+        pageLinksEl.appendChild(a);
       })();
 
       // 二向箔展示页入口
@@ -2189,7 +2541,7 @@
         a.className = "objBtn";
         a.href = "二向箔.html";
         a.textContent = "» 二向箔 · 展示";
-        objListEl.appendChild(a);
+        pageLinksEl.appendChild(a);
       })();
 
       // 键盘
@@ -2208,17 +2560,28 @@
           case "v": case "V": setView("remote"); break;
           case "s": case "S": setView("side"); break;
           case "x": case "X": toggleXray(); break;
+          case "m": case "M": cycleProjMode(); break;
+          case "n": case "N": cyclePolarAxis(); break;
+          case "f": case "F": toggleSnow(); break;
         }
       });
 
       // 初始化：生成第一个物体
       setObject(0);
+      setProjMode(projMode, true);   // 应用持久化的降维方式配置
 
       // ------------------------------------------------------------------
       // 渲染循环
       // ------------------------------------------------------------------
       var frames = 0;
       var lastFpsTime = performance.now();
+
+      // 当前箔面位置：平铺自北(u_startZ)向南压下；极向自南(u_endZ)向北升起（接触即降维）
+      function foilZ() {
+        return projMode === "polar"
+          ? Math.min(uniforms.u_endZ.value + uniforms.u_speed.value * elapsed, uniforms.u_startZ.value)
+          : Math.max(uniforms.u_startZ.value - uniforms.u_speed.value * elapsed, uniforms.u_endZ.value);
+      }
 
       function animate(now) {
         requestAnimationFrame(animate);
@@ -2228,6 +2591,16 @@
 
         uniforms.u_time.value = elapsed;
 
+        // 冰晶结晶进度：箔面接触海洋层（南端地壳）后开始绽放，随推进持续生长至全盛
+        if (projMode === "polar" && uniforms.u_snow.value > 0.5) {
+          var cr = (foilZ() - uniforms.u_pLo.value) /
+                   Math.max(uniforms.u_pHi.value - uniforms.u_pLo.value, 1e-4);
+          cr = (cr - 0.03) / 0.65;   // 结晶绽放节奏放缓，避免突兀
+          uniforms.u_crystallize.value = cr < 0 ? 0 : (cr > 1 ? 1 : cr);
+        } else {
+          uniforms.u_crystallize.value = 0;
+        }
+
         updateAutoCamera(elapsed);
         controls.update();
         composer.render();
@@ -2235,10 +2608,7 @@
         frames++;
         if (now - lastFpsTime >= 500) {
           var fps = Math.round((frames * 1000) / (now - lastFpsTime));
-          var planeZ = Math.max(
-            uniforms.u_startZ.value - uniforms.u_speed.value * elapsed,
-            uniforms.u_endZ.value
-          );
+          var planeZ = foilZ();
           statsEl.textContent =
             OBJECTS[currentObject].name +
             "\n粒子数 " + currentCount.toLocaleString() +
@@ -2246,6 +2616,8 @@
             "\n跌落面 Z " + planeZ.toFixed(2) +
             "\n时间 ×" + timeScale.toFixed(2) + (paused ? " (暂停)" : "") +
             "\n视角 " + VIEW_LABEL[viewMode] +
+            "\n降维 " + PROJ_LABEL[projMode] +
+            (projMode === "polar" ? " · 轴 " + AXIS_LABEL[polarAxis] : "") +
             "\n透视 " + (xray ? "开" : "关");
           frames = 0;
           lastFpsTime = now;
