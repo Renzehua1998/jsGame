@@ -1,0 +1,1 @@
+import{M as e,i as t,r as n}from"./vendor-BsBQUj21.js";var r=[`v5.10`,`v6.6`,`v7.0`];function i(i){let a,o;try{a=n(),o=t()}catch{return}let s=a&&typeof a.query.ver==`string`&&r.includes(a.query.ver)?a.query.ver:null;s&&(i.value=s),e(i,e=>{o&&a&&o.replace({query:{...a.query,ver:e}})})}export{i as t};
