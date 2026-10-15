@@ -124,8 +124,9 @@
       <b>已降维物质在平面内占据的径向席位满足不可入性</b>——后继截面完成降维时无法与先前的像重叠，
       只能把先前已成像的画面<b>沿径向整体外推一个层厚</b>，为新一层让出靠内的席位。
       该迭代周而复始，等价于按「被箔面接触的先后次序」构造一个<b>保序单射</b>：</p>
-      <div class="formula">次序  s = planeZ − h              ← 箔面位置减去粒子轴向坐标 h（先接触者 s 大）
-半径  r2D = r_disk · min(s, span) / span   ← 次序单调决定极半径（先接触 → 居外圈）</div>
+      <div class="formula">次序  s  = planeZ − h                    ← 箔面位置减去粒子轴向坐标 h（先接触者 s 大）
+终位  r∞ = r_disk · (u_pHi − h) / span    ← 次序单调决定终态极半径（先接触 → 居外圈）
+生长  r  = r∞ · s / (u_startZ − h)        ← 每层自盘心长向终位：刚接触即从盘心生长，持续被外推（无死区）</div>
       <p>由此得到三条直接推论：</p>
       <p>
         · <b>无交叉、无重叠（细节零丢失）</b>：次序 s 与极半径 r 一一对应且单调，
@@ -167,9 +168,10 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
       <h2><span class="no">02</span>次序 → 极半径 —— 年轮圆盘（外圈南极 · 圆心北极 · 中环地心）</h2>
       <p>把被扫次序直接翻译成极半径：每一层横截面（纬度带）获得一整圈环带，
       <b>环带宽度 ∝ 该层截面积</b>——赤道环最宽。左：球体侧视按纬度带着色；
-      右：像平面俯视，随箔面推进逐环生成。注意终态的三条定位：
+      右：像平面俯视，随箔面推进自盘心向外逐环生长（挤占外推）。注意终态的三条定位：
       <b>最外圈 = 南极</b>（最先接触）、<b>圆心 = 北极</b>（最后接触）、<b>中间宽环 = 地心</b>。</p>
-      <div class="formula">r2D = r_disk · min(planeZ − h, span) / span   （span = 物体沿极轴的总跨度）
+      <div class="formula">r∞  = r_disk · (u_pHi − h) / span            （终态年轮位：span = 物体沿极轴的总跨度）
+r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s=0 落盘心，被后层持续外推，无死区）
 角度 φ = 粒子绕极轴的方位角（保持不变 → 环带内成分与原截面一致）</div>
       <div class="ctrl">
         <label>箔面推进</label>
@@ -188,12 +190,12 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
 
     <!-- ============ 03 综合演示 ============ -->
     <section class="card">
-      <h2><span class="no">03</span>综合演示 —— 跌入、摊开（挤占动力学全流程）</h2>
-      <p>把前面所有数学装在一起：<b>左（侧视）</b>箔面自下而上推进（接触即降维），粒子先轴向塌缩「跌入」箔面
-      （刚跌落的白热边界用高斯冷却着色）；<b>右（俯视）</b>跌入的粒子再横向「摊开」——
-      先到的像被后到的层层向外挤占，圆盘由内向外生长。两段式进度
-      <code>qFall</code>（跌落）与 <code>qSpread</code>（摊开，用 3 倍缓冲带）分离，
-      复现正片「先坠落、再展开」的动效节奏。</p>
+      <h2><span class="no">03</span>综合演示 —— 接触、摊开（挤占动力学全流程）</h2>
+      <p>把前面所有数学装在一起：<b>左（侧视）</b>箔面自下而上推进（接触即降维），粒子被箔面接触的
+      瞬间轴向即压平贴合箔面（白热边界紧贴箔面、随箔面上行）；<b>右（俯视）</b>压平的粒子再横向「摊开」——
+      落向盘心，把已成像画面层层向外挤占，圆盘由内向外生长。两段式进度
+      <code>qFall</code>（接触即压平）与 <code>qSpread</code>（摊开，用 3 倍缓冲带）分离，
+      复现正片「接触即二维化、随即摊开」的动效节奏。</p>
       <div class="ctrl">
         <button class="btn" id="simPlay">播放</button>
         <button class="btn" id="simReset">重置</button>
@@ -419,11 +421,14 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
             p = i;
             var s2 = hp - ph[p];
             if (s2 <= 0) continue;
-            var r2 = DISK_R * Math.min(s2, SPAN) / SPAN;
+            // 挤占动力学：新层落盘心，把已成像画面沿径向持续外推（无死区）
+            var relF = Math.min(Math.max(1 - ph[p], 0), 2);
+            var swF = Math.max(1.45 - ph[p], 1e-4);
+            var r2 = DISK_R * (relF * Math.min(s2 / swF, 1)) / 2;
             // 同层内按截面半径微调，让环带有厚度质感
             var rr = r2 + (Math.sqrt(px[p] * px[p] + py[p] * py[p]) - 0.62) * 0.10 * (r2 > 0.05 ? 1 : 0);
             rr = Math.max(rr, 0.004);
-            var qS = ss(0, BAND * 3, s2);            // 摊开进度：粒子从原横向位置滑向极坐标位
+            var qS = ss(0, BAND * 3, s2);            // 摊开进度：粒子从落点滑向极坐标位
             var lx = mix(px[p], Math.cos(pphi[p]) * rr, qS);
             var ly = mix(py[p], Math.sin(pphi[p]) * rr, qS);
             ctx.fillStyle = mixRGB(BAND_RGB[pband[p]], [220, 230, 240], 0.2);
@@ -453,7 +458,8 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
           ctx.clearRect(0, 0, w, h);
           $("simTv").textContent = t.toFixed(2);
           var hp = mix(-1.45, 1.45, t) * R;
-          var diskNow = DISK_R * Math.min(Math.max(hp + 1.45, 0.001), SPAN) / SPAN;
+          // 盘外缘 = 最先接触层（南极）的当前半径：自盘心持续长到 DISK_R
+          var diskNow = DISK_R * Math.min(Math.max(hp + 1, 0.001) / 2.45, 1);
 
           var s = Math.min((w - 100) / 2, h - 76);
           var Lx = 40, Ly = 36, Rx = Lx + s + 36, Ry = 36;
@@ -466,11 +472,11 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
           for (i = 0; i < N; i++) {
             var h0 = ph[i];
             var swept = hp - h0;
-            var qF = ss(0, BAND, swept);             // 跌入
-            var qS = ss(0, BAND * 3, swept);         // 摊开（更慢）
+            var qF = swept > 0 ? 1 : 0;               // 接触即压平（轴向瞬时贴合箔面）
+            var qS = ss(0, BAND * 3, swept);          // 摊开（更慢）
             var vs = swept / BAND;
             var heat = vs > 0 ? Math.exp(-vs * vs * COOL) : 0;
-            var r2 = DISK_R * Math.min(Math.max(swept, 0), SPAN) / SPAN;
+            var r2 = DISK_R * ((Math.min(Math.max(1 - h0, 0), 2)) * Math.min(swept / Math.max(1.45 - h0, 1e-4), 1)) / 2;
             var rr = Math.max(r2 + (Math.sqrt(px[i] * px[i] + py[i] * py[i]) - 0.62) * 0.10 * (r2 > 0.05 ? 1 : 0), 0.004);
             var lx = mix(px[i], Math.cos(pphi[i]) * rr, qS);
             var ly = mix(py[i], Math.sin(pphi[i]) * rr, qS);
@@ -567,11 +573,12 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
             ctx.fillRect(cxL + dx * rf * (radL / 1.7) - 1,
                          cy - dy * rf * (radL / 1.7) - 1, 2, 2);
 
-            // ---- 右：极向展开（次序 → 极半径环带）----
+            // ---- 右：极向展开（次序 → 极半径环带，挤占外推）----
             var hp = mix(-1.45, 1.45, q);
             var swept = hp - ph[i];
             if (swept > 0) {
-              var rP = DISK_R * Math.min(swept, SPAN) / SPAN;
+              var relF4 = Math.min(Math.max(1 - ph[i], 0), 2);
+              var rP = DISK_R * (relF4 * Math.min(swept / Math.max(1.45 - ph[i], 1e-4), 1)) / 2;
               var rr = Math.max(rP + (rho0 - 0.62) * 0.10 * (rP > 0.05 ? 1 : 0), 0.004);
               var qS = ss(0, BAND * 3, swept);
               var pxr = mix(x0, Math.cos(pphi[i]) * rr, qS);

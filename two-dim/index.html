@@ -1882,6 +1882,7 @@
         applyProjUniforms();
         saveProjCfg();
         updateProjButtons();
+        ensureSouthView();
         if (resetView) resetToStart();
       }
       function setProjMode(m, silent) {
@@ -1894,6 +1895,7 @@
         applyProjUniforms();
         saveProjCfg();
         updateProjButtons();
+        ensureSouthView();
         if (!silent) resetToStart();
       }
       function cycleProjMode() { setProjMode(projMode === "plane" ? "polar" : "plane"); }
@@ -2001,13 +2003,17 @@
         "    else                   { h = p.y; perp = p.zx; }",
         "",
         "    swept = planeZ - h;",
-        "    float qFall = smoothstep(0.0, u_band, swept);",          // 跌入：轴向先压到箔面",
+        "    float qFall = step(0.0, swept);",                          // 接触即二维化：被扫到的瞬间轴向立即压平贴合箔面",
         "    float qSpread = smoothstep(0.0, u_band * 3.0, swept);",   // 展开：横向再摊开成极坐标盘",
 
-        "    // 极半径（挤占动力学）：刚接触的落在盘心(rel=0)，随箔面推进被后层不断推向外圈；",
+        "    // 极半径（挤占动力学）：新二维化的层落在盘心，把已成像画面沿径向持续外推——",
+        "    // 无死区：从首次接触起二维像即自盘心生长（镜头在箔面来向一侧，不被球体遮挡）；",
+        "    // 已压平的物质随箔面上行（下落方向与二维化方向一致）。",
         "    // 扫描完成(planeZ=u_startZ)时：北端(u_pHi)→圆心、南端(u_pLo)→最外圈 u_diskR",
         "    float span = max(u_pHi - u_pLo, 1e-4);",
-        "    float rel  = clamp(swept - (u_startZ - u_pHi), 0.0, span);",
+        "    float relF = clamp(u_pHi - h, 0.0, span);              // 终态年轮位（先接触居外圈）",
+        "    float swF  = max(u_startZ - h, 1e-4);                  // 该层被完全扫过所需的总扫掠量",
+        "    float rel  = relF * clamp(swept / swF, 0.0, 1.0);       // 自盘心长向终态位（持续被外推）",
         "    float r2D  = u_diskR * rel / span;",
         "    // 极小散布：避免未推开时全部叠在同一个数学点上",
         "    r2D += u_diskR * 0.004 * fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);",
@@ -2079,8 +2085,8 @@
         "    }",
         "    vec2 pp = vec2(cos(phi), sin(phi)) * r2D;",
         "",
-        "    // 按轴组装：先跌入（轴向压到箔面）再展开（横向摊开为极坐标），",
-        "    // qFall/qSpread 分离出「跌入 → 摊开」的两段式视觉；未跌落时保持立体形状",
+        "    // 按轴组装：被扫到的瞬间轴向即压平贴合箔面（随箔面上行），横向再摊开为极坐标，",
+        "    // qFall/qSpread 分离出「接触即二维化 → 摊开」的两段式视觉；未接触时保持立体形状",
         "    if (u_axis < 0.5)      target = vec3(mix(p.xy, pp, qSpread), mix(p.z, planeZ, qFall));",
         "    else if (u_axis < 1.5) target = vec3(mix(p.x, planeZ, qFall), mix(p.yz, pp, qSpread));",
         "    else                   target = vec3(mix(p.x, pp.y, qSpread), mix(p.y, planeZ, qFall), mix(p.z, pp.x, qSpread));",
@@ -2218,20 +2224,25 @@
       })();
 
       // ------------------------------------------------------------------
-      // 轨道控制器
+      // 轨道控制器（OrbitControls 以构造时的 camera.up 为轨道极轴，
+      // 极向模式需换 up → 重建控制器）
       // ------------------------------------------------------------------
-      var controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.enablePan = true;
-      controls.minDistance = 2;
-      controls.maxDistance = 9000;
-      controls.target.set(0, 0, 0);
+      function buildControls() {
+        var c = new THREE.OrbitControls(camera, renderer.domElement);
+        c.enableDamping = true;
+        c.dampingFactor = 0.08;
+        c.enablePan = true;
+        c.minDistance = 2;
+        c.maxDistance = 9000;
+        c.target.set(0, 0, 0);
+        c.addEventListener("start", function () { viewMode = "manual"; });
+        return c;
+      }
+      var controls = buildControls();
 
       // 观察模式：auto 自动运镜 / remote 远端俯视 / side 侧视 / manual 手动
       var viewMode = "auto";
       var VIEW_LABEL = { auto: "自动", remote: "远端俯视", side: "侧视", manual: "手动" };
-      controls.addEventListener("start", function () { viewMode = "manual"; });
 
       // 二维盘特征尺寸：平铺=指数膨胀半径；极向=u_diskR（紧凑年轮盘，雪花长在盘内无需余量）
       function diskRadius() {
@@ -2263,11 +2274,20 @@
 
       function updateAutoCamera(t) {
         if (viewMode !== "auto") return;
-        var totalT =
-          (uniforms.u_startZ.value - uniforms.u_endZ.value) / uniforms.u_speed.value;
-        var p = (t - 3.0) / (totalT + 1.0);
-        p = p < 0 ? 0 : (p > 1 ? 1 : p);
-        var e = p * p * (3 - 2 * p);
+        var e;
+        if (projMode === "polar") {
+          // 极向：二维盘自盘心向外生长，镜头随扫掠进度（首次接触→完成）平滑拉远到全盘取景
+          var prog = (foilZ() - uniforms.u_pLo.value) /
+            Math.max(uniforms.u_startZ.value - uniforms.u_pLo.value, 1e-4);
+          prog = prog < 0 ? 0 : (prog > 1 ? 1 : prog);
+          e = prog * prog * (3 - 2 * prog);
+        } else {
+          var totalT =
+            (uniforms.u_startZ.value - uniforms.u_endZ.value) / uniforms.u_speed.value;
+          var p = (t - 3.0) / (totalT + 1.0);
+          p = p < 0 ? 0 : (p > 1 ? 1 : p);
+          e = p * p * (3 - 2 * p);
+        }
         var startDist = currentExtent * 6.0;
         var endDist = diskRadius() * 2.2;
         var dist = startDist + (endDist - startDist) * e;
@@ -2275,6 +2295,27 @@
         if (dir.lengthSq() < 1e-6) dir.set(0, 0.3, 1);
         dir.normalize();
         camera.position.copy(controls.target).addScaledVector(dir, dist);
+      }
+
+      // 极向模式镜头：以扫描轴为屏幕竖直方向（下落过程竖直可读），移到扫描轴的赤道侧、
+      // 略偏南（箔面来向，仰角约 29°——二维平面呈扁椭圆展开）；剩余球体全部位于盘面之后，
+      // 自盘心生长的幼年二维像不被遮挡。平铺模式恢复常规 Y 轴朝上（换 up 需重建控制器）
+      function ensureSouthView() {
+        var polar = projMode === "polar";
+        var n = diskNormal();
+        var upWanted = polar ? n : new THREE.Vector3(0, 1, 0);
+        if (!camera.up.equals(upWanted)) {
+          camera.up.copy(upWanted);
+          controls.dispose();
+          controls = buildControls();
+        }
+        if (polar && viewMode === "auto") {
+          var ref = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+          var side = new THREE.Vector3().crossVectors(ref, n).normalize();
+          var dir = side.addScaledVector(n, -0.55).normalize();
+          camera.position.copy(controls.target).addScaledVector(dir, 30);
+        }
+        controls.update();
       }
 
       // 切换观察视角（再次按同一键 → 回到自动运镜）
@@ -2288,8 +2329,10 @@
         var up = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
         var side = new THREE.Vector3().crossVectors(up, n).normalize();   // 盘面内方向
         if (mode === "remote") {
+          // 极向模式从箔面来向一侧俯视（法向负侧），剩余球体不遮挡幼年二维像
+          var sgn = (projMode === "polar") ? -1 : 1;
           camera.position.copy(center)
-            .addScaledVector(n, dist * 0.94)
+            .addScaledVector(n, sgn * dist * 0.94)
             .addScaledVector(up, dist * 0.34);
           controls.target.copy(center);
         } else if (mode === "side") {
@@ -2300,6 +2343,7 @@
           controls.target.copy(center);
         } else {
           controls.target.set(0, 0, 0);
+          ensureSouthView();   // 回到自动运镜：极向恢复侧面机位 / 平铺恢复 Y 轴朝上
         }
         controls.update();
       }
