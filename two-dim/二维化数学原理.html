@@ -95,12 +95,35 @@
       font-size: 12px; color: #46617f; letter-spacing: 1px;
     }
     footer a { color: #6fa8dc; text-decoration: none; border-bottom: 1px dashed rgba(111, 168, 220, 0.5); }
+    .digest {
+      border-left: 3px solid #7fe0c0;
+      background: rgba(30, 80, 60, 0.25);
+      padding: 8px 14px; margin: 12px 0 2px;
+      font-size: 13px; color: #bfe8d8;
+    }
+    .digest b { color: #9ff0d0; font-weight: 400; }
+    .steps { margin: 10px 0; padding: 0; list-style: none; }
+    .steps li {
+      margin: 8px 0; padding: 9px 14px;
+      border: 1px solid rgba(90, 140, 190, 0.3);
+      border-radius: 3px; background: rgba(10, 22, 40, 0.45);
+      font-size: 13px; color: #a8c8e8;
+    }
+    .steps li b { color: #cfe6ff; font-weight: 400; }
+    .steps li .no {
+      display: inline-block; min-width: 26px; text-align: center;
+      color: #7fe0c0; font-family: Consolas, monospace; margin-right: 8px;
+    }
+    .ask {
+      color: #ffd9a0; font-size: 13px; margin: 10px 0 4px;
+    }
+    .ask::before { content: "？ "; color: #ffb040; font-weight: bold; }
   </style>
 </head>
 <body>
   <header>
     <h1>二维化 · 数学原理</h1>
-    <div class="sub">交互演示 —— 拖动滑块，或直接拖动曲线 / 圆盘上的标记点</div>
+    <div class="sub">一个球是怎么被拍成一张饼的 —— 先玩动画，再看每一步的为什么</div>
     <div class="links">
       <a href="index.html">← 返回二维化模拟</a>
       <a href="二维化投影原理.md">严格推导：《二维化投影原理》</a>
@@ -109,9 +132,62 @@
   </header>
 
   <main>
-    <!-- ============ 01 mix ============ -->
+    <!-- ============ 00 总览 ============ -->
     <section class="card">
-      <h2><span class="no">01</span>mix 线性插值 —— 一根进度条</h2>
+      <h2><span class="no">00</span>先看结果 —— 一分钟看懂全局</h2>
+      <p>把一个立体的球压成一张平面的饼，数学上其实只做了<b>四件事</b>。下面的动画就是这四件事
+      同时发生的样子（白色虚线是压过来的「跌落面」）——先随便拖拖看，心里有个整体印象，
+      再往下看每一步到底在干什么、为什么非要这么做。</p>
+      <ul class="steps">
+        <li><span class="no">①</span><b>压平</b> —— 粒子被跌落面扫到的瞬间，高度立刻贴到箔面上（像拍黄瓜）</li>
+        <li><span class="no">②</span><b>摊开</b> —— 光压平会糊成一团，所以横向同时放大（像擀面团）</li>
+        <li><span class="no">③</span><b>匀一匀</b> —— 球心方向的粒子天然多，要按「名次」重新排座，让饼上处处密度均匀</li>
+        <li><span class="no">④</span><b>冷却上色</b> —— 刚被扫过的粒子白热发光，随后冷却恢复本色（像淬火）</li>
+      </ul>
+      <div class="ctrl">
+        <button class="btn" id="simPlay">播放</button>
+        <button class="btn" id="simReset">重置</button>
+        <label>时间</label>
+        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
+        <span class="val" id="simTv"></span>
+        <label>u_exp</label>
+        <input type="range" id="simE" min="1" max="5" step="0.1" value="3.5" />
+        <span class="val" id="simEv"></span>
+      </div>
+      <canvas id="cvSim" style="height: 420px"></canvas>
+      <div class="digest"><b>一句话总结：</b>二维化 = 压平（高度清零）+ 摊开（半径放大）+ 匀一匀（密度均衡）+ 冷却（上色）。接下来四节分别拆开讲。</div>
+    </section>
+
+    <!-- ============ 01 前因 ============ -->
+    <section class="card">
+      <h2><span class="no">01</span>前因 —— 光压扁不摊开，会糊成一团</h2>
+      <p class="ask">为什么不能只把高度压到零，就完事了？</p>
+      <p>想象把一摞叠罗汉的书直接压扁：每本书都还在原来的 (x, y) 位置上，只是高度没了——
+      <b>原来叠得越高的地方，压扁后挤得越密</b>。球正是「中心上方堆得最高」的形状，
+      所以只压扁会得到一张<b>中心糊死、边缘稀疏</b>的饼。</p>
+      <p>左图拖动滑块试试「只压扁」模式：粒子竖直下落，横向一步都不挪——俯视图里中心
+      亮得发白（无数粒子叠在同一点附近），这就是必须「摊开」的前因。</p>
+      <div class="ctrl">
+        <div class="mode" id="sqMode">
+          <button data-m="flat" class="on">① 只压扁（会糊）</button>
+          <button data-m="full">① + ② + ③（压扁 + 摊开 + 匀一匀）</button>
+        </div>
+        <label>降维进度 q</label>
+        <input type="range" id="sqQ" min="0" max="1" step="0.01" value="1" />
+        <span class="val" id="sqQv"></span>
+      </div>
+      <canvas id="cvSquash" style="height: 300px"></canvas>
+      <p class="ask">中心的「糊」，到底有多糊？——用穿球的柱子量一量</p>
+      <p>俯视看球：在离轴 ρ₀ 处竖一根吸管垂直穿过球，<b>吸管里装的粒子数 = 球被穿的那条弦的长度</b>
+      = <code>2·√(R²−ρ₀²)</code>。越靠中心弦越长、装的粒子越多——这就是「中心浓、边缘淡」的全部来源。
+      拖动下图中的白点，移动吸管位置，感受弦长怎么变化：</p>
+      <canvas id="cvChord" style="height: 240px; cursor: ew-resize"></canvas>
+      <div class="digest"><b>小结：</b>压扁把「球的高度」变成「盘的密度」——柱子越长，落点越挤。想摊得均匀，就必须先算清每根柱子装了多少粒子（这就是第 05 节 CDF 的活）。</div>
+    </section>
+
+    <!-- ============ 02 mix ============ -->
+    <section class="card">
+      <h2><span class="no">02</span>mix 线性插值 —— 粒子搬家的进度条</h2>
       <p><code>mix(a, b, q) = a + (b − a)·q</code>：从 a 到 b 走了百分之多少。
       二维化中每个粒子有<b>两根进度条同时推进</b>——离轴距离 ρ 与高度 z；
       q = 0 时停在原地，q = 1 时完全到位。</p>
@@ -123,23 +199,27 @@
         <span class="val" id="mixQv"></span>
       </div>
       <canvas id="cvMix" style="height: 160px"></canvas>
+      <div class="digest"><b>小结：</b>粒子搬家 = 两根进度条（半径、高度）同时从原值走向目标值，进度由 q 统一指挥。</div>
     </section>
 
-    <!-- ============ 02 smoothstep ============ -->
+    <!-- ============ 03 smoothstep ============ -->
     <section class="card">
-      <h2><span class="no">02</span>smoothstep —— 电梯式缓入缓出</h2>
-      <p>若 q 直接取 0/1（硬切），粒子会瞬间跳到二维。<code>smoothstep(t) = 3t² − 2t³</code>
-      两端斜率为 0，像电梯起步 / 停靠一样柔和，给压扁过程一个厚度为
-      <code>u_band</code> 的缓冲带。<b>拖动曲线上的白点</b>感受两端的变化速度。</p>
+      <h2><span class="no">03</span>smoothstep 缓动 —— 搬家要有起步和刹车</h2>
+      <p class="ask">为什么粒子不是「啪」一下直接跳到二维？</p>
+      <p>若进度 q 直接取 0/1（硬切），画面会像坏掉的路灯一样生硬跳变。
+      <code>smoothstep(t) = 3t² − 2t³</code> 两端斜率为 0——像电梯起步 / 停靠一样柔和，
+      给压扁过程一个厚度为 <code>u_band</code> 的缓冲带。<b>拖动曲线上的白点</b>感受两端的变化速度。</p>
       <canvas id="cvSmooth" style="height: 250px; cursor: ew-resize"></canvas>
+      <div class="digest"><b>小结：</b>mix 决定「从哪搬到哪」，smoothstep 决定「怎么搬才顺滑」。</div>
     </section>
 
-    <!-- ============ 03 exp ============ -->
+    <!-- ============ 04 exp ============ -->
     <section class="card">
-      <h2><span class="no">03</span>指数膨胀 —— 复利式摊开</h2>
-      <p><code>growth = exp(u_exp · q)</code>：半径不是匀速变大，而是按固定倍率连续翻倍
+      <h2><span class="no">04</span>指数膨胀 —— 摊开的倍率（滚雪球）</h2>
+      <p class="ask">摊开时半径该放大多少倍？</p>
+      <p><code>growth = exp(u_exp · q)</code>：半径不是匀速变大，而是按固定倍率连续放大
       （复利、滚雪球）。面积 ∝ 半径²，所以面积放大 <code>exp(2·u_exp)</code> ——
-      这就是二维化「把体积重排成面积」时面积暴涨的来源。</p>
+      这就是二维化「把体积重排成面积」时面积暴涨的来源。u_exp 是「擀面杖的力道」：越大，饼摊得越开。</p>
       <div class="ctrl">
         <label>膨胀指数 u_exp</label>
         <input type="range" id="expU" min="0.5" max="6" step="0.1" value="3.5" />
@@ -149,18 +229,23 @@
         <span class="val" id="expQv"></span>
       </div>
       <canvas id="cvExp" style="height: 250px"></canvas>
+      <div class="digest"><b>小结：</b>「摊开」就是给半径乘一个不断变大的倍数 growth；用指数形式，倍率恒定、曲线平滑，面积也好算（直接平方）。</div>
     </section>
 
-    <!-- ============ 04 CDF 重映射 ============ -->
+    <!-- ============ 05 CDF 重映射 ============ -->
     <section class="card">
-      <h2><span class="no">04</span>CDF 重映射 —— 按排名发座位（核心）</h2>
-      <p>球投影到盘上「中心浓、边缘淡」（投影密度 ∝ 弦长 <code>2√(R²−ρ²)</code>）。
-      <b>左图</b>是球的真实投影（按 ρ₀ 分五条色带）；
+      <h2><span class="no">05</span>CDF 重映射 —— 按排名发座位（核心）</h2>
+      <p class="ask">摊开之后，为什么中心还是比边缘密？</p>
+      <p>第 01 节说过：粒子落点的密度由「穿球柱子的弦长」决定，中心柱最长、粒子最多。
+      直接摊开只会把这张不均匀的饼等比放大——<b>糊还是糊，只是糊得更大</b>。
+      治法是「按排名发座位」：把所有粒子按离轴远近排个名次，第 k% 名的粒子，
+      就让它坐到「盘上面积占比正好 k%」的半径上——因为均匀盘的面积占比 = (r/r_out)²，
+      反解出 r 即可。<b>左图</b>是球的真实投影（按 ρ₀ 分五条色带）；
       <b>右图</b>是映射后的盘。切换三种映射对比：</p>
       <p>
         · <b>线性</b> = 不映射：盘继承投影的不均匀（内圈 9.2%，均匀应为 6.25%）<br />
-        · <b>幂曲线</b> √ρ：中心被掏空（内圈不足 1%），粒子被甩向边缘<br />
-        · <b>√cdf（本项目）</b>：按累积占比「发座位」——第 k% 的粒子坐到面积占比 k% 的半径上，处处均匀
+        · <b>幂曲线</b> √ρ：拍脑袋的修正——中心被掏空（内圈不足 1%），粒子被甩向边缘<br />
+        · <b>√cdf（本项目）</b>：按累积占比「发座位」——处处均匀，不多不少
       </p>
       <div class="formula">cdf(ρ0) = (R³ − (R²−ρ0²)^1.5) / R³     ← 球内投影半径 ≤ ρ0 的粒子占比
 r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_out)²</div>
@@ -184,12 +269,14 @@ r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_ou
       </div>
       <p style="margin-top:12px">下图画出三种「ρ₀ → r」映射函数，<b>拖动白点</b>查看换算数字：</p>
       <canvas id="cvCDFCurve" style="height: 210px; cursor: ew-resize"></canvas>
+      <div class="digest"><b>小结：</b>√cdf 不是拍脑袋的曲线，而是「排名 → 面积」的严格换算。它保证球里有多少粒子，盘上对应区域就摊多少——均匀，且总量守恒。</div>
     </section>
 
-    <!-- ============ 05 线性外延 ============ -->
+    <!-- ============ 06 线性外延 ============ -->
     <section class="card">
-      <h2><span class="no">05</span>线性外延 —— 等比放大照片（行星环）</h2>
-      <p>主体之外的结构（ρ₀ &gt; R，如行星环）不参与均衡化，直接乘同一个
+      <h2><span class="no">06</span>线性外延 —— 盘外的环怎么办（行星环）</h2>
+      <p class="ask">土星环这种「本来就在盘外」的结构，也参与匀一匀吗？</p>
+      <p>不。主体之外的结构（ρ₀ &gt; R，如行星环）不参与均衡化，直接乘同一个
       <code>growth</code>：<code>ρ2 = growth · ρ0</code>。像把整张照片<b>等比放大</b>——
       环始终留在盘外、相对位置不变，不会与盘缘挤成一团；且在 ρ₀ = R 处与主体映射无缝衔接。</p>
       <div class="ctrl">
@@ -201,11 +288,13 @@ r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_ou
         <span class="val" id="ringGv"></span>
       </div>
       <canvas id="cvRing" style="height: 330px"></canvas>
+      <div class="digest"><b>小结：</b>盘内的粒子「重新排座」，盘外的结构「整桌一起搬」——两种待遇，以盘缘为界无缝衔接。</div>
     </section>
 
-    <!-- ============ 06 高斯冷却 ============ -->
+    <!-- ============ 07 高斯冷却 ============ -->
     <section class="card">
-      <h2><span class="no">06</span>高斯衰减 —— 淬火冷却</h2>
+      <h2><span class="no">07</span>高斯冷却 —— 淬火上色</h2>
+      <p class="ask">最后一件事：粒子落到二维上之后，颜色和光怎么变？</p>
       <p><code>heat = exp(−vSince² · u_cool)</code> 是一条钟形曲线：粒子刚被跌落面扫过
       （vSince ≈ 0）时 heat ≈ 1，输出 HDR 纯白触发辉光；稍微离开边界便迅速衰减。
       像铁匠淬火——只有<b>刚入水的那一条</b>最亮。u_cool 越大，亮边越窄。
@@ -216,25 +305,7 @@ r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_ou
         <span class="val" id="coolUv"></span>
       </div>
       <canvas id="cvCool" style="height: 250px; cursor: ew-resize"></canvas>
-    </section>
-
-    <!-- ============ 07 综合演示 ============ -->
-    <section class="card">
-      <h2><span class="no">07</span>综合演示 —— 全流程迷你二维化</h2>
-      <p>把前面所有数学装在一起：跌落面自上而下推进（侧视图中白色虚线），每个粒子按
-      <code>q</code> 塌缩高度、按 √cdf 膨胀半径；被刚扫过的粒子发白光（高斯冷却），
-      行星环走线性外延。左：<b>侧视 X–Z</b> 看压扁；右：<b>俯视 X–Y</b> 看摊开成盘。</p>
-      <div class="ctrl">
-        <button class="btn" id="simPlay">播放</button>
-        <button class="btn" id="simReset">重置</button>
-        <label>时间</label>
-        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
-        <span class="val" id="simTv"></span>
-        <label>u_exp</label>
-        <input type="range" id="simE" min="1" max="5" step="0.1" value="3.5" />
-        <span class="val" id="simEv"></span>
-      </div>
-      <canvas id="cvSim" style="height: 420px"></canvas>
+      <div class="digest"><b>小结：</b>四件事到此集齐——压平、摊开、匀一匀、冷却上色。它们全部发生在同一次滑块拖动里，这就是第 00 节动画的全部数学。</div>
     </section>
   </main>
 
@@ -325,6 +396,147 @@ r      = r_out · √cdf                  ← 均匀盘：面积占比 = (r/r_ou
         };
       }
       function bandOf(r) { return r < 0.25 ? 0 : r < 0.5 ? 1 : r < 0.75 ? 2 : r < 0.95 ? 3 : 4; }
+
+      // ================= 01 前因：只压扁 vs 压扁+摊开匀化 =================
+      (function () {
+        var N = 2600, pts = [], i;
+        for (i = 0; i < N; i++) {
+          var p = sampleSpherePt();
+          p.band = bandOf(p.rho);
+          pts.push(p);
+        }
+        var mode = "flat";
+        function render() {
+          var cv = $("cvSquash"), ctx = fit(cv);
+          var w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var q = +$("sqQ").value;
+          $("sqQv").textContent = q.toFixed(2);
+          var full = mode === "full";
+          var growth = Math.exp(3.5 * q);
+          var s = Math.min(h - 66, (w - 120) / 2);
+          var Lx = 30, Rx = Lx + s + 52, Ly = 26;
+          var xmax = full ? Math.max(1.3, growth * 1.02) : 1.3;
+
+          var inner = 0;
+          for (i = 0; i < N; i++) {
+            var p2 = pts[i];
+            var z2 = mix(p2.z, 0, q);                       // 压平：高度贴到 0
+            var rt2 = full ? growth * Math.sqrt(p2.cdf) : p2.rho;  // 摊开：√cdf 匀化
+            var r2 = mix(p2.rho, rt2, q);
+            var x2 = p2.dx * r2, y2 = p2.dy * r2;
+            var col = ["#ff5f56", "#ffb040", "#ffe066", "#69d06a", "#4fb3ff"][p2.band];
+            if (r2 < 0.25) inner++;
+            // 侧视 X–Z：压扁
+            var sx = Lx + s / 2 + (x2 / xmax) * (s / 2);
+            var sy = Ly + (1.12 - z2) / 2.24 * s;
+            ctx.fillStyle = col;
+            ctx.fillRect(sx - 1, sy - 1, 2, 2);
+            // 俯视 X–Y：结果盘
+            var tx = Rx + s / 2 + (x2 / xmax) * (s / 2);
+            var ty = Ly + s / 2 - (y2 / xmax) * (s / 2);
+            ctx.fillRect(tx - 1, ty - 1, 2, 2);
+          }
+          // 侧视：原始球轮廓虚线 + 落点线
+          var cy0 = Ly + s / 2;
+          ctx.save(); ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = "rgba(90,140,190,.35)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(Lx + s / 2, cy0, s / 2 / xmax * 1.0, 0, 6.2832); ctx.stroke();
+          ctx.restore();
+          var fy = Ly + (1.12 - 0) / 2.24 * s;
+          ctx.strokeStyle = "rgba(255,255,255,.25)";
+          line(ctx, Lx, fy, Lx + s, fy);
+          txt(ctx, "侧视 X–Z（球 → 纸片）", Lx + s / 2, Ly - 8, "#a8d8f0", "center");
+          txt(ctx, full ? "俯视 X–Y（压扁+摊开+匀化）" : "俯视 X–Y（只压扁）", Rx + s / 2, Ly - 8, "#a8d8f0", "center");
+          txt(ctx, "内圈 r<0.25R 粒子占比：" + (inner / N * 100).toFixed(1) + "%（均匀应为 6.25%）" +
+            (full ? "  ✓ 匀了" : "  ✗ 中心偏挤"),
+            Rx + s / 2, h - 10, full ? "#7fe0c0" : "#ffb040", "center");
+        }
+        var btns = $("sqMode").querySelectorAll("button");
+        for (var b = 0; b < btns.length; b++) {
+          (function (btn) {
+            btn.addEventListener("click", function () {
+              mode = btn.getAttribute("data-m");
+              for (var k = 0; k < btns.length; k++)
+                btns[k].classList.toggle("on", btns[k] === btn);
+              render();
+            });
+          })(btns[b]);
+        }
+        $("sqQ").addEventListener("input", render);
+        reg(render);
+      })();
+
+      // ================= 01b 弦长穿球 =================
+      (function () {
+        var cv = $("cvChord"), rho = 0.45;
+        function chord(x) { return 2 * Math.sqrt(Math.max(1 - x * x, 0)); }
+        function render() {
+          var ctx = fit(cv), w = cv.clientWidth, h = cv.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+          var m = { l: 16, r: 16, t: 14, b: 28 };
+          var rad = (h - m.t - m.b) / 2 - 4;
+          var cx = m.l + rad + 26, cy = m.t + rad + 4;
+
+          // 左：圆 + 可移动的穿球柱
+          ctx.strokeStyle = "rgba(90,140,190,.55)"; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 6.2832); ctx.stroke();
+          // 柱内隐约填充（弦扫过的区域示意）
+          var cl = chord(rho);
+          var px = cx + rho * rad;
+          var grad = ctx.createLinearGradient(px, cy - cl * rad / 2, px, cy + cl * rad / 2);
+          grad.addColorStop(0, "rgba(255,176,64,.15)");
+          grad.addColorStop(0.5, "rgba(255,176,64,.45)");
+          grad.addColorStop(1, "rgba(255,176,64,.15)");
+          ctx.fillStyle = grad;
+          ctx.fillRect(px - 5, cy - cl * rad / 2, 10, cl * rad);
+          ctx.strokeStyle = "rgba(255,176,64,.9)"; ctx.lineWidth = 2;
+          line(ctx, px, cy - cl * rad / 2, px, cy + cl * rad / 2);
+          dot(ctx, px, cy - cl * rad / 2, "#ffb040", 3);
+          dot(ctx, px, cy + cl * rad / 2, "#ffb040", 3);
+          txt(ctx, "吸管（宽度固定）", px + 10, cy - cl * rad / 2 - 6, "rgba(255,176,64,.9)");
+          txt(ctx, "弦长 = " + cl.toFixed(2) + "R", cx, cy + rad + 18, "#a8d8f0", "center");
+
+          // 右：弦长曲线 chord(ρ) = 2√(1−ρ²)
+          var gx = cx + rad + 58, gw = w - gx - m.r - 8;
+          function X(x) { return gx + gw * x; }
+          function Y(v) { return m.t + 4 + (h - m.t - m.b - 8) * (1 - clamp(v / 2, 0, 1)); }
+          ctx.strokeStyle = "rgba(90,140,190,.18)"; ctx.lineWidth = 1;
+          for (var g = 0; g <= 4; g++) {
+            line(ctx, X(g / 4), Y(0), X(g / 4), Y(2));
+            txt(ctx, (g / 4).toFixed(2) + "R", X(g / 4), Y(0) + 16, "#57739a", "center");
+          }
+          line(ctx, X(0), Y(2), X(1), Y(2));
+          txt(ctx, "弦长 2√(R²−ρ²)", X(0.3), Y(1.86) - 8, "#7fe0c0");
+          ctx.strokeStyle = "#7fe0c0"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (var i = 0; i <= 80; i++) {
+            var x = i / 80;
+            if (i) ctx.lineTo(X(x), Y(chord(x))); else ctx.moveTo(X(x), Y(chord(x)));
+          }
+          ctx.stroke();
+          ctx.save(); ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = "rgba(255,176,64,.6)";
+          line(ctx, X(rho), Y(chord(rho)), X(rho), Y(0));
+          line(ctx, X(0), Y(chord(rho)), X(rho), Y(chord(rho)));
+          ctx.restore();
+          dot(ctx, X(rho), Y(chord(rho)), "#ffffff", 4.5);
+          txt(ctx, "ρ₀ = " + rho.toFixed(2) + "R → 弦长 " + cl.toFixed(2) + "R",
+            w - m.r, m.t + 16, "#dff2ff", "right");
+          txt(ctx, "压扁后：柱里的粒子全部叠到同一条线 → 越靠中心越挤",
+            w - m.r, m.t + 34, "#8fb4d8", "right");
+          txt(ctx, "ρ₀ / R（离轴距离）", gx + gw / 2, Y(0) + 34, "#57739a", "center");
+        }
+        dragX(cv, function (px2) {
+          var w = cv.clientWidth;
+          var gx = 16 + (h / 2 - 18) + 26 + 58;  // 与 render 中 gx 对应（近似）
+          var rad = (cv.clientHeight - 42) / 2 - 4;
+          var gx2 = 16 + rad + 26 + 58;
+          rho = clamp((px2 - gx2) / (w - gx2 - 24), 0, 1);
+          render();
+        });
+        reg(render);
+      })();
 
       // ================= 01 mix =================
       (function () {

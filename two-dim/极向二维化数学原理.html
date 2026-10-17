@@ -62,6 +62,29 @@
       font-size: 12.5px;
       padding: 8px 14px; margin: 10px 0;
     }
+    .digest {
+      border-left: 3px solid #7fe0c0;
+      background: rgba(30, 80, 60, 0.25);
+      padding: 8px 14px; margin: 12px 0 2px;
+      font-size: 13px; color: #bfe8d8;
+    }
+    .digest b { color: #9ff0d0; font-weight: 400; }
+    .steps { margin: 10px 0; padding: 0; list-style: none; }
+    .steps li {
+      margin: 8px 0; padding: 9px 14px;
+      border: 1px solid rgba(90, 140, 190, 0.3);
+      border-radius: 3px; background: rgba(10, 22, 40, 0.45);
+      font-size: 13px; color: #a8c8e8;
+    }
+    .steps li b { color: #cfe6ff; font-weight: 400; }
+    .steps li .no {
+      display: inline-block; min-width: 26px; text-align: center;
+      color: #7fe0c0; font-family: Consolas, monospace; margin-right: 8px;
+    }
+    .ask {
+      color: #ffd9a0; font-size: 13px; margin: 10px 0 4px;
+    }
+    .ask::before { content: "？ "; color: #ffb040; font-weight: bold; }
     canvas {
       display: block; width: 100%;
       background: rgba(3, 6, 14, 0.6);
@@ -101,7 +124,7 @@
 <body>
   <header>
     <h1>极向二维化 · 数学原理</h1>
-    <div class="sub">同心展开（Cathedral-Shrink / 极向序贯投影）—— 与「平铺投影」并列的第二种降维方案 · 交互演示</div>
+    <div class="sub">像挤奶油一样把一层层物质摊成同心环 —— 先玩动画，再看每一步的为什么</div>
     <div class="links">
       <a href="index.html">← 返回二维化模拟</a>
       <a href="二维化数学原理.html">平铺投影方案 · 数学原理（对照）</a>
@@ -109,12 +132,39 @@
   </header>
 
   <main>
-    <!-- ============ 00 核心思想 ============ -->
+    <!-- ============ 00 先看结果 ============ -->
     <section class="card">
-      <h2><span class="no">00</span>核心思想 —— 序贯降维与空间挤占（为什么细节不丢失）</h2>
-      <p>两种方案回答的是同一个问题：<b>如何把三维体积无重叠、无遗漏地重排进二维平面</b>。
-      平铺投影（另一页面）用「面积指数膨胀」换取投影密度均衡；本方案（极向同心展开）则
-      <b>彻底放弃投影，改用「降维次序」来编码空间</b>——它来自对原著降维过程的如下直觉：</p>
+      <h2><span class="no">00</span>先看结果 —— 一分钟看懂全局</h2>
+      <p>极向展开的画面像<b>在蛋糕上挤奶油</b>：裱花袋不停地在蛋糕中心挤出新一层，
+      新奶油把先挤上去的<b>往外推</b>，于是一圈圈同心环从中心生长出来——
+      <b>最早挤出的奶油永远在最外圈</b>。二维化做的正是这件事，只是「奶油」换成了地球的一层层物质：</p>
+      <ul class="steps">
+        <li><span class="no">①</span><b>接触即融化</b> —— 箔面从南极升起，碰到哪层，哪层就瞬间「融化」贴到平面上</li>
+        <li><span class="no">②</span><b>落点在盘心</b> —— 新融化的材料总是落在圆盘中心</li>
+        <li><span class="no">③</span><b>挤占外推</b> —— 新材料把先前的画面向外挤一圈（奶油被往外推）</li>
+        <li><span class="no">④</span><b>白热冷却</b> —— 刚融化的材料白热发光，随后冷却恢复本色，形成年轮色环</li>
+      </ul>
+      <p>三句话记住终态：<b>最外圈 = 南极</b>（最先接触）、<b>圆心 = 北极</b>（最后接触）、
+      <b>中间最宽的环 = 地心</b>。整个地球变成一幅「由外向内读的基因年轮」。</p>
+      <div class="ctrl">
+        <button class="btn" id="simPlay">播放</button>
+        <button class="btn" id="simReset">重置</button>
+        <label>时间</label>
+        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
+        <span class="val" id="simTv"></span>
+      </div>
+      <canvas id="cvSim" style="height: 420px"></canvas>
+      <div class="digest"><b>一句话总结：</b>接触即融化 → 落在盘心 → 挤占外推 → 白热冷却。先随便玩玩下面的动画，再往下看「为什么这样细节就不丢」。</div>
+    </section>
+
+    <!-- ============ 01 核心思想 ============ -->
+    <section class="card">
+      <h2><span class="no">01</span>核心思想 —— 为什么细节不丢失</h2>
+      <p class="ask">两张饼承载同一个地球，凭什么说「挤奶油」这种挤法细节一点不丢？</p>
+      <p>关键差别在<b>「同一根视线柱上的物质去了哪」</b>：平铺投影（另一页面）把南极到北极的
+      所有层<b>叠在同一个像点上</b>——像俯拍一张照片，颜色混在一起，细节被「混合」了；
+      极向展开把这条视线柱<b>拉开成一圈环带</b>——每层物质各占一圈，互不重叠，
+      所以每一层的样子都原样保留。它来自对原著降维过程的如下直觉：</p>
       <div class="quote">「先接触二维平面的原子会先二维化，而下一层原子二维化会挤占上一层的空间，
       把上一层的画面往外推挤，这样周而复始直到降维完成，才能做到所有细节全部不丢失。
       理论上，地球如果从南极开始二维化到完成，画面的最外一圈是南极，最内一圈是北极，
@@ -126,7 +176,10 @@
       该迭代周而复始，等价于按「被箔面接触的先后次序」构造一个<b>保序单射</b>：</p>
       <div class="formula">次序  s  = planeZ − h                    ← 箔面位置减去粒子轴向坐标 h（先接触者 s 大）
 终位  r∞ = r_disk · (u_pHi − h) / span    ← 次序单调决定终态极半径（先接触 → 居外圈）
-生长  r  = r∞ · s / (u_startZ − h)        ← 每层自盘心长向终位：刚接触即从盘心生长，持续被外推（无死区）</div>
+生长  r  = r∞ · √( s / (u_startZ − h) )    ← 每层自盘心长向终位，前载生长：接触后盘径瞬间越出球体轮廓（无死区）</div>
+      <p>生长式取平方根（<b>前载生长</b>）而非线性：线性生长下幼年盘要扫过约 1/8 扫掠量才越过球体轮廓半径，
+      期间熔化物看起来像「凭空消失」；前载生长让二维像在<b>接触后的瞬间</b>就摊到可见尺寸——
+      「一接触即显影」，而终态年轮位 r∞ 与挤占次序完全不受影响。</p>
       <p>由此得到三条直接推论：</p>
       <p>
         · <b>无交叉、无重叠（细节零丢失）</b>：次序 s 与极半径 r 一一对应且单调，
@@ -140,11 +193,13 @@
       </p>
       <p>正片中按 <code>M</code> 切换到「极向展开」即可看到该方案，<code>N</code> 键可选扫描轴
       （决定哪一根轴充当「极轴」）。与「平铺投影」方案的逐条对照见 <b>04</b> 节。</p>
+      <div class="digest"><b>小结：</b>平铺投影赢在「密度均匀的照片」，极向展开赢在「层层分离的年轮」——前者混合信息，后者分离信息。下一节先看「接触」这个发令枪。</div>
     </section>
 
-    <!-- ============ 01 接触即降维 ============ -->
+    <!-- ============ 02 接触即降维 ============ -->
     <section class="card">
-      <h2><span class="no">01</span>接触即降维 —— 单面扫掠（波前就是箔面本身）</h2>
+      <h2><span class="no">02</span>接触即降维 —— 单面扫掠（波前就是箔面本身）</h2>
+      <p class="ask">降维的「发令枪」在哪？——不用额外的面，箔面自己就是。</p>
       <p>白色箔面（<code>planeZ</code>）自南极向北极匀速推进，<b>它与哪层物质接触，哪层就即时降维</b>——
       「先接触二维平面的原子先二维化」直接由接触关系实现，无需任何辅助面。
       粒子被扫过的量 <code>s = planeZ − h</code> 大于零即已降维，s 越大表示<b>被接触得越早</b>——
@@ -163,15 +218,16 @@ s = planeZ − h &gt; 0 ⟺ 粒子已降维；s ↗ 表示接触得更早（被�
       <canvas id="cvWave" style="height: 260px"></canvas>
     </section>
 
-    <!-- ============ 02 次序→半径 ============ -->
+    <!-- ============ 03 次序→半径 ============ -->
     <section class="card">
-      <h2><span class="no">02</span>次序 → 极半径 —— 年轮圆盘（外圈南极 · 圆心北极 · 中环地心）</h2>
+      <h2><span class="no">03</span>次序 → 极半径 —— 年轮圆盘（外圈南极 · 圆心北极 · 中环地心）</h2>
+      <p class="ask">每一层怎么知道自己该去哪一圈？——被接触得越早，坐得越靠外。</p>
       <p>把被扫次序直接翻译成极半径：每一层横截面（纬度带）获得一整圈环带，
       <b>环带宽度 ∝ 该层截面积</b>——赤道环最宽。左：球体侧视按纬度带着色；
       右：像平面俯视，随箔面推进自盘心向外逐环生长（挤占外推）。注意终态的三条定位：
       <b>最外圈 = 南极</b>（最先接触）、<b>圆心 = 北极</b>（最后接触）、<b>中间宽环 = 地心</b>。</p>
       <div class="formula">r∞  = r_disk · (u_pHi − h) / span            （终态年轮位：span = 物体沿极轴的总跨度）
-r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s=0 落盘心，被后层持续外推，无死区）
+r2D = r∞ · √( (planeZ − h) / (u_startZ − h) )   （自盘心长向终位，前载生长：接触即显影，被后层持续外推，无死区）
 角度 φ = 粒子绕极轴的方位角（保持不变 → 环带内成分与原截面一致）</div>
       <div class="ctrl">
         <label>箔面推进</label>
@@ -186,24 +242,7 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
         <span><i style="background:#69d06a"></i>北中纬</span>
         <span><i style="background:#4fb3ff"></i>北极冠（→ 圆心）</span>
       </div>
-    </section>
-
-    <!-- ============ 03 综合演示 ============ -->
-    <section class="card">
-      <h2><span class="no">03</span>综合演示 —— 接触、摊开（挤占动力学全流程）</h2>
-      <p>把前面所有数学装在一起：<b>左（侧视）</b>箔面自下而上推进（接触即降维），粒子被箔面接触的
-      瞬间轴向即压平贴合箔面（白热边界紧贴箔面、随箔面上行）；<b>右（俯视）</b>压平的粒子再横向「摊开」——
-      落向盘心，把已成像画面层层向外挤占，圆盘由内向外生长。两段式进度
-      <code>qFall</code>（接触即压平）与 <code>qSpread</code>（摊开，用 3 倍缓冲带）分离，
-      复现正片「接触即二维化、随即摊开」的动效节奏。</p>
-      <div class="ctrl">
-        <button class="btn" id="simPlay">播放</button>
-        <button class="btn" id="simReset">重置</button>
-        <label>时间</label>
-        <input type="range" id="simT" min="0" max="1" step="0.005" value="0" />
-        <span class="val" id="simTv"></span>
-      </div>
-      <canvas id="cvSim" style="height: 420px"></canvas>
+      <div class="digest"><b>小结：</b>不需要任何「调度算法」——接触次序天然就是座位表。先到的坐外圈、后到的坐里圈，赤道的物质多就自然分到最宽的环，总量与密度自动守恒。</div>
     </section>
 
     <!-- ============ 04 平铺投影原理与对照 ============ -->
@@ -222,8 +261,7 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
       <p>平铺投影中，<b>同一方向上的所有层（南极到北极）被沿轴向压叠到同一个像点上</b>——
       信息没有丢，但被「混合」了：盘上每一点的颜色是整条视线柱内物质的叠加。
       而极向展开把这条视线柱<b>拉开成一段环带</b>：层与层沿半径排列、互不重叠。
-      拖动滑块对比同一批粒子的两种终态（两盘按各自比例尺显示，均远大于原投影）：</p>
-      <div class="ctrl">
+      拖动滑块对比同一批粒子的两种终态（两盘按各自比例尺显示，均远大于原投影）：</p>      <div class="ctrl">
         <label>降维进度 q</label>
         <input type="range" id="cmpQ" min="0" max="1" step="0.005" value="1" />
         <span class="val" id="cmpQv"></span>
@@ -260,6 +298,7 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
             <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">密度均衡 + 面积膨胀（信息叠加）</td>
             <td style="border:1px solid rgba(90,140,190,.25); padding:6px 10px">单射同胚（信息分离，零丢失）</td></tr>
       </table>
+      <div class="digest"><b>小结：</b>两种方案没有对错——想要一张「密度均匀的全景照片」用平铺投影；想要一幅「层层分离、由外向内可读的基因年轮」用极向展开。正片中按 <code>M</code> 随时切换对照。</div>
     </section>
   </main>
 
@@ -353,7 +392,7 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
           var t = +$("wfT").value;
           $("wfTv").textContent = "t = " + t.toFixed(2);
           var hp = mix(-1.45, 1.45, t) * R;                     // 箔面（=波前）h 坐标：−1.45R → +1.45R
-          var cx = w / 2, cy = h / 2 + 6, rad = Math.min(h / 2 - 34, w / 3);
+          var cx = w / 2, cy = h / 2 + 6, rad = Math.min(h / 2 - 48, w / 3);
 
           // 已扫区域着色（h < planeZ）
           for (var i = 0; i < N; i++) {
@@ -377,8 +416,8 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
 
           // 南/北标注
           txt(ctx, "北 N（h = +R，最后接触 → 圆心）", cx, cy - rad - 12, "#4fb3ff", "center");
-          txt(ctx, "南 S（h = −R，最先接触 → 最外圈）", cx, cy + rad + 20, "#ff5f56", "center");
-          txt(ctx, "已接触区域（s > 0，半透明）· 接触缓冲带（全亮，白热边界所在）", cx, h - 10, "#a8d8f0", "center");
+          txt(ctx, "南 S（h = −R，最先接触 → 最外圈）", cx, cy + rad + 16, "#ff5f56", "center");
+          txt(ctx, "已接触区域（s > 0，半透明）· 接触缓冲带（全亮，白热边界所在）", cx, h - 6, "#a8d8f0", "center");
         }
         $("wfT").addEventListener("input", render);
         reg(render);
@@ -421,14 +460,14 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
             p = i;
             var s2 = hp - ph[p];
             if (s2 <= 0) continue;
-            // 挤占动力学：新层落盘心，把已成像画面沿径向持续外推（无死区）
+            // 挤占动力学：新层落盘心，把已成像画面沿径向持续外推（无死区 + 前载生长）
             var relF = Math.min(Math.max(1 - ph[p], 0), 2);
             var swF = Math.max(1.45 - ph[p], 1e-4);
-            var r2 = DISK_R * (relF * Math.min(s2 / swF, 1)) / 2;
+            var r2 = DISK_R * (relF * Math.sqrt(Math.min(s2 / swF, 1))) / 2;
             // 同层内按截面半径微调，让环带有厚度质感
             var rr = r2 + (Math.sqrt(px[p] * px[p] + py[p] * py[p]) - 0.62) * 0.10 * (r2 > 0.05 ? 1 : 0);
             rr = Math.max(rr, 0.004);
-            var qS = ss(0, BAND * 3, s2);            // 摊开进度：粒子从落点滑向极坐标位
+            var qS = ss(0, BAND * 0.75, s2);            // 摊开进度：粒子从落点滑向极坐标位
             var lx = mix(px[p], Math.cos(pphi[p]) * rr, qS);
             var ly = mix(py[p], Math.sin(pphi[p]) * rr, qS);
             ctx.fillStyle = mixRGB(BAND_RGB[pband[p]], [220, 230, 240], 0.2);
@@ -458,8 +497,8 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
           ctx.clearRect(0, 0, w, h);
           $("simTv").textContent = t.toFixed(2);
           var hp = mix(-1.45, 1.45, t) * R;
-          // 盘外缘 = 最先接触层（南极）的当前半径：自盘心持续长到 DISK_R
-          var diskNow = DISK_R * Math.min(Math.max(hp + 1, 0.001) / 2.45, 1);
+          // 盘外缘 = 最先接触层（南极）的当前半径：自盘心持续长到 DISK_R（前载生长 √）
+          var diskNow = DISK_R * Math.sqrt(Math.min(Math.max(hp + 1, 0.001) / 2.45, 1));
 
           var s = Math.min((w - 100) / 2, h - 76);
           var Lx = 40, Ly = 36, Rx = Lx + s + 36, Ry = 36;
@@ -473,7 +512,7 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
             var h0 = ph[i];
             var swept = hp - h0;
             var qF = swept > 0 ? 1 : 0;               // 接触即压平（轴向瞬时贴合箔面）
-            var qS = ss(0, BAND * 3, swept);          // 摊开（更慢）
+            var qS = ss(0, BAND * 0.75, swept);          // 摊开（短缓冲带，紧随接触）
             var vs = swept / BAND;
             var heat = vs > 0 ? Math.exp(-vs * vs * COOL) : 0;
             var r2 = DISK_R * ((Math.min(Math.max(1 - h0, 0), 2)) * Math.min(swept / Math.max(1.45 - h0, 1e-4), 1)) / 2;
@@ -578,9 +617,9 @@ r2D = r∞ · (planeZ − h) / (u_startZ − h)     （自盘心长向终位：s
             var swept = hp - ph[i];
             if (swept > 0) {
               var relF4 = Math.min(Math.max(1 - ph[i], 0), 2);
-              var rP = DISK_R * (relF4 * Math.min(swept / Math.max(1.45 - ph[i], 1e-4), 1)) / 2;
+              var rP = DISK_R * (relF4 * Math.sqrt(Math.min(swept / Math.max(1.45 - ph[i], 1e-4), 1))) / 2;
               var rr = Math.max(rP + (rho0 - 0.62) * 0.10 * (rP > 0.05 ? 1 : 0), 0.004);
-              var qS = ss(0, BAND * 3, swept);
+              var qS = ss(0, BAND * 0.75, swept);
               var pxr = mix(x0, Math.cos(pphi[i]) * rr, qS);
               var pyr = mix(y0, Math.sin(pphi[i]) * rr, qS);
               ctx.fillStyle = mixRGB(BAND_RGB[pband[i]], [220, 230, 240], 0.2);
